@@ -30,3 +30,11 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# My custom adds
+public/
+*.sh
+resources/
+
+# webpack
+node_modules/

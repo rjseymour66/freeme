@@ -1,0 +1,3 @@
+layouts/**/*.html
+themes/**/layouts/**/*.html
+hugo.toml

@@ -1,0 +1,42 @@
+baseURL = 'https://example.org/'
+languageCode = 'en-us'
+title = 'My New Hugo Site'
+theme = 'freeme'
+
+
+[menus]
+[[menus.main]]
+  name = 'Hugo'
+  pageRef = '/'
+  weight = 10
+
+[[menus.main]]
+  name = 'System admin'
+  pageRef = '/posts'
+  weight = 20
+
+[[menus.main]]
+  name = 'Web Development'
+  pageRef = '/tags'
+  weight = 30
+
+[[menus.main]]
+  name = 'CSS'
+  pageRef = '/tags'
+  weight = 40
+
+[[menus.main]]
+  name = 'Javascript'
+  pageRef = '/tags'
+  weight = 50
+
+[[menus.main]]
+  name = 'Go'
+  pageRef = '/tags'
+  weight = 60
+
+
+[module]
+[module.hugoVersion]
+  extended = false
+  min = '0.146.0'
