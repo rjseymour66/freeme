@@ -1,11 +1,13 @@
 $main-content-width: 500px;
 $flex-gap: 2rem;
 $main-max-width: 75ch;
+$top-margin: 1rem;
 
 // props to steal
 // $min-height: calc(100vh- $navigation-header-height)
 
 .page-container {
+  margin-block-start: $top-margin;
   display: grid;
   grid-template-columns: 200px 1fr;
 }
@@ -21,4 +23,24 @@ $main-max-width: 75ch;
   width: 100%;
   max-width: $main-max-width;
   margin: 0 auto;
+}
+
+// .section-toc-container {
+//   position: relative;
+// }
+
+@mixin sidebar {
+  position: sticky;
+  top: $top-margin;
+  max-height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.section-toc {
+  @include sidebar();
+}
+
+.page-headings {
+  @include sidebar();
 }
