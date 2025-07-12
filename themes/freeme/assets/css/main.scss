@@ -1,14 +1,19 @@
+@import "variables";
+
 @import "reset";
 @import "layout";
 @import "menu";
 @import "header";
+@import "page-toc";
+@import "section-toc";
 @import "footer";
 
 body {
   color: #222;
   font-family: sans-serif;
   line-height: 1.5;
-  margin: 1rem;
+
+  background-color: lightseagreen;
 }
 
 a {

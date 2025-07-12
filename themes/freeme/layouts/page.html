@@ -1,52 +1,27 @@
 {{ define "main" }}
 
   <div class="page-container">
-    <div class="section-toc-container">
-      <nav class="section-toc" aria-labelledby="section-toc">
+      <nav class="sidebar section-toc" aria-labelledby="section-toc">
+
+        
         <ul>
-          <li><a href="#">Section 1</a></li>
-          <li><a href="#">Section 2</a></li>
-          <li><a href="#">Section 3</a></li>
-          <li><a href="#">Section 4</a></li>
-          <li><a href="#">Section 5</a></li>
-          <li><a href="#">Section 6</a></li>
-          <li><a href="#">Section 7</a></li>
-          <li><a href="#">Section 8</a></li>
-          <li><a href="#">Section 9</a></li>
-          <li><a href="#">Section 10</a></li>
-          <li><a href="#">Section 11</a></li>
-          <li><a href="#">Section 12</a></li>
-          <li><a href="#">Section 13</a></li>
-          <li><a href="#">Section 14</a></li>
-          <li><a href="#">Section 15</a></li>
-          <li><a href="#">Section 16</a></li>
-          <li><a href="#">Section 17</a></li>
-          <li><a href="#">Section 18</a></li>
-          <li><a href="#">Section 19</a></li>
-          <li><a href="#">Section 20</a></li>
-          <li><a href="#">Section 21</a></li>
-          <li><a href="#">Section 22</a></li>
-          <li><a href="#">Section 23</a></li>
-          <li><a href="#">Section 24</a></li>
-          <li><a href="#">Section 25</a></li>
-          <li><a href="#">Section 26</a></li>
-          <li><a href="#">Section 27</a></li>
-          <li><a href="#">Section 28</a></li>
-          <li><a href="#">Section 29</a></li>
-          <li><a href="#">Section 30</a></li>
-          <li><a href="#">Section 31</a></li>
-          <li><a href="#">Section 32</a></li>
-          <li><a href="#">Section 33</a></li>
-          <li><a href="#">Section 34</a></li>
-          <li><a href="#">Section 35</a></li>
-          <li><a href="#">Section 36</a></li>
-          <li><a href="#">Section 37</a></li>
-          <li><a href="#">Section 38</a></li>
-          <li><a href="#">Section 39</a></li>
-          <li><a href="#">Section 40</a></li>
+        {{ if .IsSection }}
+          {{ range .Pages.ByWeight }}
+            {{ if .IsPage }}
+              <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
+            {{ else if .IsSection }}
+              <li>
+                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+                <ul>
+                  {{ partial "recursive-folder-tree.html" . }}
+                </ul>
+              </li>
+            {{ end }}
+          {{ end }}
+        {{ end }}
         </ul>
+        
       </nav>
-    </div>
     <main class="main-container">
       <article class="main-content">
         <h1>{{ .Title }}</h1>
@@ -57,49 +32,22 @@
         {{ .Content }}
         {{ partial "terms.html" (dict "taxonomy" "tags" "page" .) }}
       </article>
-      <nav class="page-headings" aria-labelledby="page-headings">
-        <ul>
-          <li><a href="#">Heading 1</a></li>
-          <li><a href="#">Heading 2</a></li>
-          <li><a href="#">Heading 3</a></li>
-          <li><a href="#">Heading 4</a></li>
-          <li><a href="#">Heading 5</a></li>
-          <li><a href="#">Heading 6</a></li>
-          <li><a href="#">Heading 7</a></li>
-          <li><a href="#">Heading 8</a></li>
-          <li><a href="#">Heading 9</a></li>
-          <li><a href="#">Heading 10</a></li>
-          <li><a href="#">Heading 11</a></li>
-          <li><a href="#">Heading 12</a></li>
-          <li><a href="#">Heading 13</a></li>
-          <li><a href="#">Heading 14</a></li>
-          <li><a href="#">Heading 15</a></li>
-          <li><a href="#">Heading 16</a></li>
-          <li><a href="#">Heading 17</a></li>
-          <li><a href="#">Heading 18</a></li>
-          <li><a href="#">Heading 19</a></li>
-          <li><a href="#">Heading 20</a></li>
-          <li><a href="#">Heading 21</a></li>
-          <li><a href="#">Heading 22</a></li>
-          <li><a href="#">Heading 23</a></li>
-          <li><a href="#">Heading 24</a></li>
-          <li><a href="#">Heading 25</a></li>
-          <li><a href="#">Heading 26</a></li>
-          <li><a href="#">Heading 27</a></li>
-          <li><a href="#">Heading 28</a></li>
-          <li><a href="#">Heading 29</a></li>
-          <li><a href="#">Heading 30</a></li>
-          <li><a href="#">Heading 31</a></li>
-          <li><a href="#">Heading 32</a></li>
-          <li><a href="#">Heading 33</a></li>
-          <li><a href="#">Heading 34</a></li>
-          <li><a href="#">Heading 35</a></li>
-          <li><a href="#">Heading 36</a></li>
-          <li><a href="#">Heading 37</a></li>
-          <li><a href="#">Heading 38</a></li>
-          <li><a href="#">Heading 39</a></li>
-          <li><a href="#">Heading 40</a></li>
-        </ul>
+        <!-- {{ $toc := .TableOfContents }}
+        {{ $toc = replaceRE `<ul>` `<ul class="page-toc">` $toc }}
+        {{ $toc = replaceRE `<li>` `<li class="page-heading">` $toc }} -->
+
+        {{ $toc := .TableOfContents }}
+        {{ $ulOnly := replaceRE `(?s).*?(<ul>.*</ul>).*` `$1` $toc }} <!-- grab only contents in TOC nav item -->
+        {{ $ulStyled := $ulOnly | 
+        replaceRE `<ul>` `<ul class="page-toc">` | 
+        replaceRE `<li>` `<li class="page-heading">` }}
+
+        
+
+      <nav class="page-toc sidebar" aria-labelledby="page-toc">
+          <!-- <h2 id="toc-title" class="visually-hidden">Table of contents</h2> -->
+          <!-- {{ $toc | safeHTML }} -->
+          {{ $ulStyled | safeHTML }}
       </nav>
     </main>
   </div>
