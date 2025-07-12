@@ -1,14 +1,22 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
-title = 'My New Hugo Site'
+title = 'Freeme'
 theme = 'freeme'
 
 
 [menus]
 [[menus.main]]
   name = 'Hugo'
-  pageRef = '/'
+  pageRef = '/hugo'
   weight = 10
+  identifier = 'hugo'
+
+  [[menus.main]]
+    name = 'Pragmatic'
+    pageRef = '/hugo/pragmatic'
+    weight = 10
+    parent = 'hugo'
+
 
 [[menus.main]]
   name = 'System admin'
@@ -17,7 +25,7 @@ theme = 'freeme'
 
 [[menus.main]]
   name = 'Web Development'
-  pageRef = '/tags'
+  pageRef = '/webdev'
   weight = 30
 
 [[menus.main]]
