@@ -1,0 +1,24 @@
+$main-content-width: 500px;
+$flex-gap: 2rem;
+$main-max-width: 75ch;
+
+// props to steal
+// $min-height: calc(100vh- $navigation-header-height)
+
+.page-container {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+}
+
+.main-container {
+  max-width: 100%;
+  display: flex;
+  gap: $flex-gap;
+  justify-content: space-between;
+}
+
+.main-content {
+  width: 100%;
+  max-width: $main-max-width;
+  margin: 0 auto;
+}

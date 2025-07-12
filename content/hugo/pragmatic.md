@@ -2,6 +2,7 @@
 title = 'Pragmatic'
 date = '2025-07-12T09:59:22-04:00'
 draft = false
+summary = 'This is the page summary lorem ipsum'
 +++
 
 
