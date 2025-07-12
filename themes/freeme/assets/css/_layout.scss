@@ -25,10 +25,6 @@ $top-margin: 1rem;
   margin: 0 auto;
 }
 
-// .section-toc-container {
-//   position: relative;
-// }
-
 @mixin sidebar {
   position: sticky;
   top: $top-margin;
