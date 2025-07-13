@@ -20,7 +20,7 @@ theme = 'freeme'
 
 [[menus.main]]
   name = 'System admin'
-  pageRef = '/posts'
+  pageRef = '/sysadmin'
   weight = 20
 
 [[menus.main]]
