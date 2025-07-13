@@ -21,6 +21,10 @@
   margin: 0 auto;
 }
 
+.page-toc {
+  min-width: 400px;
+}
+
 @mixin sidebar {
   position: sticky;
   top: $top-margin;

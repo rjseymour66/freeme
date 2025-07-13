@@ -1,8 +1,20 @@
 {{ define "main" }}
-  <h1>{{ .Title }}</h1>
-  {{ .Content }}
-  {{ range .Pages }}
-    <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
-    {{ .Summary }}
-  {{ end }}
+  <div class="page-container">
+      <nav class="sidebar section-toc" aria-labelledby="section-toc">
+        
+        {{ partial "toc-recursive.html" .CurrentSection }}
+        
+      </nav>
+    <main class="main-container">
+      <article class="main-content">
+        <h1>{{ .Title }}</h1>
+        {{ .Content }}
+        {{ range .Pages }}
+          <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+          <!-- {{ .Summary }} -->
+        {{ end }}
+      </article>
+    </main>
+  </div>
+
 {{ end }}

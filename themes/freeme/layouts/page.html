@@ -2,24 +2,8 @@
 
   <div class="page-container">
       <nav class="sidebar section-toc" aria-labelledby="section-toc">
-
         
-        <ul>
-        {{ if .IsSection }}
-          {{ range .Pages.ByWeight }}
-            {{ if .IsPage }}
-              <li><a href="{{ .RelPermalink }}">{{ .Title }}</a></li>
-            {{ else if .IsSection }}
-              <li>
-                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
-                <ul>
-                  {{ partial "recursive-folder-tree.html" . }}
-                </ul>
-              </li>
-            {{ end }}
-          {{ end }}
-        {{ end }}
-        </ul>
+        {{ partial "toc-recursive.html" .CurrentSection }}
         
       </nav>
     <main class="main-container">
@@ -28,13 +12,10 @@
         {{ $dateMachine := .Date | time.Format "2006-01-02T15:04:05-07:00" }}
         {{ $dateHuman := .Date | time.Format ":date_long" }}
         <time datetime="{{ $dateMachine }}">{{ $dateHuman }}</time>
-        <h3>{{ .Summary }}</h3>
+        <!-- <h3>{{ .Summary }}</h3> -->
         {{ .Content }}
         {{ partial "terms.html" (dict "taxonomy" "tags" "page" .) }}
       </article>
-        <!-- {{ $toc := .TableOfContents }}
-        {{ $toc = replaceRE `<ul>` `<ul class="page-toc">` $toc }}
-        {{ $toc = replaceRE `<li>` `<li class="page-heading">` $toc }} -->
 
         {{ $toc := .TableOfContents }}
         {{ $ulOnly := replaceRE `(?s).*?(<ul>.*</ul>).*` `$1` $toc }} <!-- grab only contents in TOC nav item -->
