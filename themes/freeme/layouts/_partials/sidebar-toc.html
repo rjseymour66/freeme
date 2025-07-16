@@ -1,12 +1,14 @@
 {{ $toc := .TableOfContents }}
 {{ $ulOnly := replaceRE `(?s).*?(<ul>.*</ul>).*` `$1` $toc }} <!-- grab only contents in TOC nav item -->
-{{ $ulStyled := $ulOnly | 
+
+
+<!-- {{ $ulStyled := $ulOnly | 
     replaceRE `<ul>` `<ul class="page-toc">` | 
     replaceRE `<li>` `<li class="page-heading">`
-}}
+}} -->
 
 <div class="sidebar__inner sticky">
     <nav class="sidebar__toc">
-        {{ $ulStyled | safeHTML }}
+        {{ $ulOnly | safeHTML }}
     </nav>
 </div>

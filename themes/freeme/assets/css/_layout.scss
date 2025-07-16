@@ -1,12 +1,4 @@
-// props to steal
-
-.page-container {
-  background-color: yellow;
-  display: grid;
-  grid-template-columns: 1fr 5fr;
-}
-
-.main-container {
+main {
   background-color: lightcoral;
 }
 
@@ -14,10 +6,12 @@
   background-color: lightblue;
 }
 
-.page-toc {
-  background-color: lightgoldenrodyellow;
-  padding-inline: $side-padding;
-  list-style-type: none;
+.sidebar__nav {
+  background-color: lightcoral;
+}
+
+.sidebar__toc {
+  background-color: lightcyan;
 }
 
 @mixin sticky-nav {
