@@ -1,35 +1,19 @@
 {{ define "main" }}
 
   <div class="page-container">
-      <nav class="sidebar section-toc" aria-labelledby="section-toc">
-        
-        {{ partial "toc-recursive.html" .CurrentSection }}
-        
-      </nav>
+    
+    <aside class="sidebar">
+      {{- partial "section-toc" . -}}
+    </aside>
+    
     <main class="main-container">
-      <article class="main-content">
-        <h1>{{ .Title }}</h1>
-        {{ $dateMachine := .Date | time.Format "2006-01-02T15:04:05-07:00" }}
-        {{ $dateHuman := .Date | time.Format ":date_long" }}
-        <time datetime="{{ $dateMachine }}">{{ $dateHuman }}</time>
-        <!-- <h3>{{ .Summary }}</h3> -->
-        {{ .Content }}
-        {{ partial "terms.html" (dict "taxonomy" "tags" "page" .) }}
-      </article>
-
-        {{ $toc := .TableOfContents }}
-        {{ $ulOnly := replaceRE `(?s).*?(<ul>.*</ul>).*` `$1` $toc }} <!-- grab only contents in TOC nav item -->
-        {{ $ulStyled := $ulOnly | 
-        replaceRE `<ul>` `<ul class="page-toc">` | 
-        replaceRE `<li>` `<li class="page-heading">` }}
-
-        
-
-      <nav class="page-toc sidebar" aria-labelledby="page-toc">
-          <!-- <h2 id="toc-title" class="visually-hidden">Table of contents</h2> -->
-          <!-- {{ $toc | safeHTML }} -->
-          {{ $ulStyled | safeHTML }}
-      </nav>
+      
+      {{- partial "main-content" . -}}
+      
+      <aside class="sidebar">
+        {{- partial "page-toc" . -}}
+      </aside>
+      
     </main>
   </div>
 {{ end }}

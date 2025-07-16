@@ -1,38 +1,20 @@
 // props to steal
 
 .page-container {
-  margin-block-start: $top-margin;
-  display: grid;
-  grid-template-columns: 300px 1fr;
+  background-color: yellow;
 }
 
 .main-container {
-  max-width: 100%;
-  display: flex;
-  gap: $flex-gap;
-  justify-content: space-between;
   background-color: lightcoral;
 }
 
 .main-content {
   background-color: lightblue;
-  width: 100%;
-  max-width: $main-max-width;
-  margin: 0 auto;
 }
 
-.page-toc {
-  min-width: 400px;
-}
-
-@mixin sidebar {
-  position: sticky;
-  top: $top-margin;
-  max-height: 100vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-
-.sidebar {
-  @include sidebar();
+@mixin sticky-nav {
+  // position: sticky;
+  // top: $top-margin;
+  // overflow-y: auto;
+  // scrollbar-width: thin;
 }
