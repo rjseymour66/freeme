@@ -1,5 +1,8 @@
 main {
   background-color: lightcoral;
+
+  display: grid;
+  grid-template-columns: 2fr 8fr 2fr;
 }
 
 .main-content {
@@ -14,9 +17,9 @@ main {
   background-color: lightcyan;
 }
 
-@mixin sticky-nav {
-  // position: sticky;
-  // top: $top-margin;
-  // overflow-y: auto;
-  // scrollbar-width: thin;
-}
+// @mixin sticky-nav {
+//   position: sticky;
+//   top: $top-margin;
+//   overflow-y: auto;
+//   scrollbar-width: thin;
+// }
