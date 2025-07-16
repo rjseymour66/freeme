@@ -2,6 +2,8 @@
 
 .page-container {
   background-color: yellow;
+  display: grid;
+  grid-template-columns: 1fr 5fr;
 }
 
 .main-container {
@@ -10,6 +12,12 @@
 
 .main-content {
   background-color: lightblue;
+}
+
+.page-toc {
+  background-color: lightgoldenrodyellow;
+  padding-inline: $side-padding;
+  list-style-type: none;
 }
 
 @mixin sticky-nav {
