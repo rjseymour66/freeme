@@ -19,7 +19,7 @@ hugo new posts/first-post.md
 ```
 Hugo first looks for the `posts` archetype in your site, then in the theme, and then it falls back to the `default.md` archetypes.
 
-### Create a content section
+## Create a content section
 
 The requirements for a new content section. For example, to create a new section called "Tutorials":
 1. Create a new archetype named `tutorials.md`:
@@ -40,7 +40,7 @@ The requirements for a new content section. For example, to create a new section
    touch content/tutorials/_index.md
    ```
 
-### Section layouts
+## Section layouts
 
 Each directory, or section, in your `content/` directory can have a default page that lists the content of the directory. This used to be called the `list.html` page, but it was renamed to `section.html`.
 
@@ -59,7 +59,7 @@ To loop over all the pages in the current directory, use the `range` function wi
 
 The `Pages` collection contains all the pages in the current section. `range` iterates over the collection, which lets you access `Page` properties like `Title` and `LinkTitle`. (`LinkTitle` returns the `linkTitle` frontmatter property or the page title as a fallback.) `RelPermalink` constructs a relative link from the site root (`PermaLink` returns the absolute URL, including the site root).
 
-#### Custom section layouts
+### Custom section layouts
 
 To create a custom section layout for a specific directory tree, add a directory in `layouts/` with the same name as the content directory, and then add a `section.html` file:
 
@@ -88,7 +88,7 @@ docsite
         ... 
 ```
 
-### Section page content
+## Section page content
 
 If you want to add custom content to this page, add a `{{ .Content }}` block to `section.html`, and create an `_index.md` file in the directory and add content.
 

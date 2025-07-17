@@ -1,12 +1,14 @@
 {{ define "main" }}
-    <aside class="sidebar">
+    <aside class="sidebar-nav">
       {{- partial "sidebar-nav" . -}}
     </aside>
-    <article class="main-content">
-      {{- partial "main-content" . -}}
-    </article>
-    <aside class="sidebar">
-      {{- partial "sidebar-toc" . -}}
-    </aside>
+    <div class="content-wrapper">
+      <article class="content">
+        {{- partial "main-content" . -}}
+      </article>
+      <aside class="content-sidebar">
+        {{- partial "content-toc" . -}}
+      </aside>
+    </div>
   </div>
 {{ end }}

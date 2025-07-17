@@ -1,25 +1,76 @@
+$main-top-margin: 1rem;
+$sticky-sidebar-top-margin: 2rem;
+
+body {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 100svh;
+}
+
+header,
+footer {
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+
 main {
   background-color: lightcoral;
+  flex-grow: 1;
 
-  display: grid;
-  grid-template-columns: 2fr 8fr 2fr;
+  display: flex;
+  flex-direction: row;
 }
 
-.main-content {
-  background-color: lightblue;
+.content-wrapper {
+  flex-basis: 0;
+  flex-grow: 999;
+
+  display: flex;
+
+  margin-block-start: $main-top-margin;
 }
 
-.sidebar__nav {
-  background-color: lightcoral;
+.content {
+  background-color: orange;
+
+  flex-basis: 0;
+  flex-grow: 999;
+
+  padding-block-start: 1rem;
+  padding-inline-start: 3rem;
+
+  min-inline-size: 75ch;
+}
+
+.content-sidebar {
+  flex-basis: 312px;
+  flex-grow: 1;
+}
+
+.sidebar-nav {
+  flex-basis: 320px;
+  flex-grow: 1;
+
+  margin-block-start: $main-top-margin;
+}
+
+.sidebar-nav__nav > ul {
+  list-style: none;
 }
 
 .sidebar__toc {
   background-color: lightcyan;
 }
 
-// @mixin sticky-nav {
-//   position: sticky;
-//   top: $top-margin;
-//   overflow-y: auto;
-//   scrollbar-width: thin;
-// }
+@mixin sticky-nav {
+  position: sticky;
+  top: $sticky-sidebar-top-margin;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sidebar-nav__inner,
+.content-sidebar__inner {
+  @include sticky-nav;
+}

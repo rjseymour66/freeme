@@ -1,10 +1,9 @@
 {{ define "main" }}
-  <div class="page-container">
-      <nav class="sidebar section-toc" aria-labelledby="section-toc">
-        {{ partial "toc-recursive.html" .CurrentSection }}
-      </nav>
-    <main class="main-container">
-      <article class="main-content">
+    <aside class="sidebar-nav">
+      {{- partial "sidebar-nav" . -}}
+    </aside>
+    <div class="content-wrapper">
+      <article class="content">
         <h1>{{ .Title }}</h1>
         {{ .Content }}
         {{ range .Pages }}
@@ -12,7 +11,7 @@
           <!-- {{ .Summary }} -->
         {{ end }}
       </article>
-    </main>
+    </div>
   </div>
 
 {{ end }}
