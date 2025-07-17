@@ -3,9 +3,9 @@
 {{- $combined := append $sections $pages -}}
 {{- $sortedCombined := sort $combined "Weight" -}}
 
-<ul>
+<ul class="sidebar-nav__directory">
     {{- range $sortedCombined }}
-    <li>
+    <li class="sidebar-nav__item">
         <a href="{{ .RelPermalink }}">{{ .Title }}</a>
         {{- if .IsSection }}
             {{- partial "toc-recursive.html" . }}
@@ -13,3 +13,25 @@
     </li>
     {{- end }}
 </ul>
+
+
+
+
+
+<!-- 
+{{- $sections := .Sections -}}
+{{- $pages := .RegularPages -}}
+{{- $combined := append $sections $pages -}}
+{{- $sortedCombined := sort $combined "Weight" -}}
+
+<ul class="sidebar-nav__directory">
+    {{- range $sortedCombined }}
+    <li class="sidebar-nav__item">
+        <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+        {{- if .IsSection }}
+            {{- partial "toc-recursive.html" . }}
+        {{- end }}
+    </li>
+    {{- end }}
+</ul>
+-->
