@@ -74,3 +74,11 @@ main {
 .content-sidebar__inner {
   @include sticky-nav;
 }
+
+.sidebar-nav__subdir {
+  display: none;
+}
+
+.active {
+  display: block;
+}
