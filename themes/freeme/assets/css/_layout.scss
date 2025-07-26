@@ -75,10 +75,10 @@ main {
   @include sticky-nav;
 }
 
-.sidebar-nav__subdir {
+.sidebar-nav__subdir > .sidebar-nav__item {
   display: none;
 }
 
-.active {
+.sidebar-nav__subdir > .sidebar-nav__item.active {
   display: block;
 }

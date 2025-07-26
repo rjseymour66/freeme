@@ -1,7 +1,6 @@
-
-
 {{- $page := .Page -}}
 {{- $depth := .Depth | default 0 -}}
+{{- $current := .Current -}}
 
 {{- $sections := $page.Sections }}
 {{- $pages := $page.RegularPages }}
@@ -9,12 +8,6 @@
 {{- with $sections }}{{ $combined = append $combined . }}{{ end }}
 {{- with $pages }}{{ $combined = append $combined . }}{{ end }}
 {{- $sorted := sort $combined "Weight" "Title" }}
-
-{{ $root := .CurrentSection }}
-{{- with $root.Parent -}}
-  {{- $root = $root.Parent -}}
-{{- end -}}
-
 
 
 <ul {{ if gt $depth 0 }}
@@ -28,8 +21,35 @@
         {{ $item.Title }}
       </a>
       {{- if $item.IsSection }}
-        {{- partial "toc-recursive.html" (dict "Page" $item "Depth" (add $depth 1)) }}
+        {{- partial "toc-recursive.html" (dict 
+            "Page" $item
+            "Current" $current
+            "Depth" (add $depth 1)) }}
       {{- end }}
     </li>
   {{- end }}
 </ul>
+
+
+
+
+{{/*
+
+
+{{- $current := .Page }}
+{{- $top := $current }}
+{{- with $current }}
+    {{- if .Parent }}
+        {{- $top = .Parent }}
+    {{- end }}
+{{- end }}
+
+{{- $page := .CurrentPage }}
+{{- $sorted := sort $combined "Weight" "Title" }}
+{{- $top := .TopSection }}
+{{- $depth := .Depth | default 0 -}}
+
+<h1>Top section: {{ $top.Pages }}</h1>
+<p>Current page: {{ .Page }}</p>
+
+*/}}

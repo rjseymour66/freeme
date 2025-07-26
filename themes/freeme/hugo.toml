@@ -24,3 +24,6 @@ theme = 'freeme'
   extended = false
   min = '0.146.0'
   
+
+# [security]
+#   enableInlineShortcodes = true
