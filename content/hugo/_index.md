@@ -6,4 +6,6 @@ draft = false
 
 <!-- {{< page-methods >}} -->
 
-{{< resource >}}
+<!-- {{< resource >}} -->
+
+

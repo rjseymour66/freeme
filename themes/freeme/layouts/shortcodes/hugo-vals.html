@@ -88,3 +88,21 @@
 <p></p>
 
 <!-- <pre>{{ . | jsonify (dict "indent" "  ") | safeHTML }}</pre> -->
+
+{{/*
+1. Scope it to the current section.
+2. Get all RegularPages and put them in a variable regPages.
+3. Get all Sections and put them in a variable sections  
+4. Combine regPages and sections into a slice named combined.
+5. Sort combined by weight and then by title.
+*/}}
+
+<h2>Sidebar</h2>
+
+{{ $page := .Page }}
+{{ $section := .Page.Section }}
+{{ $regPages := $page.RegularPages }}
+
+<p>Page: {{ $page }}</p>
+<p>Section: {{ $section }}</p>
+<p>Regular pages: {{ $regPages }}</p>

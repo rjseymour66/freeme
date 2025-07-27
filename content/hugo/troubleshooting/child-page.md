@@ -7,9 +7,12 @@ taxonomies = ['authors', 'genres']
 keywords = ['this', 'is', 'how', 'to', 'use', 'keywords']
 +++
 
-<!-- {{< hugo-vals >}} -->
+## General 
+{{< hugo-vals >}}
 
-<!-- {{< page-methods >}} -->
+## Page methods
+
+{{< page-methods >}}
 
 ## Resource methods
 
