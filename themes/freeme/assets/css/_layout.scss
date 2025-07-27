@@ -1,5 +1,6 @@
 $main-top-margin: 1rem;
 $sticky-sidebar-top-margin: 2rem;
+$content-padding-top: 1rem;
 
 body {
   display: flex;
@@ -31,35 +32,53 @@ main {
   margin-block-start: $main-top-margin;
 }
 
+.sidebar-inner,
+.content,
+.content-toc__inner {
+  padding-block-start: $content-padding-top;
+}
+
 .content {
   background-color: orange;
 
   flex-basis: 0;
   flex-grow: 999;
 
-  padding-block-start: 1rem;
   padding-inline-start: 3rem;
 
   min-inline-size: 75ch;
 }
 
-.content-sidebar {
+.content-toc {
   flex-basis: 312px;
   flex-grow: 1;
 }
 
-.sidebar-nav {
+.sidebar {
   flex-basis: 320px;
   flex-grow: 1;
 
   margin-block-start: $main-top-margin;
 }
 
-.sidebar-nav__nav ul {
+.sidebar-list,
+.sidebar-section {
   list-style: none;
 }
 
-.sidebar__toc {
+.content-toc__nav ul {
+  list-style: none;
+}
+
+.content-toc a {
+  display: block;
+}
+.content-toc a:hover {
+  color: red;
+}
+
+.sidebar-inner,
+.content-toc__inner {
   background-color: lightcyan;
 }
 
@@ -70,15 +89,63 @@ main {
   scrollbar-width: thin;
 }
 
-.sidebar-nav__inner,
-.content-sidebar__inner {
+.sidebar-inner,
+.content-toc__inner {
   @include sticky-nav;
 }
 
-// .sidebar-nav__subdir > .sidebar-nav__item {
-//   display: none;
-// }
+.sidebar-section {
+  display: none;
+}
 
-// .sidebar-nav__subdir > .sidebar-nav__item.active {
-//   display: block;
-// }
+.sidebar-item a {
+  // border: 1px solid blue;
+  display: block;
+}
+
+.sidebar-item .sidebar-section {
+  padding-inline-start: 1rem;
+}
+
+.sidebar-item a:hover {
+  background-color: green;
+  color: #fff;
+}
+
+.sidebar-item:has(.sidebar-section) {
+  position: relative;
+}
+
+.sidebar-item:has(.sidebar-section)::before {
+  content: "\25B8";
+  display: block;
+  position: absolute;
+  left: 90%;
+  top: -2px;
+  font-weight: bold;
+  color: inherit;
+}
+
+.sidebar-item.active::before,
+.sidebar-item:has(.sidebar-section .active)::before {
+  transform: rotate(90deg);
+  top: 0;
+}
+
+.sidebar-item.active > .sidebar-section {
+  display: block;
+}
+
+.sidebar-item:has(.sidebar-section .active) > .sidebar-section {
+  display: block;
+}
+
+.sidebar-item.active a {
+  font-weight: bold;
+}
+
+div > pre {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
