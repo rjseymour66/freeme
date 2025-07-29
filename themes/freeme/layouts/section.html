@@ -1,8 +1,8 @@
 {{ define "main" }}
-    <aside class="sidebar-nav">
+    <aside class="sidebar">
       {{- partial "sidebar-nav" . -}}
     </aside>
-    <div class="content-wrapper">
+    <div class="content-wrapper index">
       <article class="content">
         <h1>{{ .Title }}</h1>
         {{ .Content }}
@@ -11,6 +11,11 @@
           <!-- {{ .Summary }} -->
         {{ end }}
       </article>
+      <aside class="content-toc">
+        <!-- {{- partial "content-toc" . -}} -->
+      </aside>
     </div>
 
 {{ end }}
+
+

@@ -140,8 +140,12 @@ main {
   display: block;
 }
 
-.sidebar-item.active a {
+.sidebar-item.active {
   font-weight: bold;
+}
+
+.sidebar-item.active .sidebar-section {
+  font-weight: normal;
 }
 
 div > pre {
