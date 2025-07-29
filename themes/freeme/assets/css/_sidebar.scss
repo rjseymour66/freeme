@@ -11,6 +11,7 @@
 .sidebar-list,
 .sidebar-section {
   list-style: none;
+  padding-inline-start: $g-left-padding;
 }
 
 .sidebar-section {

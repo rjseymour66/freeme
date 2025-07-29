@@ -11,11 +11,11 @@ theme = 'freeme'
   weight = 10
   identifier = 'hugo'
 
-  [[menus.main]]
-    name = 'Pragmatic'
-    pageRef = '/hugo/pragmatic'
-    weight = 10
-    parent = 'hugo'
+  # [[menus.main]]
+  #   name = 'Pragmatic'
+  #   pageRef = '/hugo/pragmatic'
+  #   weight = 10
+  #   parent = 'hugo'
 
 
 [[menus.main]]
