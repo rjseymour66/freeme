@@ -1,14 +1,21 @@
 @import "variables";
 
-$gap: 1.5rem;
+$gap: 0.25rem;
 
 header {
   background-color: lightskyblue;
   padding: 1rem $g-left-padding;
 
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
+}
+
+header h1 {
+  display: inline-block;
+  padding: 0;
+  line-height: 1;
+  letter-spacing: $heading-letter-spacing;
 }
 
 .site-nav {
@@ -20,17 +27,15 @@ header {
 
 .site-nav > li > a {
   display: block;
-  padding: 0.5em 1em;
-  // background-color: #fff;
+  padding: 0 0.5em;
   text-align: center;
   color: #000;
   text-decoration: none;
 }
 
-.site-nav > li:first-child {
-  // background-color: red;
-  padding-inline-start: unset;
-}
+// .site-nav > li:first-child {
+//   padding-inline-start: unset;
+// }
 
 .site-nav > li > a:hover {
   background-color: lightgreen;

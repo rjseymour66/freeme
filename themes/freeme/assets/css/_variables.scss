@@ -4,3 +4,54 @@ $main-top-margin: 1rem;
 $sticky-sidebar-top-margin: 2rem;
 $content-padding-top: 1rem;
 $g-left-padding: 2.5rem;
+
+// Spacing and padding
+// https://utopia.fyi/space/calculator/
+$space-025: 0.25rem;
+$space-050: 0.5rem;
+$space-075: 0.75rem;
+$space-0: 1rem;
+$space-1: 1.5rem;
+$space-2: 2rem;
+$space-3: 3rem;
+$space-4: 4rem;
+$space-6: 6rem;
+$space-8: 8rem;
+$space-12: 12rem;
+$space-24: 24rem;
+$space-32: 32rem;
+$space-40: 40rem;
+$space-48: 48rem;
+
+// fluid typography
+// https://www.fluid-type-scale.com/
+// https://typescale.com/
+// https://utopia.fyi/type/calculator/
+
+/* @link https://utopia.fyi/type/calculator?c=320,18,1.333,1240,20,1.333,5,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
+
+$fs--2: unquote("clamp(0.5628rem, 0.5196rem + 0.1919vw, 0.6683rem)");
+$fs--1: unquote("clamp(0.7502rem, 0.6926rem + 0.2557vw, 0.8908rem)");
+$fs-0: unquote("clamp(1rem, 0.9233rem + 0.3409vw, 1.1875rem)");
+$fs-1: unquote("clamp(1.333rem, 1.2308rem + 0.4544vw, 1.5829rem)");
+$fs-2: unquote("clamp(1.7769rem, 1.6406rem + 0.6058vw, 2.1101rem)");
+$fs-3: unquote("clamp(2.3686rem, 2.1869rem + 0.8075vw, 2.8127rem)");
+$fs-4: unquote("clamp(3.1573rem, 2.9152rem + 1.0764vw, 3.7493rem)");
+$fs-5: unquote("clamp(4.2087rem, 3.8859rem + 1.4348vw, 4.9979rem)");
+$fs-6: unquote("clamp(5.6102rem, 5.1799rem + 1.9126vw, 6.6622rem)");
+$fs-7: unquote("clamp(7.4784rem, 6.9048rem + 2.5495vw, 8.8806rem)");
+
+$heading-letter-spacing: -0.0125em;
+
+// $font-sizes: (
+//   -2: clamp(0.5628rem, 0.5196rem + 0.1919vw, 0.6683rem),
+//   -1: clamp(0.7502rem, 0.6926rem + 0.2557vw, 0.8908rem),
+//   0: clamp(1rem, 0.9233rem + 0.3409vw, 1.1875rem),
+//   1: clamp(1.333rem, 1.2308rem + 0.4544vw, 1.5829rem),
+//   2: clamp(1.7769rem, 1.6406rem + 0.6058vw, 2.1101rem),
+//   3: clamp(2.3686rem, 2.1869rem + 0.8075vw, 2.8127rem),
+//   4: clamp(3.1573rem, 2.9152rem + 1.0764vw, 3.7493rem),
+//   5: clamp(4.2087rem, 3.8859rem + 1.4348vw, 4.9979rem),
+//   6: clamp(5.6102rem, 5.1799rem + 1.9126vw, 6.6622rem),
+//   7: clamp(7.4784rem, 6.9048rem + 2.5495vw, 8.8806rem)
+// );

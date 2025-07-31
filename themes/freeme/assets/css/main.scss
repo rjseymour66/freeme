@@ -9,12 +9,33 @@
 
 body {
   color: #222;
-  font-family: sans-serif;
-  line-height: 1.5;
+  font-family: "Poppins", sans-serif;
+  font-family: "Libre Franklin", sans-serif;
+  // line-height: 1.6;
   margin: 0;
 }
 
 a {
   color: #00e;
   text-decoration: none;
+}
+
+.content {
+  font-size: $fs-0;
+  line-height: 1.5;
+
+  h1 {
+    font-size: $fs-3;
+    letter-spacing: $heading-letter-spacing;
+  }
+
+  h1,
+  h2,
+  h3 {
+    margin-block: 1rem 0.25rem;
+  }
+
+  > * {
+    max-width: 75ch;
+  }
 }
