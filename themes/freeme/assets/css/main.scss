@@ -6,6 +6,7 @@
 @import "footer";
 @import "sidebar";
 @import "colors";
+@import "components";
 
 body {
   color: $clr-content-font;
@@ -35,10 +36,4 @@ h1,
 h2,
 h3 {
   margin-block: 1rem 0.25rem;
-}
-
-.highlight > pre {
-  // border: 3px solid red;
-  border-radius: 5px;
-  padding: 1rem;
 }

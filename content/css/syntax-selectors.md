@@ -10,7 +10,7 @@ CSS is a domain-specific, declarative programming language. _Domain-specific_ me
 
 ## Syntax
 
-Much of how to accomplish stylings with CSS depends on the context, so it is best to understand the priniciples of the language:
+CSS often depends on the context, so it is best to understand the fundamental elements of the language:
 
 declaration
 : A line of CSS that includes a property and a value. Invalid declarations are ignored.
@@ -44,18 +44,11 @@ body {
 
 You can add CSS to a file with the following methods:
 
-Inline
-: Add the CSS to the HTML tag.
-
-Embed
-: Add the CSS to the page within the `<style>` tag, which is nested in the `<head>` tag.
-
-External
-: Link a stylesheet to the HTML with the `<link>` tag.
+- Inline: Add the CSS to the HTML tag.
+- Embed: Add the CSS to the page within the `<style>` tag, which is nested in the `<head>` tag.
+- External: Link a stylesheet to the HTML with the `<link>` tag.
 
 In nearly all cases, you add CSS to a project with an external stylesheet.
-
-### External CSS
 
 _External CSS_ groups styles together in an external `.css` stylesheet. Link the stylesheet in the `<head>` tag of the website. Name the stylesheet `styles.css`:
 
@@ -70,18 +63,18 @@ The `<link>` element uses the following attributes:
 
 ## Devtools 
 
-For each element, devtools lists styles by specificity. Styles at the top override those below them, and they are crossed out. The ruleset location in the stylesheet is to the right of the style.
+For each element, devtools lists styles by specificity. Styles at the top override those below them, and overridden styles are crossed out. The ruleset location in the stylesheet is to the right of the style.
 
 ## Stylesheet origins
 
-There are 3 differnt stylesheets that _cascade_---allow stylesheets to overwrite or inherit from one another---when we apply styles to HTML:
-- User-agent stylesheet: Stylesheet internal to your web browser ([Google Chrome stylesheet](https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css)). These include:
+There are three different stylesheets that _cascade_---allow stylesheets to overwrite or inherit from one another---when we apply styles to HTML:
+- User-agent stylesheet: Web browser's internal stylesheet, such as the [Google Chrome stylesheet](https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css). These include:
     - blue, underlined links 
     - discs for lis 
     - margins
     - font size
 - Author stylesheet: Stylesheet developed and applied by a developer to HTML with a link tag.
-- User stylesheet: Custom user-provided stylesheets, which are usually created and applied to overcome accessibility issues.
+- User stylesheet: Custom user-provided stylesheets. These stylesheets are usually created and applied to overcome accessibility issues.
 
 ### Cascade
 

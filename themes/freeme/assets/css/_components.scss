@@ -1,0 +1,27 @@
+@import "variables";
+
+dl > dt {
+  font-weight: $fw-bold;
+}
+
+dl > dd + dt {
+  margin-block-start: 0.5rem;
+}
+
+code {
+  display: inline-block;
+  background-color: $clr-inline-mono-bg;
+  border-radius: $content-border-radius;
+  padding-inline: $sp-inline-mono;
+  line-height: 1.3;
+}
+
+pre code {
+  background-color: unset;
+}
+
+.highlight > pre {
+  // border: 3px solid red;
+  border-radius: 5px;
+  padding: 1rem;
+}

@@ -21,18 +21,18 @@ $space-48: 48rem;
 // https://typescale.com/
 // https://utopia.fyi/type/calculator/
 
-/* @link https://utopia.fyi/type/calculator?c=320,18,1.333,1240,20,1.333,5,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
+/* @link https://utopia.fyi/type/calculator?c=360,16,1.333,1240,18,1.333,7,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
 
-$fs--2: unquote("clamp(0.5628rem, 0.5196rem + 0.1919vw, 0.6683rem)");
-$fs--1: unquote("clamp(0.7502rem, 0.6926rem + 0.2557vw, 0.8908rem)");
-$fs-0: unquote("clamp(1rem, 0.9233rem + 0.3409vw, 1.1875rem)");
-$fs-1: unquote("clamp(1.333rem, 1.2308rem + 0.4544vw, 1.5829rem)");
-$fs-2: unquote("clamp(1.7769rem, 1.6406rem + 0.6058vw, 2.1101rem)");
-$fs-3: unquote("clamp(2.3686rem, 2.1869rem + 0.8075vw, 2.8127rem)");
-$fs-4: unquote("clamp(3.1573rem, 2.9152rem + 1.0764vw, 3.7493rem)");
-$fs-5: unquote("clamp(4.2087rem, 3.8859rem + 1.4348vw, 4.9979rem)");
-$fs-6: unquote("clamp(5.6102rem, 5.1799rem + 1.9126vw, 6.6622rem)");
-$fs-7: unquote("clamp(7.4784rem, 6.9048rem + 2.5495vw, 8.8806rem)");
+$fs--2: unquote("clamp(0.5628rem, 0.534rem + 0.1279vw, 0.6331rem)");
+$fs--1: unquote("clamp(0.7502rem, 0.7118rem + 0.1705vw, 0.844rem)");
+$fs-0: unquote("clamp(1rem, 0.9489rem + 0.2273vw, 1.125rem)");
+$fs-1: unquote("clamp(1.333rem, 1.2648rem + 0.303vw, 1.4996rem)");
+$fs-2: unquote("clamp(1.7769rem, 1.686rem + 0.4038vw, 1.999rem)");
+$fs-3: unquote("clamp(2.3686rem, 2.2475rem + 0.5383vw, 2.6647rem)");
+$fs-4: unquote("clamp(3.1573rem, 2.9959rem + 0.7176vw, 3.552rem)");
+$fs-5: unquote("clamp(4.2087rem, 3.9935rem + 0.9565vw, 4.7348rem)");
+$fs-6: unquote("clamp(5.6102rem, 5.3233rem + 1.2751vw, 6.3115rem)");
+$fs-7: unquote("clamp(7.4784rem, 7.096rem + 1.6996vw, 8.4132rem)");
 
 // font weight
 $fw-100: 100;
@@ -94,6 +94,7 @@ $main-top-margin: 1rem;
 $sticky-sidebar-top-margin: 2rem;
 $content-padding-top: 1rem;
 $g-left-padding: 2.5rem;
+$content-border-radius: 5px;
 
 // fonts
 $fw-bold: 700;
@@ -109,6 +110,16 @@ $clr-menu-inactive: $primary-400;
 $clr-content-bg: $grey-100;
 $clr-sidebar-bg: $grey-100;
 $clr-content-font: $grey-950;
+$clr-inline-mono-bg: $grey-300;
+
+$sp-inline-mono: $space-025;
+
+// content-toc
+$clr-content-toc-font: $primary-500;
+$clr-content-toc-hover: $primary-base;
+$sp-content-toc-items-top: $space-025;
+$sp-content-toc-items-padding: $space-025;
+$sp-content-toc-nested-padding: $space-1;
 
 // sidebar
 $sp-sidebar-items-top: $space-025;

@@ -59,16 +59,25 @@ main {
   list-style: none;
 }
 
+.content-toc__nav ul ul {
+  padding-inline-start: $sp-content-toc-nested-padding;
+}
+
 .content-toc a {
   display: block;
+  color: $clr-content-toc-font;
+  padding: $sp-content-toc-items-padding;
 }
 .content-toc a:hover {
-  color: red;
+  color: $clr-content-toc-hover;
+}
+
+.content-toc__nav ul > li + li {
+  margin-block-start: $sp-content-toc-items-top;
 }
 
 .content-toc__inner {
   background-color: $clr-content-bg;
-  height: 100%;
 }
 
 .content-toc__inner {
