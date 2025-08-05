@@ -30,17 +30,17 @@ theme = 'freeme'
 
 [[menus.main]]
   name = 'CSS'
-  pageRef = '/tags'
+  pageRef = '/css'
   weight = 40
 
 [[menus.main]]
   name = 'Javascript'
-  pageRef = '/tags'
+  pageRef = '/javascript'
   weight = 50
 
 [[menus.main]]
   name = 'Go'
-  pageRef = '/tags'
+  pageRef = '/go'
   weight = 60
 
 
