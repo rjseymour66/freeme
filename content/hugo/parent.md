@@ -15,6 +15,12 @@ draft = false
 
 <!-- {{< page-methods >}} -->
 
-## Resource methods
+<!-- ## Resource methods -->
 
-{{< resource >}}
+<!-- {{< resource >}} -->
+
+{{< callout "Our privacy policy has changed" "note" >}}
+Make sure you know how these changes affect you.
+{{< /callout >}}
+
+{{< colors >}}

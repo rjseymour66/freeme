@@ -3,7 +3,8 @@
 $gap: 0.25rem;
 
 header {
-  background-color: lightskyblue;
+  background-color: $bg-header;
+  color: $clr-header-font;
   padding: 1rem $g-left-padding;
 
   display: flex;
@@ -29,7 +30,7 @@ header h1 {
   display: block;
   padding: 0 0.5em;
   text-align: center;
-  color: #000;
+  color: inherit;
   text-decoration: none;
 }
 

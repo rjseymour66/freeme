@@ -6,6 +6,7 @@
 @import "header";
 @import "footer";
 @import "sidebar";
+@import "colors";
 
 body {
   color: #222;
@@ -28,14 +29,10 @@ a {
     font-size: $fs-3;
     letter-spacing: $heading-letter-spacing;
   }
+}
 
-  h1,
-  h2,
-  h3 {
-    margin-block: 1rem 0.25rem;
-  }
-
-  > * {
-    max-width: 75ch;
-  }
+h1,
+h2,
+h3 {
+  margin-block: 1rem 0.25rem;
 }
