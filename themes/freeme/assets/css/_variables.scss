@@ -95,8 +95,17 @@ $sticky-sidebar-top-margin: 2rem;
 $content-padding-top: 1rem;
 $g-left-padding: 2.5rem;
 
-$bg-header: $primary-base;
+// fonts
+$fw-bold: 700;
 
-$clr-header-font: #fff;
-$clr-content-bg: $grey-50;
+// header
+$bg-header: $primary-base;
+$clr-header-font: $primary-900;
+$clr-header-bg: $grey-100;
+$clr-menu-active: $primary-900;
+$clr-menu-inactive: $primary-400;
+
+// content
+$clr-content-bg: $grey-100;
+$clr-sidebar-bg: $grey-100;
 $clr-content-font: $grey-950;

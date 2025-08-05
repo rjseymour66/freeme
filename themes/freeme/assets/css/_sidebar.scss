@@ -70,5 +70,5 @@
 
 .sidebar-inner {
   @include sticky-nav;
-  background-color: lightcyan;
+  background-color: $clr-sidebar-bg;
 }

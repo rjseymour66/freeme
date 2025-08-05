@@ -2,14 +2,13 @@
 
 @import "reset";
 @import "layout";
-@import "menu";
 @import "header";
 @import "footer";
 @import "sidebar";
 @import "colors";
 
 body {
-  color: #222;
+  color: $clr-content-font;
   font-family: "Poppins", sans-serif;
   font-family: "Libre Franklin", sans-serif;
   // line-height: 1.6;

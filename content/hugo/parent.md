@@ -1,5 +1,5 @@
 +++
-title = 'Parent'
+title = 'Colors'
 date = '2025-07-20T12:13:19-04:00'
 weight = 4
 draft = false

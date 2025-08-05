@@ -15,7 +15,7 @@ footer {
 }
 
 main {
-  background-color: lightcoral;
+  background-color: $primary-200;
   flex-grow: 1;
 
   display: flex;
@@ -38,7 +38,7 @@ main {
 }
 
 .content {
-  background-color: orange;
+  background-color: $clr-content-bg;
 
   flex-basis: 0;
   flex-grow: 999;
@@ -65,7 +65,7 @@ main {
 }
 
 .content-toc__inner {
-  background-color: lightcyan;
+  background-color: $clr-content-bg;
 }
 
 .content-toc__inner {
