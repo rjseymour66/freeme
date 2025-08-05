@@ -26,6 +26,11 @@
 .sidebar-item a {
   // border: 1px solid blue;
   display: block;
+  padding: $sp-sidebar-items-padding;
+}
+
+:not(:first-of-type).sidebar-item a {
+  margin-block-start: $sp-sidebar-items-top;
 }
 
 .sidebar-item .sidebar-section {
@@ -33,8 +38,7 @@
 }
 
 .sidebar-item a:hover {
-  background-color: green;
-  color: #fff;
+  background-color: $clr-sidebar-bg-hover;
 }
 
 .sidebar-item:has(.sidebar-section) {
