@@ -20,9 +20,10 @@ a {
   text-decoration: none;
 }
 
-.content {
+.content__inner {
   font-size: $fs-0;
   line-height: 1.5;
+  max-width: 75ch;
 
   h1 {
     font-size: $fs-3;
@@ -34,4 +35,10 @@ h1,
 h2,
 h3 {
   margin-block: 1rem 0.25rem;
+}
+
+.highlight > pre {
+  // border: 3px solid red;
+  border-radius: 5px;
+  padding: 1rem;
 }

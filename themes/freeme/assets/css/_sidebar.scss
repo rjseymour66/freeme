@@ -8,6 +8,11 @@
   margin-block-start: $main-top-margin;
 }
 
+.sidebar-inner {
+  height: 100%;
+  margin-inline: 1rem;
+}
+
 .sidebar-list,
 .sidebar-section {
   list-style: none;
