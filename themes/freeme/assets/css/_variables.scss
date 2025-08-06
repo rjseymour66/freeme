@@ -21,18 +21,18 @@ $space-48: 48rem;
 // https://typescale.com/
 // https://utopia.fyi/type/calculator/
 
-/* @link https://utopia.fyi/type/calculator?c=360,16,1.333,1240,18,1.333,7,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
+/* @link https://utopia.fyi/type/calculator?c=360,16,1.333,1240,17,1.333,7,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
 
-$fs--2: unquote("clamp(0.5628rem, 0.534rem + 0.1279vw, 0.6331rem)");
-$fs--1: unquote("clamp(0.7502rem, 0.7118rem + 0.1705vw, 0.844rem)");
-$fs-0: unquote("clamp(1rem, 0.9489rem + 0.2273vw, 1.125rem)");
-$fs-1: unquote("clamp(1.333rem, 1.2648rem + 0.303vw, 1.4996rem)");
-$fs-2: unquote("clamp(1.7769rem, 1.686rem + 0.4038vw, 1.999rem)");
-$fs-3: unquote("clamp(2.3686rem, 2.2475rem + 0.5383vw, 2.6647rem)");
-$fs-4: unquote("clamp(3.1573rem, 2.9959rem + 0.7176vw, 3.552rem)");
-$fs-5: unquote("clamp(4.2087rem, 3.9935rem + 0.9565vw, 4.7348rem)");
-$fs-6: unquote("clamp(5.6102rem, 5.3233rem + 1.2751vw, 6.3115rem)");
-$fs-7: unquote("clamp(7.4784rem, 7.096rem + 1.6996vw, 8.4132rem)");
+$fs--2: unquote("clamp(0.5628rem, 0.5484rem + 0.064vw, 0.598rem)");
+$fs--1: unquote("clamp(0.7502rem, 0.731rem + 0.0852vw, 0.7971rem)");
+$fs-0: unquote("clamp(1rem, 0.9744rem + 0.1136vw, 1.0625rem)");
+$fs-1: unquote("clamp(1.333rem, 1.2989rem + 0.1515vw, 1.4163rem)");
+$fs-2: unquote("clamp(1.7769rem, 1.7315rem + 0.2019vw, 1.8879rem)");
+$fs-3: unquote("clamp(2.3686rem, 2.308rem + 0.2692vw, 2.5166rem)");
+$fs-4: unquote("clamp(3.1573rem, 3.0766rem + 0.3588vw, 3.3547rem)");
+$fs-5: unquote("clamp(4.2087rem, 4.1011rem + 0.4783vw, 4.4718rem)");
+$fs-6: unquote("clamp(5.6102rem, 5.4668rem + 0.6375vw, 5.9609rem)");
+$fs-7: unquote("clamp(7.4784rem, 7.2872rem + 0.8498vw, 7.9458rem)");
 
 // font weight
 $fw-100: 100;
@@ -114,6 +114,18 @@ $clr-inline-mono-bg: $grey-300;
 
 $sp-inline-mono: $space-025;
 
+$clr-ol-counter: $primary-900;
+$clr-ol-counter-bg: $primary-200;
+$fs-ol-counter: $fs-0;
+
+$clr-thead-bg: $grey-300;
+$clr-thead-font: $grey-950;
+$clr-tbody-border: $grey-base;
+$clr-tbody-stripe: $grey-50;
+
+$sp-table-margin: $space-1;
+$sp-table-padding: $space-0;
+
 // content-toc
 $clr-content-toc-font: $primary-500;
 $clr-content-toc-hover: $primary-base;
@@ -126,3 +138,9 @@ $sp-sidebar-items-top: $space-025;
 $sp-sidebar-items-padding: $space-025;
 
 $clr-sidebar-bg-hover: $primary-100;
+
+// links
+$link: $primary-base;
+$link-visited: $primary-500;
+$link-hover: $grey-50;
+$link-hover-bg: $primary-500;

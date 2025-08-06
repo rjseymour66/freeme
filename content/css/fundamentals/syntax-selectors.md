@@ -68,13 +68,13 @@ For each element, devtools lists styles by specificity. Styles at the top overri
 ## Stylesheet origins
 
 There are three different stylesheets that _cascade_---allow stylesheets to overwrite or inherit from one another---when we apply styles to HTML:
-- User-agent stylesheet: Web browser's internal stylesheet, such as the [Google Chrome stylesheet](https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css). These include:
+- **User-agent stylesheet**: Web browser's internal stylesheet, such as the [Google Chrome stylesheet](https://chromium.googlesource.com/chromium/blink/+/refs/heads/main/Source/core/css/html.css). These include:
     - blue, underlined links 
     - discs for lis 
     - margins
     - font size
-- Author stylesheet: Stylesheet developed and applied by a developer to HTML with a link tag.
-- User stylesheet: Custom user-provided stylesheets. These stylesheets are usually created and applied to overcome accessibility issues.
+- **Author stylesheet**: Stylesheet developed and applied by a developer to HTML with a link tag.
+- **User stylesheet**: Custom user-provided stylesheets. These stylesheets are usually created and applied to overcome accessibility issues.
 
 ### Cascade
 
@@ -90,8 +90,7 @@ The following list describes the order that styles cascade, in order of preceden
 ### Resolving rule conflicts
 
 Cascade determines how rule conflicts are resolved. When there is a conflict, the cascade uses the following hierarchy to resolve it:
-1. Stylesheet origin: Where the stylesheet comes from
-   - Browser applies user-agent styles, then User styles to override
+1. Stylesheet origin: Where the stylesheet comes from. The browser applies user-agent styles, then User styles to override
    1. Author stylesheet - what the CSS dev adds to the page. Also called "User styles"
    2. User stylesheet - added via browser extension, usually added to overcome a11y issues
    3. User-agent - Browser's default styles

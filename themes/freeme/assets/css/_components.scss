@@ -25,3 +25,43 @@ pre code {
   border-radius: 5px;
   padding: 1rem;
 }
+
+.content__inner ul,
+.content__inner ol {
+  padding-inline-start: $space-2;
+  margin-block: $space-075;
+
+  > li:not(:last-child) {
+    margin-block-end: $space-050;
+  }
+}
+
+.content__inner ul > li::marker {
+  color: $clr-content-font;
+}
+
+.content__inner ol {
+  list-style-type: none;
+  counter-reset: custom-counter;
+}
+
+.content__inner ol > li {
+  position: relative;
+  padding-inline-start: 1rem;
+  counter-increment: custom-counter;
+}
+
+.content__inner ol > li::before {
+  content: counter(custom-counter);
+  position: absolute;
+  left: -25px;
+  top: 2.25px;
+  color: $clr-ol-counter;
+  font-size: $fs-ol-counter;
+  background: $clr-ol-counter-bg;
+  height: 24px;
+  width: 24px;
+  line-height: $space-1;
+  border-radius: 50%;
+  text-align: center;
+}
