@@ -63,6 +63,17 @@ main {
   padding-inline-start: $sp-content-toc-nested-padding;
 }
 
+.content-toc__inner {
+  max-height: 100vh;
+  overflow-y: auto;
+  direction: rtl;
+  scrollbar-color: red;
+}
+
+.content-toc__inner > * {
+  direction: ltr;
+}
+
 .content-toc a {
   display: block;
   color: $clr-content-toc-font;

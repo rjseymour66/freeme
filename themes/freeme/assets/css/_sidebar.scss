@@ -9,7 +9,6 @@
 }
 
 .sidebar-inner {
-  // height: 100%;
   margin-inline: 1rem;
 }
 
@@ -24,9 +23,12 @@
 }
 
 .sidebar-item a {
-  // border: 1px solid blue;
   display: block;
   padding: $sp-sidebar-items-padding;
+}
+
+.sidebar-item a:visited {
+  color: $link;
 }
 
 :not(:first-of-type).sidebar-item a {

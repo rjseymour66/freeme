@@ -88,6 +88,54 @@ $grey-200: hsl(240, 14%, 92%);
 $grey-100: hsl(240, 13%, 95%);
 $grey-50: hsl(240, 17%, 98%);
 
+$ac-yellow-950: hsl(41, 89%, 14%);
+$ac-yellow-900: hsl(43, 77%, 26%);
+$ac-yellow-800: hsl(46, 86%, 29%);
+$ac-yellow-700: hsl(50, 98%, 33%);
+$ac-yellow-600: hsl(55, 100%, 41%);
+$ac-yellow-base: hsl(60, 100%, 50%);
+$ac-yellow-400: hsl(63, 100%, 53%);
+$ac-yellow-300: hsl(66, 100%, 63%);
+$ac-yellow-200: hsl(68, 100%, 76%);
+$ac-yellow-100: hsl(71, 100%, 88%);
+$ac-yellow-50: hsl(70, 100%, 95%);
+
+$ac-red-950: hsl(0, 90%, 15%);
+$ac-red-900: hsl(0, 74%, 31%);
+$ac-red-800: hsl(0, 83%, 35%);
+$ac-red-700: hsl(0, 88%, 42%);
+$ac-red-600: hsl(0, 86%, 51%);
+$ac-red-base: hsl(0, 100%, 56%);
+$ac-red-400: hsl(0, 100%, 70%);
+$ac-red-300: hsl(0, 100%, 81%);
+$ac-red-200: hsl(0, 100%, 89%);
+$ac-red-100: hsl(0, 100%, 94%);
+$ac-red-50: hsl(0, 100%, 97%);
+
+$ac-green-950: hsl(126, 100%, 10%);
+$ac-green-900: hsl(124, 77%, 20%);
+$ac-green-800: hsl(122, 86%, 23%);
+$ac-green-700: hsl(122, 97%, 27%);
+$ac-green-600: hsl(122, 100%, 35%);
+$ac-green-base: hsl(120, 100%, 49%);
+$ac-green-400: hsl(119, 96%, 55%);
+$ac-green-300: hsl(117, 100%, 66%);
+$ac-green-200: hsl(116, 100%, 79%);
+$ac-green-100: hsl(114, 100%, 89%);
+$ac-green-50: hsl(111, 100%, 95%);
+
+// $ac-yellow-950: ;
+// $ac-yellow-900: ;
+// $ac-yellow-800: ;
+// $ac-yellow-700: ;
+// $ac-yellow-600: ;
+// $ac-yellow-500: ;
+// $ac-yellow-400: ;
+// $ac-yellow-300: ;
+// $ac-yellow-200: ;
+// $ac-yellow-100: ;
+// $ac-yellow-50: ;
+
 // $min-height: calc(100vh- $navigation-header-height)
 
 $main-top-margin: 1rem;
@@ -144,3 +192,24 @@ $link: $primary-base;
 $link-visited: $primary-500;
 $link-hover: $grey-50;
 $link-hover-bg: $primary-500;
+
+// admonitions
+$note-bg: $primary-50;
+$note-heading: $primary-800;
+$note-p: $primary-base;
+$note-border: $primary-500;
+
+$warning-bg: $ac-yellow-100;
+$warning-heading: $ac-yellow-950;
+$warning-p: $ac-yellow-800;
+$warning-border: $ac-yellow-700;
+
+$error-bg: $ac-red-100;
+$error-heading: $ac-red-950;
+$error-p: $ac-red-800;
+$error-border: $ac-red-700;
+
+$tip-bg: $ac-green-100;
+$tip-heading: $ac-green-950;
+$tip-p: $ac-green-800;
+$tip-border: $ac-green-700;

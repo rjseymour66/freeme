@@ -65,3 +65,46 @@ pre code {
   border-radius: 50%;
   text-align: center;
 }
+
+@mixin admonition($bg, $heading, $para, $border) {
+  padding: 1rem;
+  margin-block: $space-1;
+  border-radius: 5px;
+  border: 1px solid $border;
+  background: $bg;
+
+  > * {
+    margin: unset;
+  }
+
+  > h3 {
+    font-size: $fs-0;
+    font-weight: $fw-600;
+    color: $heading;
+  }
+
+  > p {
+    color: $para;
+  }
+}
+
+.note {
+  @include admonition($note-bg, $note-heading, $note-p, $note-border);
+}
+
+.warning {
+  @include admonition(
+    $warning-bg,
+    $warning-heading,
+    $warning-p,
+    $warning-border
+  );
+}
+
+.error {
+  @include admonition($error-bg, $error-heading, $error-p, $error-border);
+}
+
+.tip {
+  @include admonition($tip-bg, $tip-heading, $tip-p, $tip-border);
+}

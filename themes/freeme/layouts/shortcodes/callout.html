@@ -1,7 +1,0 @@
-{{ $title := .Get 0 }}
-{{ $type := .Get 1 }}
-
-<div class="callout{{ with $type }} {{ . }}{{ end }}">
-    <h3>{{ $title }}</h3>
-    <p>{{ .Inner }}</p>
-</div>

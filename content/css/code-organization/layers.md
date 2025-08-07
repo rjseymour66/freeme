@@ -5,10 +5,11 @@ weight = 10
 draft = false
 +++
 
+{{< admonition "Layer support" note >}}
+Check which browsers support layers at https://caniuse.com. There is also a [polyfill for layers]( https://www.oddbird.net/2022/06/21/cascade-layers-polyfill/) if there is no support.
+{{< /admonition >}}
 
-> If the browser does not support layers, then all rules in that layer are supported. Check at https://caniuse.com. There is also a polyfill for layers if there is no support: https://www.oddbird.net/2022/06/21/cascade-layers-polyfill/
-
-Layers let you group and partition your styles and assign a priority order to them so that that you can control which styles take precedence. **Styles that are not in a layer take precedence over styles in a layer**.
+Layers let you group and partition your styles and assign a priority order to them so that that you can control which styles take precedence. Styles that are not in a layer take precedence over styles in a layer.
 
 This solves a problem where you might want a ruleset with lower specificity to take precedence over others. For example, if you have a style that selects all links, but you also have a button link that you want to style differently without increasing the specificity:
 
@@ -50,20 +51,22 @@ Use the `@layer` at-rule to define a layer. The layer that occurs later in the s
 
 ### Order and priority
 
-**Styles that are not in a layer take precedence over styles in a layer. If you use layers, place all styles inside a layer. Unlayered styles are good for debugging.**
+{{< admonition "Tip" tip >}}
+Styles that are not in a layer take precedence over styles in a layer. If you use layers, place all styles inside a layer. Unlayered styles are good for debugging.
+{{< /admonition >}}
 
 You should decide the priority order of layers and declare them upfront. Here, layers are declared in a single line at the top of the stylesheet in increasing order of precedence:
 
-```css
+{{< highlight css "hl_lines=1" >}}
 @layer reset, lowest, higher, highest;
 
 @layer reset {...}
 @layer lowest {...}
 @layer higher {...}
 @layer highest {...}
-```
+{{< /highlight >}}
 
-Otherwise, layers are prioritized by where they occur in the stylesheet. You can define a layer, and then add styles to that layer later in the stylesheet without changing its priority--its priority is already established by the first `@layer` clause.
+Otherwise, layers are prioritized by where they occur in the stylesheet. You can define a layer, and then add styles to that layer later in the stylesheet without changing its priority---its priority is already established by the first `@layer` clause.
 
 In this example, the `lowest` layer still has the lowest priority even though it appears twice, after another stylesheet:
 
@@ -91,7 +94,7 @@ Layer priority is reversed when you add `!important` to a layer. For example, `!
 
 ### Nesting layers
 
-Nesting one or more layers within a layer provides more granular control. For example, you can import a stylesheet and the importing stylesheet respects any layers defined in the imported stylesheet.
+Nesting one or more layers within a layer provides more granular control. When you import a stylesheet, the importing stylesheet respects any layers defined in the imported stylesheet.
 
 You can nest layers with indentation, or you can use dot notation. Dot notation is easier to reference at a later time:
 
@@ -111,7 +114,7 @@ You can nest layers with indentation, or you can use dot notation. Dot notation 
 
 The `revert-layer` keyword removes any styles applied by the author styles and restores the user-agent styles. Use this if you have a global styles layer and want to override these styles on a higher-priority layer:
 
-```css
+{{< highlight css "hl_lines=11" >}}
 @layer global, theme;
 
 @layer global {
@@ -125,7 +128,7 @@ The `revert-layer` keyword removes any styles applied by the author styles and r
         font-weight: revert-layer;
     }
 }
-```
+{{< /highlight >}}
 
 If you don't want to revert each property individually, you can use the `all` property. `all` accepts these values:
 - `initial`
@@ -136,7 +139,7 @@ If you don't want to revert each property individually, you can use the `all` pr
 
 These styles revert all layer properties on an element:
 
-```css
+{{< highlight css "hl_lines=11" >}}
 @layer global, theme;
 
 @layer global {
@@ -150,11 +153,11 @@ These styles revert all layer properties on an element:
         all: revert-layer;
     }
 }
-```
+{{< /highlight >}}
 
 ### Anonymous layers
 
-You don't have to name layers--they are still applied using stylesheet order--but you should to help reference them later and for general flexibility:
+You don't have to name layers---they are still applied using stylesheet order---but names provide a helpful reference them later and for general flexibility:
 
 ```css
 @layer {
@@ -255,9 +258,7 @@ Add these styles to all projects as a reset:
 }
 ```
 
-#### Links
-
-Links to reset examples:
+#### Reset examples
 
 - [Reboot, Resets, and Reasoning](https://css-tricks.com/reboot-resets-reasoning/): This CSS article provides some background on resets.
 - [Meyers reset](https://meyerweb.com/eric/tools/css/reset/): Most popular, undoes default user agent styles.
@@ -404,7 +405,11 @@ Defines styles that structure a page from the outside in--the high-level page la
 - sidebars
 - home page, article layouts
 
-Layer priority means that you do not have to worry about specificity with layers, so you can use IDs in layers because of the override behavior. **Only use IDs if you plan to use them once on the stylesheet. If you need to reference them elsewhere, use classes.**
+Layer priority means that you do not have to worry about specificity with layers, so you can use IDs in layers because of the override behavior.
+
+{{< admonition "When to use IDs" tip >}}
+Only use IDs if you plan to use them once on the stylesheet. If you need to reference them elsewhere, use classes.
+{{< /admonition >}}
 
 ```css
 @layer layout {
@@ -481,7 +486,7 @@ Modules are reusable units, also called components, blocks, or objects. Examples
 
 ### utilities
 
-Utility classes do a single, specific thing like center text or hide an element. These rulesets generally contain one declaration. They are quick helpers that you don't want to be overridden. You probably won't need more than a dozen of these:
+Utility classes do a single, specific thing like center text or hide an element. These rulesets generally contain one declaration. They are quick helpers that you don't want to override. You probably won't need more than a dozen of these:
 
 ```css
 @layer utilities {

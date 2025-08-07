@@ -117,25 +117,3 @@
   color: #fff;
   background-color: $primary-500;
 }
-
-.callout {
-  background-color: lightskyblue;
-  padding: 1rem;
-  border-radius: 5px;
-  border: 1px solid $primary-500;
-  background-color: $primary-100;
-
-  > * {
-    margin: unset;
-  }
-
-  > h3 {
-    font-size: $fs-0;
-    font-weight: $fw-600;
-    color: $primary-900;
-  }
-
-  > p {
-    color: $primary-500;
-  }
-}

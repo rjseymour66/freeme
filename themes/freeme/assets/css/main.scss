@@ -10,14 +10,12 @@
 
 body {
   color: $clr-content-font;
-  font-family: "Poppins", sans-serif;
   font-family: "Libre Franklin", sans-serif;
   // line-height: 1.6;
   margin: 0;
 }
 
 a {
-  color: #00e;
   text-decoration: none;
 }
 
@@ -94,5 +92,19 @@ a {
 
   tbody tr:last-of-type {
     border-bottom: 1px solid $clr-tbody-border;
+  }
+}
+
+code {
+  font-family: "Roboto Mono", monospace;
+  font-size: $fs-0;
+}
+
+.highlight {
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  > div {
+    border-radius: 5px;
   }
 }

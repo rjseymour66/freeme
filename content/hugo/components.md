@@ -19,9 +19,23 @@ draft = false
 
 <!-- {{< resource >}} -->
 
-{{< callout "Our privacy policy has changed" "note" >}}
+{{< admonition "Note" note >}}
 Make sure you know how these changes affect you.
-{{< /callout >}}
+{{< /admonition >}}
+
+{{< admonition "Warning" warning >}}
+Make sure you know how these changes affect you.
+{{< /admonition >}}
+
+{{< admonition "Error" error >}}
+Make sure you know how these changes affect you.
+{{< /admonition >}}
+
+{{< admonition "Tip" tip >}}
+Make sure you know how these changes affect you.
+{{< /admonition >}}
+
+
 
 {{< colors >}}
 
