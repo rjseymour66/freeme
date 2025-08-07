@@ -6,10 +6,9 @@ draft = false
 +++
 
 
-Modular CSS is when you encapsulate your CSS, which means you break the CSS into component parts--modules--where each part has its own styles and other modules can't interfere with the styles.
-- Define a module for each component on your page: navigation, dialog, progess bars, etc
+Modular CSS is when you encapsulate your CSS, which means you break the CSS into component parts---modules---where each part has its own styles and other modules can't interfere with the styles. You should define a module for each component on your page, such as navigation, dialog, progess bars, etc
 
-Has a single selector (class name, etc) so you can reuse it across the website. If there was a more specific selector (`#sidebar .classname`), then you can't reuse that as easily because its so specific to a portion of the page.
+Each module has a single selector (class name, etc) that you can reuse across the website. If there was a more specific selector (`#sidebar .classname`), then you can't reuse that as easily because its so specific to a portion of the page.
 
 
 ## Variations
@@ -17,9 +16,9 @@ Has a single selector (class name, etc) so you can reuse it across the website. 
 Sometimes you need a class that builds on a module. For example, you can have a `.message` class and then a `.message--error` class that is a variation on the original class. This is a _modifier_. In this section, the block is the `message` class, and the modifiers are the `--<modifer>` portion. To use the modifier, add both the block class and the modifier class to the element:
 
 ```html
-<button class="button button--large">Read More</button>
-<button class="button button--success">Save</button>
-<button class="button button--danger button--small">Cancel</button>
+<button class="button message--large">Read More</button>
+<button class="button message--success">Save</button>
+<button class="button message--danger message--small">Cancel</button>
 ```
 
 ```css
@@ -88,14 +87,12 @@ For media modules, you don't have to assign an element class to everything. In t
 
 ## BEM
 
-[Block Element Modifier](en.bem.info/methodology)
-
-Block-Element-Modifier is a CSS methodology:
+[Block Element Modifier](en.bem.info/methodology) (BEM) is a CSS methodology:
 - Block: Main element of a module that has a descriptive, unique class name such as `message`. Think of it as a namespace for the elements and their modifiers.
 - Element: Child element of the module. Described in the form `media__image`. Describes the element's purpose, such as a menu item.
 - Modifier: Class name added to the block when creating a variant, such as `message--error`. Describes the appearance, state, or behavior of a block or element.
 
-## Module composition
+### Module composition
 
 Each module should style exactly one thing. Ask yourself, "what is this module's responsibility?" If you answer with more than one responsibility, then it is multiple modules.
 
@@ -113,16 +110,17 @@ Preprocessors let you merge multiple files into a single CSS file. This means th
 
 Ask yourself what the module represents conceptually. Don't use `button--red` and `button--blue` to describe the modules in case the colors change in the future. Use what they represent instead: `button--danger` and `button--success`.
 
-
+{{< admonition "Naming BEM modules" tip >}}
 When naming items with BEM, it might help to first identify the following:
 - container element
 - descendent elements of the container. Name these using the double underscore.
   
   For example, if you have a button that is nested in a navbar that uses the class `nav`, you can identify the button as `nav__button` to ensure that the styles apply only to that button.
+{{< /admonition >}}
 
 ## CSS scope
 
-Lets you restrict styles so they apply only to a specified portion of the page. Scope is enforced by the browser and controlled by the cascade.
+`@scope` lets you restrict styles so they apply only to a specified portion of the page. Scope is enforced by the browser and controlled by the cascade.
 
 In this example, you use the `@scope` keyword to create a scope for an element with the `.media` class. All rules nested under this `@scope` declaration apply to elements that are children of the `.media` element:
 
@@ -160,7 +158,12 @@ In this example, you use the `@scope` keyword to create a scope for an element w
 
 ### Scope proximity
 
-When you nest scopes, there might be situations where both scopes target the same element. First, the browser looks at the specificity, but if these values are equal, it uses proximity. Essentially, this means that the browser applies styles for the closest scope to the element. Its a way to ensure that a module is not adversely affected by a containing module.
+When you nest scopes, there might be situations where both scopes target the same element:
+
+1. The browser looks at the specificity.
+2. If these values are equal, it uses proximity.
+
+Essentially, this means that the browser applies styles for the closest scope to the element. Its a way to ensure that a module is not adversely affected by a containing module.
 
 ### Scoping limit
 
@@ -191,7 +194,7 @@ The only naming collision issues come at the scope's name. You can distinguish s
 
 ## Pattern libraries
 
-https://storybook.js.org/ is good if you are using one of its supported JS frameworks.
+[Storybook](https://storybook.js.org/) is good if you are using one of its supported JS frameworks.
 
 When you start writing CSS with modules, you'll find that you reuse much of the CSS without having to write new styles. This means that you have an inventory of CSS styles that you can document as a pattern library.
 
