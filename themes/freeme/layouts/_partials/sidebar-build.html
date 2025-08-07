@@ -11,7 +11,7 @@
   {{- range $item := $sorted }}
   {{- $isActive := eq $item.RelPermalink $current.RelPermalink }}
   <li class="sidebar-item{{ if $isActive }} active{{ end }}">
-      <a href="{{ $item.RelPermalink }}" class="toc-link">{{ $item.Title }}</a>
+      <a href="{{ $item.RelPermalink }}" class="toc-link">{{ $item.LinkTitle }}</a>
       {{- if $item.IsSection }}
         {{ partial "sidebar-build.html" (dict
           "Root" $item

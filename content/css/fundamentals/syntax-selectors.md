@@ -170,8 +170,11 @@ These values manipulate the cascade and allow you to undo styles that you set el
 
 - `inherit`: Causes the element to inherit the value from its parent. When you want to use inheritance when a cascading value is preventing it. This is helpful when you need to control a value in one place. For example, the background color is controlled only in the parent element.
 - `initial`: Resets to the default value for the property (not the element) when there are applied styles that you want to undo. This overrides all styles from both author and user-agent stylesheets. For example, you can set `background-color` to `initial` instead of `transparent`, bc that is its default value. Other common uses:
-  - `border: initial;` (default is `none`)
-  - `width: initial;` (default is `auto`)
+  
+  ```css
+  border: initial; /* default is 'none' */
+  width: initial;  /* default is 'auto' */
+  ```
 - `unset`: When applied to an inherited property, it sets the value to `inherit` , when applied to non-inherited property, it sets it to `initial`. This overrides all styles from both author and user-agent stylesheets.
 - `revert`: Overrides your author-styles but preserves the user-agent styles.
 
@@ -229,7 +232,8 @@ Targets the HTML element by name.
 
 ### Class
 Targets the HTML element by associated `class` attributes:
-```
+
+```html
 // index.html
 <h1 class="class1 class2 class3">Heading</h1>
 
@@ -238,18 +242,19 @@ Targets the HTML element by associated `class` attributes:
 ```
 
 ### ID
+
+{{< admonition "" tip >}}
+Avoid applying styles with an ID attribute.
+{{< /admonition >}}
 Unique attribute that is generally used for Javascript. Each ID is unique to the web page.
 
-```
+```html
 // index.html
 <div id="id-name"></div>
 
 // stylesheet
 #id-name {...}
 ```
-
-> You should avoid applying styles with an ID attribute.
-
 
 ### Combinators
 
@@ -314,7 +319,7 @@ These selectors target a state or parts of an element that might not exist yet.
 
 #### Pseudo-class
 
-[Pseudo-classes](https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-classes)
+[MDN pseudo-classes](https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-classes)
 
 A _pseudo-class_ is added to a selector to target a specific state of the element. This is common for elements that the user interacts with, such as links, buttons, and forms.
 
@@ -354,7 +359,7 @@ td:nth-of-type(n + 3) {...}       /* Selects every table cell element, starting 
 
 #### Pseudo-elements
 
-[List of pseudo-elements](https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-elements#list_of_pseudo-elements)
+[MDN list of pseudo-elements](https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-elements#list_of_pseudo-elements)
 
 Allow you to style a specific part of an element. To define styles for a pseudo-element, use a double-colon (`::`) and target elements that do not normally exist or are not elements at all:
 
@@ -460,11 +465,11 @@ border: border-width border-style border-color;
 border-width: top right bottom left;
 ```
 
-> Be aware of shorthands that silently override other styles. When you omit values for shorthand values, it sets the omitted values to their `initial` value.
+{{< admonition "Silent overrides" warning >}}
+Be aware of shorthands that silently override other styles. When you omit values for shorthand values, it sets the omitted values to their `initial` value.
+{{< /admonition >}}
 
 When you add only 3 values, it applies to the top, right, then bottom, and the left value takes.
-
-> Generally better to have more padding on sides of buttons, less on top.
 
 The following properties specify horizontal left/right values, then top/bottom. This is because they represent a Cartesian grid, which uses x, y ordering:
 
@@ -472,8 +477,10 @@ The following properties specify horizontal left/right values, then top/bottom. 
 - box-shadow
 - text-shadow
 
-> Tip: Property that specifies two measurements from a corner, think “Cartesian grid.”
-> Property that specifies measurements for each side all the way around an element, think “clock.”
+{{< admonition "Shorthand tips" tip >}}
+- Property that specifies two measurements from a corner, think “Cartesian grid.”
+- Property that specifies measurements for each side all the way around an element, think “clock.”
+{{< /admonition >}}
 
 ## Vendor prefixes
 
@@ -488,9 +495,9 @@ Automate this with [autoprefixer](https://github.com/postcss/autoprefixer), and 
 
 ## Progressive enhancement
 
-This means that your stylesheet can apply styles that are not supported by some browsers. As user browsers upgrade, the features become available (future-compatible).
+This means that your stylesheet can apply styles that are not supported by some browsers. As user browsers upgrade, the features become available (future-compatible). You must always provide a fallback style for progressive enhancement styles.
 
-Use a new feature with the `@supports` feature query. This allows you to use a feature that is possibly not supported, but you must provide a supported fallback style, too.
+Use a new feature with the `@supports` feature query. This allows you to use a feature that is possibly not supported.
 
 ```css
 .coffees {
@@ -528,7 +535,8 @@ Use a new feature with the `@supports` feature query. This allows you to use a f
 Example usage:
 
 ```css
-/* Only apply rules in the feature query block if the queried declaration isn’t supported */
+/* Only apply rules in the feature query block if the queried
+declaration isn’t supported */
 @supports not(<declaration>)
 
 /* Apply rules if either queried declaration is supported */
@@ -537,7 +545,8 @@ Example usage:
 /* Apply rules only if both queried declarations are supported */
 @supports (<declaration>) and (<declaration>)
 
-/* Apply rules only if the given selector is understood by the browser (for example, @supports selector(:user-invalid)) */
+/* Apply rules only if the given selector is understood by the browser 
+(for example, @supports selector(:user-invalid)) */
 @supports selector(<selector>)
 ```
 
