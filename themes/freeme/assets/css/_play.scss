@@ -1,0 +1,11 @@
+.outer {
+  border: 4px solid blue;
+  max-width: 800px;
+}
+
+.inner {
+  height: 4rem;
+  background: red;
+  max-width: 300px;
+  margin: 0 auto;
+}

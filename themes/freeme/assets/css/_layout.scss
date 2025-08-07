@@ -45,7 +45,15 @@ main {
 
   padding-inline-start: 3rem;
 
-  min-inline-size: 75ch;
+  // min-inline-size: 75ch;
+
+  // border: 1px solid blue;
+}
+
+.content__inner {
+  max-width: 75ch;
+
+  // border: 1px solid red;
 }
 
 .content-toc {

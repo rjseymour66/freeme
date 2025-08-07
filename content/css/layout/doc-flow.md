@@ -5,6 +5,8 @@ weight = 10
 draft = false
 +++
 
+## Definitions
+
 Normal document flow
 : Default layout behavior of elements on the page - how inline and block elements behave on in the HTML document.
 
@@ -17,52 +19,53 @@ Inline elements
 Block elements
 : Appear on their own lines and fill the width of the container. Have a line break before and below them. The user-agent stylesheet sets block elements to `display: block;`.
   - Ex: `<p>`, `<div>`, and `<header>`
-  - _div_ is a generic block element that you can use as a container.
-
-
-## Height and width
-
-Contents fill the width of their container, then line wrap if thats their behavior. 
-- The width of a parent element determines the width of its children
-- The height of a parent element is determined by the heights of its children.
+  - `<div>` is a generic block element that you can use as a container.
 
 
 ## Building a layout
 
-When you are creating a layout, start with the larger elements, working 'outside in'. This lets you make sure your larger container elements are in the right place before you start working with smaller elements.
+When you are creating a layout, start with the larger elements, and work from the outside inward. This ensures that your larger container elements are in the right place before you start working with smaller elements.
 
 ### Double-container pattern
 
 Because containers are block elements and block elements expand to fill the widths of their containers, you have to restrict the size of the page's main container. You can do this with the _double-container pattern_.
 
-This pattern uses two containers to restrict the width of the content in the inner container. You apply width and margins to the inner container. The `body` is usually the outer container---you do not have to apply width to the body.
+This pattern uses an inner and outer container to restrict the width of the content in the inner container. Apply width and margin to the inner container. The `<body>` is usually the outer container---you do not have to apply width to the body.
 
-> If the container is the `body`, then apply the width and margin to the `body` element. If you do this, add any background color to the `html` element so there is no white background past your `body` margins.
+{{< admonition "<body> container" tip >}}
+If the container is the `<body>`, you can add width and margin to the `<body>` element. Make sure you add any background color to the `<html>` element so there is no white background past your `<body>` margins.
+{{< /admonition >}}
 
-Use a custom property for the width so you can apply it to other elements that use the double-container pattern:
+The following examples implement the double container pattern with two divs:
+
+```html
+<div class="outer">
+    <div class="inner">
+        <!-- content -->
+    </div>
+</div>
+```
+
+The CSS lets the outer container expand to `800px` and the inner container expand to `300px`:
 
 ```css
-.container {
-    max-width: var(--container-width);
-    margin: 0 auto;
+.outer-container {
+  --container-width: 800px;
+  max-inline-size: var(--container-width);
+}
+
+.inner-container {
+  --container-width: 300px;
+  max-inline-size: var(--container-width);
+  margin-inline: 0 auto;
 }
 ```
-- `max-width` lets the elements shrink below this size on smaller screens but will never get larger than 1080px on larger viewports.
-- `margin: 0 auto` is the easiest way to center content. It makes the left and right margins expand as much as necessary to fill the remaining width available in the outer container.
-- This does not work for the top and bottom margin.
-
-Here is the double-container using new [logical properties](#logical-properties):
-
-```css
-.container {
-    max-inline-size: var(--container-width);
-    margin-inline: auto;
-}
-```
+- `max-inline-size` (or `max-width`) controls how large the element can grow on large viewports. On smaller screens, the element can shrink below this size. So, `inner-container` cannot get larger than `300px`.
+- `margin-inline: 0 auto;` is the easiest way to center content. It makes the left and right margins expand as much as necessary to fill the remaining width available in the outer container. This does not work for the top and bottom margin.
 
 ### Double container with `min()`
 
-You can also set up the double container with the `min()` function. The `min()` function always applies the smaller of the two values to the HTML. For example:
+You can also set up the double container with the `min()` function. The `min()` function always applies the smaller of the two values. For example:
 
 ```css
 .container {
@@ -72,7 +75,7 @@ You can also set up the double container with the `min()` function. The `min()` 
   width: min(var(--max-width), 100% - var(--side-padding) * 2)
 }
 ```
-This example sets the container width to either 1110px or 100% of the screen, with 1rem of padding on either side. On a large monitor, the container displays at 1110px. When the display is smaller than 1110px, it displays the other `min()` setting, which leaves 1rem of padding on either side.
+This sets the width to either `1110px` or `100% - var(--side-padding) * 2`, which is 100% width of the parent container minus `2rem` of padding (`1rem` on either side of the `.container` element). When the container is larger than 100% of its parent plus `2rem`, it applies `1110px` to the width. When the container is smaller than `1110px`, it displays the other `min()` setting, which leaves 1rem of padding on either side.
 
 ### Multi-column layout module
 
@@ -112,7 +115,7 @@ In some cases, the contents of an element might be split across columns. To prev
 
 ## Logical properties
 
-[CSS logical properties and values](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_logical_properties_and_values)
+[CSS logical properties and values (MDN)](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_logical_properties_and_values)
 
 Logical properties are a way to write inline and block styles that are consistent when you apply it to other languages. In general:
 - Replace `left` with `inline-start` and `right` with `inline-end`
@@ -133,7 +136,7 @@ Logical properties are a way to write inline and block styles that are consisten
 | `border-bottom-left-radius`  | `border-end-start-radius`   |
 | `border-bottom-right-radius` | `border-end-end-radius`     |
 
-### New logical properties
+### margin and padding
 
 There are some logical properties that make possible settings that were not possible with the classic naming convention:
 
@@ -148,6 +151,10 @@ There are some logical properties that make possible settings that were not poss
 
 
 ## Element height
+
+Contents fill the width of their container, then line wrap if thats their behavior. 
+- The width of a parent element determines the width of its children
+- The height of a parent element is determined by the heights of its children.
 
 The height of a block-size container is determined by the height of its contents.
 
