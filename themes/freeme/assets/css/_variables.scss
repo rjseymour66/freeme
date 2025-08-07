@@ -23,9 +23,9 @@ $space-48: 48rem;
 
 /* @link https://utopia.fyi/type/calculator?c=360,16,1.333,1240,17,1.333,7,2,&s=0.75|0.5|0.25,1.5|2|3|4|6,s-l&g=s,l,xl,12 */
 
-$fs--2: unquote("clamp(0.5628rem, 0.5484rem + 0.064vw, 0.598rem)");
-$fs--1: unquote("clamp(0.7502rem, 0.731rem + 0.0852vw, 0.7971rem)");
-$fs-code: unquote("clamp(0.875rem, 0.8494rem + 0.1136vw, 0.9375rem)");
+$fs--3: unquote("clamp(0.5628rem, 0.5484rem + 0.064vw, 0.598rem)");
+$fs--2: unquote("clamp(0.7502rem, 0.731rem + 0.0852vw, 0.7971rem)");
+$fs--1: unquote("clamp(0.875rem, 0.8494rem + 0.1136vw, 0.9375rem)");
 $fs-0: unquote("clamp(1rem, 0.9744rem + 0.1136vw, 1.0625rem)");
 $fs-1: unquote("clamp(1.333rem, 1.2989rem + 0.1515vw, 1.4163rem)");
 $fs-2: unquote("clamp(1.7769rem, 1.7315rem + 0.2019vw, 1.8879rem)");
@@ -165,7 +165,7 @@ $sp-inline-mono: $space-025;
 
 $clr-ol-counter: $primary-900;
 $clr-ol-counter-bg: $primary-200;
-$fs-ol-counter: $fs-code;
+$fs-ol-counter: $fs--1;
 
 $clr-thead-bg: $grey-300;
 $clr-thead-font: $grey-950;
@@ -174,6 +174,8 @@ $clr-tbody-stripe: $grey-50;
 
 $sp-table-margin: $space-1;
 $sp-table-padding: $space-0;
+
+$fs-code: $fs--1;
 
 // content-toc
 $clr-content-toc-font: $primary-500;
