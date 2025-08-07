@@ -1,7 +1,7 @@
 +++
 title = 'Sample CSS stylesheet'
 date = '2025-08-06T11:16:34-04:00'
-weight = 40
+weight = 50
 draft = false
 +++
 

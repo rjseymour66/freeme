@@ -8,37 +8,35 @@ draft = false
 
 ## Definitions
 
-Absolute units
-: Definite - they do not change in context:
-  - Absoulte units:
-    - `px`: pixel - difficult to measure now with high-res screens. `96px` is about 1 physical inch on the screen.
-    - `mm`: millimeter
-    - `cm`: centimeter
-    - `Q`: quarter-millimeter
-    - `in`: inch 
-    - `pt`: point 
-    - `pc`: pica
-  - `12pt` is equal to `16px`
+### Absolute units
+
+Definite - they do not change in context:
+- `px`: pixel - difficult to measure now with high-res screens. `96px` is about 1 physical inch on the screen.
+- `mm`: millimeter
+- `cm`: centimeter
+- `Q`: quarter-millimeter
+- `in`: inch 
+- `pt`: point (`12pt` is equal to `16px`)
+- `pc`: pica
 
 
-Computed value
-: Absolute value that the browser computes for values declared using relative units. When an element has a value defined using a length (px, rem, em, etc), its computed value is inherited by its child elements.
+### Computed value
 
-Length
-: Formal name for a CSS element that has a unit, which is formally called a distance measurement.
+Absolute value that the browser computes for values declared using relative units. When an element has a value defined using a length (px, rem, em, etc), its computed value is inherited by its child elements.
+
+### Length
+Formal name for a CSS element that has a unit, which is formally called a distance measurement.
 
 
-Relative units
-: Different values depending on the context they are called in
-  - They are evaluated by the browser to an absolute value
-  - rems and ems are the most common
+### Relative units
 
-Responsive design
-: When styles respond differently based on the size of the browser window.
+Different values depending on the context they are called in
+- They are evaluated by the browser to an absolute value
+- rems and ems are the most common
 
 ## Suggested units
 
-[Youtube link](https://www.youtube.com/watch?v=N5wpD9Ov_To)
+[Kevin Powell video](https://www.youtube.com/watch?v=N5wpD9Ov_To)
 
 
 | Unit  | CSS property                                                               |
@@ -48,34 +46,39 @@ Responsive design
 | `px`  | `shadow-box`<br><br>`border`<br>`border-radius`                            |
 | `%`   | page/container widths                                                      |
 
-- `height`: use min-height() when you need to set a height so that the content does not overflow at the bottom if the viewport size changes.
-
+{{< admonition "Height" tip >}}
+Use `min-height` when you need to set an element height so that the content does not overflow at the bottom if the viewport size changes.
+{{< /admonition >}}
 
 
 ## Relative units
 
-- `rem` for properties that you _do not_ want to scale.
-- `em` for properties that you _want_ to scale.
+{{< admonition "rems and ems" tip >}}
+- No scaling: `rem` for properties that you _do not_ want to scale.
+- Scaling: `em` for properties that you _want_ to scale.
+{{< /admonition >}}
 
-Styling with relative units is helpful because you do not know the absolute size of the screen that your document will display on - you don't know exactly how to size your elements
-- Ex: Set a font size with relative units so it scales proportionately with the size of the window
-- Ex: Set size of everything relative to the base font size and then resize everything by changing the base font size only
+
+Styling with relative units is helpful because you do not know the absolute size of the screen that your document will display on---you don't know exactly how to size your elements. For example:
+- Set a font size with relative units so it scales proportionately with the size of the window
+- Set size of everything relative to the base font size and then resize everything by changing the base font size only
 
 
 ### ems
 
-Ems are the most common relative length unit, comes from typography.
+Ems are the most common relative length unit, comes from typography. It uses the local font size to determine its _computed value_:
 
-Uses the local font size to determine its _computed value_:
-- the computed value of a font size is derived from its inherited value
-- if font size is `1.5em`, then the size of `1em` for that element is `24px`. (16px * 1.2 = 24px)
-  - If `font-size` is `16px` and the padding is `2em`, then the padding is `32px`
-- tricky for nested elements that use ems for font-size and other properties, like padding
-  - If em size is smaller than 1, child elements computed value is smaller (0.8em * 0.8em = 0.64em)
-  - If em size is larger than 1, child elements computed value is larger (1.5em * 1.5em = 2.25em)
+The computed value of a font size is derived from its inherited value:
+- If `font-size` is `1.5em`, then the size of `1em` for that element is `24px`. (16px * 1.2 = 24px)
+- If `font-size` is `16px` and the padding is `2em`, then the padding is `32px`
 
-> DO NOT use ems for `font-size`. If you define the `font-size` with an `em`, then the size of the `em` is derived from the inherited font size. If you use `ems` to define other properties like `padding`, then the browser first calculates the font size, then calculates the `padding` with that font size. So, `font-size` and `padding` might have the same declared value but different computed values.
+Ems are tricky for nested elements that use ems for font-size and other properties, like padding
+- If em size is smaller than 1, child elements computed value is smaller (0.8em * 0.8em = 0.64em)
+- If em size is larger than 1, child elements computed value is larger (1.5em * 1.5em = 2.25em)
 
+
+{{< admonition "Do not use for font size" error >}}
+If you define the `font-size` with an `em`, then the size of the `em` is derived from the inherited font size. If you use `ems` to define other properties like `padding`, then the browser first calculates the font size, then calculates the `padding` with that font size. So, `font-size` and `padding` might have the same declared value but different computed values.
 
 ```css
 .padded {
@@ -84,10 +87,14 @@ Uses the local font size to determine its _computed value_:
 /*padding: 1.5em;   computes to 24px */
 }
 ```
+{{< /admonition >}}
+
 
 ### rems
 
+{{< admonition "" tip >}}
 Use `rem` for font sizes.
+{{< /admonition >}}
 
 Rem is short for "root em", so a `rem` is relative to the `font-size` value in the root. The root is the `html` tag, which is the root of the HTML document. You can access the `html` tag with the `:root` pseudo-class selector so you can have the specificity of a class element rather than a tag.
 
@@ -98,18 +105,7 @@ Because rems are relative to the root element, it has the same computed value th
 
 ## Viewport-relative units
 
-Examples and implementations in this CSS tricks article, [Fun With Viewport Units](https://css-tricks.com/fun-viewport-units/).
-
-Use cases:
-- full-height heroes
-- full-screen app-like interfaces
-- Responsive typography
-- Full-Height layouts, hero images, and sticky footers
-- Fluid aspect ratios
-- [Full width containers in Limited width parents](https://css-tricks.com/full-width-containers-limited-width-parents/)
-- Scroll indicators
-
-The _viewport_ is the area in the browser window where the web page is displayed - NOT including the address bar, shortcuts, toolbars, etc. The following are the basic units:
+The _viewport_ is the area in the browser window where the web page is displayed---NOT including the address bar, shortcuts, toolbars, etc. The following are the basic units:
 
 - `vh`: 1% of the viewport height
 - `vw`: 1% of the viewport width
@@ -118,9 +114,20 @@ The _viewport_ is the area in the browser window where the web page is displayed
 
 So, `25vh` is 25% of the viewport's height.
 
-> Viewport units are good for large hero images. However, this is an issue with mobile devices because some mobile devices have a feature that hides the address or nav bar to save space. This causes viewport-relative items to change size on the screen. This is called _layout thrashing_.
->
-> Also, remember that viewports do not take scrollbars into account.
+{{< admonition "Hero images" note >}}
+Viewport units are good for large hero images. However, this is an issue with mobile devices because some mobile devices have a feature that hides the address or nav bar to save space. This causes viewport-relative items to change size on the screen. This is called _layout thrashing_.
+
+Also, remember that viewports do not take scrollbars into account.
+{{< /admonition >}}
+
+Examples and implementations in this CSS tricks article, [Fun With Viewport Units](https://css-tricks.com/fun-viewport-units/). Use cases:
+- full-height heroes
+- full-screen app-like interfaces
+- Responsive typography
+- Full-Height layouts, hero images, and sticky footers
+- Fluid aspect ratios
+- [Full width containers in Limited width parents](https://css-tricks.com/full-width-containers-limited-width-parents/)
+- Scroll indicators
 
 ### vmin
 
@@ -136,16 +143,15 @@ So, `25vh` is 25% of the viewport's height.
 
 ### Large and Small units
 
-Viewport units were used for heroes, but some mobile devices dynamically hide menus when you are not scrolling and then display them when you are scrolling. This can cause the content on the screen to jump if you use viewport units. This is called _layout thrashing_.
-
-This is largely resolved in the mobile browsers, but it might still be an issue.
+Viewport units were used for heroes, but some mobile devices dynamically hide menus when you are not scrolling and then display them when you are scrolling. This can cause the content on the screen to jump if you use viewport units. This is called _layout thrashing_. This is largely resolved in the mobile browsers, but it might still be an issue.
 
 To address this, CSS came up with large and small viewports:
 - large is when all UX components are hidden. Prepend an `l` to the unit (`lvh`)
 - small is when UX components are visible. Prepend an `s` to the unit (`svh`)
-  - When in doubt, use small viewport units
 
-This is not used very often.
+{{< admonition "" tip >}}
+When in doubt, use small viewport units.
+{{< /admonition >}}
 
 When a viewport size changes because the device hides a UX component, you can use the large (for screens without the address bar):
 
@@ -164,14 +170,12 @@ Or small (for screens with the address bar):
 
 Some properties accept unitless values, but you can also use 0 without a unit, because 0 is equal to 0 of any length.
 
-Accepts both units and unitless values, but prefer unitless because they are inherited differently:
-- Unitless values are recalculated for all child elements
-  - Child elements inherit computed values if the value is assigned with lengths (units)
-  - This causes issues with line-height
+`line-height` accepts both units and unitless values, but prefer unitless because they are inherited differently. Unitless values are recalculated (computed) for all child elements.
+
+Child elements inherit computed values if the value is assigned with lengths (units). This causes issues with line-height
 
 
-To calculate the line-height, multiply the `font-size` by the `line-height` value:
-  - Ex: `16px` (`1rem`) * `1.1` = `17.6px` 
+To calculate the line-height, multiply the `font-size` by the `line-height` value. For example, `16px` (`1rem`) * `1.1` = `17.6px`
 
 ```css
 /* total line height is 38.4px */
@@ -180,19 +184,17 @@ body {
 }
 
 .about-us {
-    font-size: 2em;
+    font-size: 2rem;
 }
 ```
 
 ## Custom properties (variables)
 
-Create dynamic and context-based styling:
-- declare a variable and assign a value to reference throughout your stylesheet
-- more versatile than preprocessor variables
-- create a variable with double hyphens (`--var-name`) and assign with `var()`
-  - `var()` accepts a second optional fallback value
-- Set global vars in the `:root` selector so they're available for the entire page
-- These vars have scope - you can redifine variables within rulesets
+Create dynamic and context-based styling. You can declare a variable and assign a value to reference throughout your stylesheet.
+
+This is more versatile than preprocessor variables because you can create a variable with double hyphens (`--var-name`) and assign with `var()`, and `var()` accepts a second optional fallback value.
+
+Set global vars in the `:root` selector so they're available for the entire page. These vars have scope---you can redifine variables within rulesets:
 
 ```css
 :root {
@@ -212,40 +214,4 @@ p {
     --main-bg: #333;            /* redefine global vars */
     --main-color: #fff;
 }
-```
-
-### Themes with custom properties
-
-You can add dark and light themes with custom properties. First, create the theme colors with class styles on the `:root` element:
-
-```css
-:root.dark {
-  --border-btn: 1px solid rgb(220, 220, 220);
-  --color-base-bg: rgb(18, 18, 18);
-  --color-base-text: rgb(240, 240, 240);
-  --color-btn-bg: rgb(36, 36, 36);
-}
-
-:root.light {
-  --border-btn: 1px solid rgb(36, 36, 36);
-  --color-base-bg: rgb(240, 240, 240);
-  --color-base-text: rgb(18, 18, 18);
-  --color-btn-bg: rgb(220, 220, 220);
-}
-
-/* apply custom props to elements below */
-```
-
-Then, use JS to grab the root element (`documentElement`), and toggle the theme:
-
-```js
-let setTheme = () => {
-  const root = document.documentElement;
-  const newTheme = root.className === "dark" ? "light" : "dark";
-  root.className = newTheme;
-
-  document.querySelector(".theme-name").textContent = newTheme;
-};
-
-document.querySelector(".theme-toggle").addEventListener("click", setTheme);
 ```
