@@ -141,7 +141,7 @@ Examples and implementations in this CSS tricks article, [Fun With Viewport Unit
 }
 ```
 
-### Large and Small units
+### Large and small units
 
 Viewport units were used for heroes, but some mobile devices dynamically hide menus when you are not scrolling and then display them when you are scrolling. This can cause the content on the screen to jump if you use viewport units. This is called _layout thrashing_. This is largely resolved in the mobile browsers, but it might still be an issue.
 

@@ -77,40 +77,69 @@ You can also set up the double container with the `min()` function. The `min()` 
 ```
 This sets the width to either `1110px` or `100% - var(--side-padding) * 2`, which is 100% width of the parent container minus `2rem` of padding (`1rem` on either side of the `.container` element). When the container is larger than 100% of its parent plus `2rem`, it applies `1110px` to the width. When the container is smaller than `1110px`, it displays the other `min()` setting, which leaves 1rem of padding on either side.
 
+### Spacing container elements (lobotomized owl)
+
+This pattern helps you manage margin for block or inline-block elements. It targets any element that immediately follows another element, so you don't have to create a ruleset for each unique element in the container.
+
+`stack` is a class applied to a container that you want to vertically space all child elements. The child combinator (`>`)  limits the lobotmized owl to elements that exist in a container with `class="stack"`:
+
+```css
+.stack > * + * {
+    margin-top: 1.5em;
+}
+
+/* psuedo-class equivalent */
+.stack > :not(:first-child) {
+    margin-top: 1.5em;
+}
+```
+
 ### Multi-column layout module
 
 This module lets content flow naturally between multiple columns, much like how columns work in MS Word. There are two strategies to define the layout:
-- Declare a column width: Browser will create as many cols of that width as possible
-- Declare number of columns: Browser creates equal-sized columns of the specified number of columns
+- `column-width`: The browser creates as many columnss of that width as possible.
+- `column-count`: The browser creates equal-sized columns of the specified number of columns.
 
-Here is an example where we declare the number of columns with `column-count`:
+Here is the HTML with a list of 12 items and a block quote:
+
+```html
+<article class="columns">
+    <ul>
+        <li>1-list item</li>
+        <li>2-list item</li>
+        ...
+        <li>12-list item</li>
+    </ul>
+    <blockquote>This is going to span all columns if I apply <code>column-span: all;</code> to the blockquote.</blockquote>
+</article>
+```
+
+Here is an example using `column-count`:
 
 ```css
-@media (min-width: 955px) {
-  article {
-    column-count: 3;                    /* number of columns */
-    column-rule: 3px solid #333;        /* border between cols */
-    column-gap: 42px;
-    margin-top: 36px;
-  }
+.columns {
+  column-count: 4;
+  column-rule: 3px solid $grey-500;
+  column-gap: 2rem;
+}
+```
+
+Here is an example using `column-width`:
+
+```css
+.columns {
+  column-width: 12rem;
+  column-rule: 3px solid $grey-500;
+  column-gap: 2rem;
 }
 ```
 
 If you want an element to span multiple columns, use the `column-span` property. It accepts `all` or `none`:
 
 ```css
-@media (min-width: 955px) {
-  ...
-  blockquote {
+.columns > blockquote {
     column-span: all;
-  }
 }
-```
-
-In some cases, the contents of an element might be split across columns. To prevent this, use the `break-inside` property:
-
-```css
-
 ```
 
 ## Logical properties
@@ -136,9 +165,7 @@ Logical properties are a way to write inline and block styles that are consisten
 | `border-bottom-left-radius`  | `border-end-start-radius`   |
 | `border-bottom-right-radius` | `border-end-end-radius`     |
 
-### margin and padding
-
-There are some logical properties that make possible settings that were not possible with the classic naming convention:
+### Margin and padding shorthand
 
 | Logical name     | Description                                      |
 | :--------------- | :----------------------------------------------- |
@@ -150,13 +177,13 @@ There are some logical properties that make possible settings that were not poss
 | `border-block`   | Set `start` (`top`) and `end` (`bottom`) border  |
 
 
-## Element height
+## Width and height
 
-Contents fill the width of their container, then line wrap if thats their behavior. 
-- The width of a parent element determines the width of its children
-- The height of a parent element is determined by the heights of its children.
+The main prinicples of width and height are as follows:
+- The width of a parent element determines the width of its children. Contents fill the width of their container, then line wrap if thats their behavior.
+- The height of a parent element is determined by the heights of its children. The height of a block-size container is determined by the height of its contents.
 
-The height of a block-size container is determined by the height of its contents.
+### Overflow
 
 It is typically bad practice to add heights to block-sized containers. The normal document flow has a constrained width and unlimited height---width is determined by device size, but you can scroll on a web page forever.
 
@@ -167,38 +194,51 @@ You don't want to set the height because then you have to deal with _overflow_. 
 - `scroll`: Adds scrollbars to the container, even if the content doees not overflow.
 - `auto`: Adds scrollbars only when there is overflow.
 
-> Generally, you should prefer `auto`.
+{{< admonition "" tip >}}
+Generally, you should prefer `auto`.
+{{< /admonition >}}
 
 You can control horizontal overflow with `overflow-x`, and vertical overflow with `overflow-y`. These properties support the same values as `overflow`.
+
+### line-height
 
 Use `line-height` to change the height that an inline element contributes to its container. To make padding and margin affect its container, the element has to be a block element. To change an inline element to a block element, use `display: inline-block;`.
 
 ### Percentage-based heights
 
-Don't use percents for heights of elements in the normal doc flow---when you use percents for heights, the browser looks to that element's container to determine calculate the percentage. The height of that container is determined by the height of its children, which is a circular definition. The browser can't resolve this, and it ignores percentage rules.
+Never use a percentage for heights. The browser ignores percentage rules set on heights because it cannot compute the value. When the browser calculates an element's height, it looks to that element's container to calculate the percentage. However, the height of a container is determined by the height of its contents, resulting in a circular definition that the browser cannot resolve.
 
-Common mistakes when trying to add height to a container with percentages:
-- Making a container fill the screen by setting `height: 100%` on an element and its ancestors. Instead, use `height: 100vh`.
-- Creating columns of equal height. Use flexbox or grid.
 
+{{< admonition "Adding height to containers" tip >}}
+- To make a container fill the screen, use `100vh` or `100svh`.
+- To create columns of equal height, use [flexbox](./flexbox.md) or [grid](./grid.md).
+{{< /admonition >}}
 
 ### min-height and max-height
 
-> If you want to size sibling elements equally, you probably want to use flexbox.
+{{< admonition "Sizing sibling elements" tip >}}
+If you want to size sibling elements equally, you probably want to use flexbox.
+{{< /admonition >}}
+
+> 
 
 `min-height` and `max-height` are useful if you need an element to be at least or at most a specific size. Use relative units like `em` or `rem`.
 
-If you set `min-height` on a container, the container will be at least that height, and it can grow larger when the screen size allows. When the screen is large enough, the browser fills the container with any content as the container height grows. `min-height` is more useful because it doesn't result in overflow problems.
+If you set `min-height` on a container, the container will be at least that height, and grows larger when the screen size allows. When the screen is large enough, the browser fills the container with any content as the container height grows. `min-height` is more useful because it doesn't result in overflow problems.
 
 `max-height` allows the container to grow to the specified size, then its contents overflow.
 
-## Negative margins
+## Margins
+
+### Negative margins
 
 Negative margins make elements overlap or stretch wider than their containers. Negative margin moves the element to that side. For example, if you set `margin-left: -10rem;`, the element will move 10rem to the left.
 
-> Try to avoid negative margins as they might affect event listeners on interactive elements.
-> 
-> Prefer the `position` property when placing elements.
+{{< admonition "Placing elements" tip >}}
+Avoid placing elements with negative margins as they might affect event listeners on interactive elements.
+
+Instead, use the `position` property when placing elements.
+{{< /admonition >}}
 
 You can calculate negative margin with the `calc()` function. This ruleset places an 1/3 of an image above its containing block using a negative `margin-top` and `calc()`:
 
@@ -209,48 +249,37 @@ img.portrait {
 }
 ```
 
-## Collapsed margins
+### Collapsed margins
 
-Top and bottom margins combine to form a single margin. This is called _collapsing_. By default, the user agent stylesheet adds top and bottom margin to block elements. For example, 1em top and bottom for `p` elements.
+Top and bottom margins combine to form a single margin. This is called _collapsing_. By default, the user agent stylesheet adds top and bottom margin to block elements. For example, it adds `1em` top and bottom for `<p>` elements.
 
-**The size of the collapsed margin is the size of the largest of the two joined margins.**
+{{< admonition "Note" note >}}
+The size of the collapsed margin is the size of the largest of the two joined margins.
+{{< /admonition >}}
 
 Multiple margins can collapse. in the following example, the bottom of the `h2`, top of the `div` and top of the `p` elements all collapse:
 
 ```html
 <h2>Heading</h2>
-    <div>
-        <p>Collapse</p>
-    </div>
+<div>
+    <p>Collapse</p>
+</div>
 ```
 
-#### Problems with collapsing margins
+### Troubleshooting collapsed margins
 
-Margins don't collapse outside a container. If you have an issue trying to get rid of whitespace above or below an element, **remove the margin and add padding to define the space you need.**
+{{< admonition "Padding" tip >}}
+If you have an issue with whitespace above or below an element, remove the margin and add padding to define the space you need.
+{{< /admonition >}}
 
-When a container element has a background and no top or bottom margin, and it contains a child element that has margins, the margins collapse to the outside---this looks like the container uses the child elements margin. When there is a background, this makes it look strange.
+Margins don't collapse outside a container. In other words, if you have top margin set on a child element, it applies that margin outside the container. This can cause issues if there is a background color or image.
 
 You can solve by this in the following ways:
-- **Add padding to the child element and set top and bottom margin to 0. This lets the padding define the space between the elements.**
-- Applying `overflow: auto` (or any value other than visible) to the container prevents margins inside the container from collapsing with those outside the container. This is often the least intrusive solution.
-- Adding a border or padding between two margins stops them from collapsing.
-- Margins won’t collapse to the outside of a container that is an inline-block, that is floated, or that has an absolute or fixed position.
-- When using a flexbox or grid layout, margins won’t collapse between elements that are part of the flex layout.
-- Elements with a table-cell display don’t have a margin, so they won’t collapse. This also applies to table-row and most other table display types. Exceptions are table, table-inline, and table-caption.
+- Add padding to the child element and set top and bottom margin to 0. This lets the padding define the space between the elements.
+- Apply `overflow: auto` (or any value other than `visible`) to the container to prevent margins inside the container from collapsing with those outside the container. This is often the least intrusive solution.
+- To prevent two margins from collapsing, add a border or padding between them.
 
-## Spacing container elements (lobotomized owl)
-
-This pattern helps you manage margin for block or inline-block elements. It targets any element that immediately follows another element, so you don't have to create a ruleset for each unique element in the container.
-
-`stack` is a class applied to a container that you want to vertically space all child elements. The child combinator (`>`)  limits the lobotmized owl to elements that exist in a container with `class="stack"`:
-
-```css
-.stack > * + * {
-    margin-top: 1.5em;
-}
-
-/* equivalent to this */
-.stack > :not(:first-child) {
-    margin-top: 1.5em;
-}
-```
+Margins do not collapse under the following circumstances:
+- If the container is inline-block, floated, or has an absolute or fixed position.
+- When the elements are part of a flex or grid layout.
+- Table-cell elements don’t have a margin, so they won’t collapse. This also applies to table-row and most other table display types. Exceptions are table, table-inline, and table-caption.

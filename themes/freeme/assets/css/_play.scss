@@ -1,11 +1,21 @@
-.outer {
-  border: 4px solid blue;
-  max-width: 800px;
+.far-out {
+  background: orange;
 }
 
-.inner {
+.outer {
+  background: blueviolet;
+}
+
+.margin {
   height: 4rem;
-  background: red;
-  max-width: 300px;
-  margin: 0 auto;
+}
+
+.one {
+  background: lightgreen;
+  margin-block: 12rem;
+}
+
+.two {
+  background: lightblue;
+  margin-block: 2rem;
 }
