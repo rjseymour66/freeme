@@ -9,6 +9,6 @@
 {{ end }}
 
 <div class="admonition{{ with $type }} {{ . }}{{ end }}">
-    <h3>{{ $title }}</h3>
+    <h3>{{ $title | markdownify }}</h3>
     <p>{{ .Inner | markdownify }}</p>
 </div>
