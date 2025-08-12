@@ -68,9 +68,12 @@ a {
     border-collapse: collapse;
   }
 
-  table td,
   table th {
-    padding: $sp-table-padding;
+    padding: $sp-th-padding $sp-table-side-padding;
+  }
+
+  table td {
+    padding: $sp-td-padding $sp-table-side-padding;
   }
 
   thead {
@@ -86,12 +89,20 @@ a {
     border-top: 1px solid $clr-tbody-border;
   }
 
+  // tr td:first-of-type {
+  //   white-space: nowrap;
+  // }
+
   tbody tr:nth-last-of-type(even) {
     background: $clr-tbody-stripe;
   }
 
   tbody tr:last-of-type {
     border-bottom: 1px solid $clr-tbody-border;
+  }
+
+  tbody code {
+    white-space: nowrap;
   }
 }
 
