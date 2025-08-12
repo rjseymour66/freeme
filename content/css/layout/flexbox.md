@@ -9,6 +9,8 @@ draft = false
 
 Flexbox is short for Flexible Box Layout, and can define 1-D layouts. Each Flexbox layout consists of the following components:
 
+## Terminology
+
 Flex container
 : The container element with properties that control the direction and behavior of the flex items.
 
