@@ -5,96 +5,73 @@ weight = 20
 draft = false
 +++
 
-```go
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
-package cmd
+https://cobra.dev/docs/tutorials/12-factor-app/
 
-import (
-    "os"
+[Cobra](https://github.com/spf13/cobra) is a CLI framework that makes it easier to create POSIX-style command line tools with Go.
 
-    "github.com/spf13/cobra"
-)
+This page describes what you need to create and build a project. Read the [user guide](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md) for comprehensive instructions.
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-    Use:   "cobra-calc",
-    Short: "A simple calculator.",
-    Long:  `A calculator that can perform simple computations, including add, subtract, multiply, and divide.`,
-    // Uncomment the following line if your bare application
-    // has an action associated with it:
-    // Run: func(cmd *cobra.Command, args []string) { },
-}
+## Quickstart
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-    err := rootCmd.Execute()
-    if err != nil {
-        os.Exit(1)
-    }
-}
+1. Create your project root and init a Go project:
+   ```bash
+   mkdir app
+   go mod init github.com/username/app
+   ```
+2. Install Cobra dependencies. These commands install the latest versions of Cobra and the [cobra generator](https://github.com/spf13/cobra-cli):
+   
+   ```bash
+   go get -u github.com/spf13/cobra@latest
+   go install github.com/spf13/cobra-cli@latest
+   ```
+3. Initialize a Cobra project. This command inits the project and creates boilerplate:
+   ```bash
+   cobra-cli init
+   tree
+   app
+   ├── cmd
+   │   └── root.go
+   ├── go.mod
+   ├── go.sum
+   ├── LICENSE
+   └── main.go
+   ```
+1. Edit your `cmd/root.go` file with your project information. By default, the `init` command names your project `cobra` and adds boilerplate short and long descriptions. This example renames the project `calculator` and updates both descriptions:
+   ```go
+   var rootCmd = &cobra.Command{
+   	   Use:   "calculator",
+   	   Short: "A simple calculator",
+   	   Long:  `A calculator that performs simple computations, such as add, subtract, multiply, and divide.`,
+   	   // Uncomment the following line if your bare application
+   	   // has an action associated with it:
+   	   // Run: func(cmd *cobra.Command, args []string) { },
+   }
+   ```
+1. Test your project:
+   ```bash
+   go run . -t
+   ```
 
-func init() {
-    // Here you will define your flags and configuration settings.
-    // Cobra supports persistent flags, which, if defined here,
-    // will be global for your application.
+## Commands and subcommands
 
-    // rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cobra-calc.yaml)")
+### Adding commands
 
-    // Cobra also supports local flags, which will only run
-    // when this action is called directly.
-    rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-    rootCmd.AddCommand(addCmd)
-    rootCmd.AddCommand(subtractCmd)
-    rootCmd.AddCommand(multiplyCmd)
-    rootCmd.AddCommand(divideCmd)
-}
+A subcommand is a
+Add commands and subcommands. Here, we want to create a simple math application, so start with the `add` command:
+```bash
+cobra-cli add add
 ```
+This creates `cmd/add.go`. In the project, the add command is given the internal variable name `addCmd`.
 
-add.go
 
-```go
-/*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
-*/
-package cmd
+## Flags
 
-import (
-    "log"
+## Configuration
 
-    "cobra-calc/internal/helpers"
+When you generate a new project, the boilerplate includes information about the author, which license to use, etc. You can customize this with a `.cobra.yaml` file in your home directory. Here is a basic example:
 
-    "github.com/spf13/cobra"
-)
-
-// addCmd represents the add command
-var addCmd = &cobra.Command{
-    Use:   "add",
-    Short: "Add two numbers",
-    Long:  "Add two numbers: add <number1> <number2>",
-    Run: func(cmd *cobra.Command, args []string) {
-        result, err := helpers.Operation("add", args[0], args[1])
-        if err != nil {
-            log.Fatal(err)
-        }
-        log.Printf("result: %f\n", result)
-    },
-    Args: cobra.ExactArgs(2),
-}
-
-func init() {
-    rootCmd.AddCommand(addCmd)
-
-    // Here you will define your flags and configuration settings.
-
-    // Cobra supports Persistent Flags which will work for this command
-    // and all subcommands, e.g.:
-    // addCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-    // Cobra supports local flags which will only run when this command
-    // is called directly, e.g.:
-    // addCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
+```yaml
+author: First Last <name@email.com>
+license: MIT
+useViper: true
 ```
