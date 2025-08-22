@@ -174,3 +174,31 @@ func iniConfig() {
 ```
 
 ## Environment variables
+
+Modern applications often use environment variables to set configuration for each environment where the application runs. For example, you might have a different configuration for your development and production environments. Containers in the pipeline need access to this configuration at build time. Because environments and privileges can vary widely---a user might not have filesystem privileges---setting configuration in the environment is required.
+
+{{< admonition "12-factor apps" note >}}
+Configuring applications with environment variables is one of the factors in a 12-factor app.
+{{< /admonition >}}
+
+You can set environment variables in an environment configuration file like `.bashrc`, or you can manually export them to the shell session. Always namespace your variables to avoid conflicts during build stages.
+
+The following example manually exports the `MYAPP_PORT` environment variable and sets its value as the port for a webserver:
+
+```bash
+export MYAPP_PORT="4005"    # set env var in shell session
+unset MYAPP_PORT            # unset env var
+```
+
+When getting the env var, a common pattern to use is the "short-if declaration":
+
+```go
+func main() {
+	var port string
+	if port = os.Getenv("MYAPP_PORT"); port == "" {
+        // handle empty MYAPP_PORT env var
+		panic("env var MYAPP_PORT is not set!")
+	}
+    ...
+}
+```
