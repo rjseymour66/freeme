@@ -1,9 +1,46 @@
 +++
-title = 'Errors Panics'
+title = 'Errors and Panics'
 date = '2025-08-18T10:58:11-04:00'
 weight = 50
 draft = false
 +++
+
+Differences between an error and a panic:
+- An error indicates that a task was not successfully completed.
+- A panic indicates that a severe, often unrecoverable event occurred, and the program must exit immediately. This is likely a result of programmer error or environment state.
+
+## Errors
+
+Go "bubbles up" errors to a receiver to be handled in one or more places in the call stack. An example is when you return an `error` type to the caller for handling. Errors are idiomatically returned as the last return value. For example:
+
+```go
+func main() {
+	result, err := echoString("test!")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(result)
+}
+
+func echoString(s string) (string, error) {
+	if s == "" {
+		return "", errors.New("No string passed")
+	}
+	return s, nil
+}
+```
+
+### Compact error checking
+
+If a function or method returns only an `error`, you can assign the error and check it for `nil` on the same line:
+
+```go
+if err := returnErr(); err != nil {
+    // handle error
+}
+```
+
+This abbreviated syntax does not work well if the function returns two or more values because the values are scoped to the `if` clause. For multiple returns, its best to assign the values, then check the error value in a second clause.
 
 You can either use `return` statements to exit when there is an error, or you can generate custom errors:
 - return statements: avoids `switch` statements and `if/else` logic

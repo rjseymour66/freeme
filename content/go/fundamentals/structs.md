@@ -55,7 +55,7 @@ sally := user{
 }
 ```
 
-### Existing type
+### Type alias
 
 You can also use an existing type as the specification of a new type:
 
