@@ -39,7 +39,7 @@ panic(errors.New("This is a panic"))
 
 Panic recovery depends on deferred functions, which is when a function executes at the moment its parent function returns. This is often used to close files or sockets at the end of the function that opens them.
 
-### Common pattern
+### Basic pattern
 
 The following example shows the most common pattern for panic recovery. `recoverFunc` uses a deferred closure function to capture the error that was passed to the panic:
 
@@ -52,8 +52,8 @@ func main() {
 
 func recoverFunc() {
 	defer func() {
-		if err := recover(); err != nil {
-			fmt.Printf("Capturing the panic: %s (%T)\n", err, err)
+		if r := recover(); r != nil {
+			fmt.Printf("Capturing the panic: %s (%T)\n", r, r)
 		}
 	}()
 
@@ -61,10 +61,61 @@ func recoverFunc() {
 	fmt.Println("This line never executes")
 }
 ```
+
+{{< admonition "Deferred closure scope" tip >}}
+Remember that deferred closures have access to variables declared before the deferred function, but not afterwards. This is because deferred functions are evaluated in order but executed when the function returns.
+{{< /admonition >}}
+
 Execution stops after the panic because when Go encounters a panic, it executes all deferred functions so they can recover the panic. When `recover` is called Go does the following:
 1. Stops the panic
-2. Returns the value passed to panic or it returns `nil`
+2. Returns either the value passed to panic or `nil`
 3. Continues execution after the deferred function
 
 ### Recover with cleanup
 
+Here is an example that reads a file and uses deferred functions to clean up resources and capture panics.
+
+One important technique to notice is that the `OpenFile` function uses named returned values. This lets us reference the return values within the deferred closure function and return the correct values:
+1. Closes the `file` return value.
+2. Converts the panic into an error by assert-assigning the panic value `r`.
+
+`file` and `err` are named return values, so this makes sure that the caller (`OpenFile`) receives the correct return values:
+
+```go
+func main() {
+	var file io.ReadCloser
+	file, err := OpenFile("file.md")
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return
+	}
+	defer file.Close()
+	// do work
+}
+
+func OpenFile(filename string) (file *os.File, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			file.Close()                                        // 1
+			err = r.(error)                                     // 2
+		}
+	}()
+
+	file, err = os.Open(filename)
+	if err != nil {
+		fmt.Printf("Failed to open file\n")
+		return file, err
+	}
+
+	ParseFunc(file)
+	return file, err
+}
+
+func ParseFunc(f *os.File) {
+	panic(errors.New("Parse failed"))
+}
+```
+
+## Goroutines
+
+A goroutine starts the execution of a function call as an independent concurrent thread of control within the same address space.
