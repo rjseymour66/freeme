@@ -107,7 +107,7 @@ To create an error variable, create an error with `errors.New` and assign it to 
 var ErrTimeout = errors.New("The request timed out")
 ```
 
-Here is a trivial example where the custom types are used in the function, and the caller (`main`) checks for the custom errors with `errors.Is`:
+Here is a trivial example where the custom types are used in the function, and the caller (`main`) checks for the custom errors with `errors.Is` (you can also use normal error checking against `nil`):
 
 ```go
 var ErrEmptyString = errors.New("No string supplied")
