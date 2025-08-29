@@ -62,16 +62,16 @@ func recoverFunc() {
 }
 ```
 
-{{< admonition "Deferred closure scope" tip >}}
-Remember that deferred closures have access to variables declared before the deferred function, but not afterwards. This is because deferred functions are evaluated in order but executed when the function returns.
-{{< /admonition >}}
-
 Execution stops after the panic because when Go encounters a panic, it executes all deferred functions so they can recover the panic. When `recover` is called Go does the following:
 1. Stops the panic
 2. Returns either the value passed to panic or `nil`
 3. Continues execution after the deferred function
 
 ### Recover with cleanup
+
+{{< admonition "Deferred closure scope" tip >}}
+Remember that deferred closures have access to variables declared before the deferred function, but not afterwards. This is because deferred functions are evaluated in order but executed when the function returns.
+{{< /admonition >}}
 
 Here is an example that reads a file and uses deferred functions to clean up resources and capture panics.
 
@@ -118,4 +118,58 @@ func ParseFunc(f *os.File) {
 
 ## Goroutines
 
-A goroutine starts the execution of a function call as an independent concurrent thread of control within the same address space.
+A goroutine starts the execution of a function call as an independent concurrent thread of control within the same address space. Each goroutine has its own function stack that is cleaned up when completed. When a panic occurs, it unwinds the function stack and is handled at the top, so the goroutine must handle the panic or the program crashes. Panics do not jump from the goroutine function stack to the function stack of its caller.
+
+### Handling panics
+
+You should always consume panics in the request handler to prevent the panic from crashing your server.
+
+{{< admonition "ServeHTTP panics" note >}}
+The `ServeHTTP` server method has panic recovery baked in, so any unhandled panics will not crash the server. When a panic occurs, it logs the panic to the console and continues execution.
+
+However, you should always handle panics appropriately and not rely on this default server behavior.
+{{< /admonition >}}
+
+The following example correctly handles a panic in a handler. The `response` function panics, but the `handle` function implements the [recovery pattern](#basic-pattern) that consumes the panic before it reaches the main thread of execution:
+
+```go
+func main() {
+	listen()
+}
+
+func listen() {
+	listener, err := net.Listen("tcp", ":1026")
+	if err != nil {
+		fmt.Println("Failed to open on 1026")
+		return
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connections")
+		}
+		go handle(conn)
+	}
+}
+
+func handle(conn net.Conn) {
+	defer func() {                                  // deferred func consumes panic
+		if r := recover(); r != nil {
+			fmt.Printf("Fatal error: %s", r)
+		}
+		conn.Close()
+	}()
+	reader := bufio.NewReader(conn)
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Failed to read from socket")
+	}
+	response(data, conn)                            // this function panics
+}
+
+func response(data []byte, conn net.Conn) {
+	conn.Write(data)
+	panic(errors.New("Pretend I'm a real error"))
+}
+```
