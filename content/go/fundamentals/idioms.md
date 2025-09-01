@@ -18,3 +18,29 @@ func nakedReturn() (a, b string) {
 	return                  // naked return
 }
 ```
+
+## comma-ok
+
+Maps:
+
+```go
+m := map[string]int{"a": 1}
+v, ok := m["a"] // v = 1, ok = true
+x, ok := m["b"] // x = 0 (zero value), ok = false
+```
+
+Type assertions:
+
+```go
+var i interface{} = "hello"
+s, ok := i.(string) // s = "hello", ok = true
+n, ok := i.(int)    // n = 0, ok = false
+```
+
+Channel receives to check if a channel is closed:
+
+```go
+ch := make(chan int)
+close(ch)
+v, ok := <-ch // v = 0, ok = false (channel closed)
+```

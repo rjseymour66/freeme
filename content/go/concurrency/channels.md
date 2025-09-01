@@ -5,7 +5,9 @@ weight = 20
 draft = false
 +++
 
-Channels let you send data as messages from one goroutine to another. They are often described as sockets between goroutines in a single application, or pipes that share information asynchronously. Channels have the following properties:
+Channels let you send data as messages from one goroutine to another. They are often described as sockets between goroutines in a single application, or pipes that share information asynchronously. It might be easiest to think of them as a mailbox where you send and receive data.
+
+Channels have the following properties:
 - Typed and can send structured data
 - Bidirectional or unidirectional
 - Short-lived or long-lived
@@ -35,10 +37,9 @@ By default, channels are bidirectional, which means it can both send and receive
 | receive      | `<-ch`  |
 
 
-
 ### Send channels
 
-A send channel "sends" a value into the channel. This might seem backwards at first---a "sending" channel sounds like it should send data from the channel. However, think about it in terms of "the program sends data _into_ a send channel".
+A send channel is a channel that you send data into to retrieve by another go routine. This might seem backwards at first---a "send" channel sounds like it should send data from the channel. To make it more clear, think "the program sends data _into_ a send channel".
 
 Send channels behave differently whether they are buffered or unbuffered. 
 
@@ -71,7 +72,7 @@ func main() {
 
 ### Receive channels
 
-A receiving channel receives data that your program sent from another goroutine. A receiving channel blocks until a value is sent, but that is usually the behavior that you want---the receiving channel is waiting for a signal that a task or other work is complete.
+A receiving channel is a channel that you receive data from. The data is sent into the channel by another goroutine. A receiving channel blocks until a value is sent, but that is usually the behavior that you want---the receiving channel is waiting for a signal that a task or other work is complete.
 
 You can assign the value from a receiving channel, or you can discard it. To assign the value, place the receiving channel syntax (`<-ch`) on the right of an assignment expression. To discard it, just write the receiving channel syntax.
 
@@ -125,10 +126,6 @@ func main() {
 }
 ```
 
-### Unbuffered channels
-
-### Buffered channels
-
 ### Function arguments
 
 When you pass a channel to a function, a best practice is to indicate whether the function sends or receives data on the channel. For example, this function sends data to the `out` channel:
@@ -144,6 +141,182 @@ func readStdin(out chan<- []byte) {
 	}
 }
 ```
+
+## Unbuffered channels
+
+By default, a channel in Go is unbuffered. This means that it holds only one value rather than a buffer of values. When you store a value in an unbuffered channel, it blocks until the value is received from another goroutine. If you send two values to an unbuffered channel, then the second value blocks until the first is retrieved by another goroutine.
+
+Create an unbuffered channel without providing a capacity as the second argument to `make`:
+
+```go
+ch := make(chan int)
+```
+
+### Closing the channel
+
+Go's garbage collector does not clean up channels---it only cleans up values that it is certain will not be used again. You need to manually clean up your unused channels to prevent memory leaks due to unneeded channels consuming system resources.
+
+To close a channel, you need to use another channel that signifies when the work is complete. In Go, this channel is often named `done`.
+
+A few things to remember when closing channels:
+- Trying to send on a closed channel causes a panic.
+- The sender should close the channel because only the sender knows when there is no more data to send. The sender is the goroutine that puts data in the channel.
+
+#### Basic example
+
+Here is a simple example of how to close a channel from the sender. The `sendStrings` function iterates over a slice of names, sends the values to a string channel, and then returns that channel as a receive-only channel. The goroutine closes the channel with `defer` so we call `close` right before the function returns.
+
+`main` ranges over the channel to log the values to the console:
+
+```go
+func sendStrings() <-chan string {
+	ch := make(chan string)
+	names := []string{"Apple", "Banana", "Carrot", "Date"}
+
+	go func() {
+		defer close(ch)
+
+		for _, v := range names {
+			ch <- v
+		}
+	}()
+	return ch
+}
+
+func main() {
+	ch := sendStrings()
+
+	for v := range ch {
+		fmt.Println("got: ", v)
+	}
+}
+```
+
+#### Closing with done
+
+A common Go idiom is using a `done <-chan struct{}` to notify goroutines that another channel has completed its work. We use the empty struct because it consumes zero memory.
+
+This example implements the [basic example](#basic-example) and adds a notifier channel. The `sendStrings` function now accepts a receive-only channel so it can receive notification that indicates when the channel is complete:
+1. This function creates the `out` channel, so it also closes it.
+2. The `select` statement waits for either a value from the `name` slice or a value on the `done` channel. Because we do not need the value for the `done` channel, we discard it.
+
+```go
+func sendStrings(done <-chan struct{}) <-chan string {
+	out := make(chan string)        // 1
+	names := []string{"Apple", "Banana", "Carrot", "Date"}
+
+	go func() {
+		defer close(out)            // 1
+		for _, v := range names {
+			select {                // 2
+			case out <- v:
+				fmt.Printf("%v added to channel\n", v)
+			case <-done:
+				return
+			}
+		}
+	}()
+	return out
+}
+```
+
+The `main` function reads from the `ch` returned from `sendStrings` until it reads "Carrot":
+1. It creates the `done` channel, so it is responsible for closing it.
+2. When the read value is "Carrot", it closes the channel. Because we passed the `done` channel into `sendStrings`, it triggers the `<-done` case in its `select` statement and returns before reading the values remaining in `ch`.
+
+```go
+func main() {
+	done := make(chan struct{})     // 1
+	ch := sendStrings(done)
+
+	for v := range ch {
+		fmt.Println("got: ", v)
+		if v == "Carrot" {          // 2
+			close(done)
+		}
+	}
+}
+```
+
+{{< admonition "Closed channels" note >}}
+Closing the channel in main triggers the `<-done` case in `sendStrings` because a closed channel always returns the zero type of the channel and a `false` value. Before the channel is closed, it sits empty. When the channel closes, `<-done` returns immediately, almost like a broadcast signal.
+{{< /admonition >}}
+
+#### Reading a closed channel
+
+When you read from a closed channel, Go returns the zero type and `false` from the channel:
+
+```go
+func main() {
+	upstreamStream := make(chan int)
+	go func() {
+		upstreamStream <- 10
+	}()
+	close(upstreamStream)
+    
+    // check if closed
+    v, ok := <-upstreamStream
+	if !ok {
+		fmt.Println("channel is closed")
+	} else {
+		fmt.Println("got value:", v)
+	}
+}
+```
+
+## Buffered channels
+
+A buffered channel is a channel that can hold more than one value---a buffer of values. To create a buffered channel, provide a capacity value as the second argument to `make`:
+
+```go
+ch := make(chan int, 2)
+```
+
+A buffered channel does not deadlock if another goroutine is not ready to accept its value---it blocks. So, if a buffered channel has a capacity of 1, then it can accept one value. If another goroutine wants to use the channel, it blocks until the channel is empty.
+
+For example, the following code runs to completion because it uses a buffered channel:
+
+```go
+func main() {
+	ch := make(chan int, 1)
+	ch <- 1
+	fmt.Println(<-ch)
+	ch <- 2
+	fmt.Println(<-ch)
+}
+```
+
+If `ch` were an unbuffered channel, the program would deadlock at `ch <- 1` because there is not another goroutine ready to receive the value.
+
+### Synchronization
+
+Because a send on a buffered channel blocks until the channel is ready, buffered channesl are often used for synchronization. If your program already makes extensive use of channels, you can use buffered channels in place of mutex locks and unlocks. Any function using the channel has a "lock" on the channel. When the work is complete and the value is pulled from the channel, the channel is "unlocked" and another function can use the channel.
+
+The following example demonstrates how you can lock and unlock a buffered channel with multiple goroutines:
+
+```go
+func worker(id int, lock chan bool) {
+	log.Printf("%d wants the lock\n", id)
+	lock <- true
+	log.Printf("%d has the lock\n", id)
+	<-lock
+	log.Printf("%d is releasing the lock\n", id)
+}
+
+func main() {
+	lock := make(chan bool, 1)
+	for i := 1; i < 7; i++ {
+		go worker(i, lock)
+	}
+	time.Sleep(3 * time.Second)
+}
+```
+
+### Closing the channel
+
+You do not have to explicitly close a buffered channel. Buffered channels are allocated on the heap. When `main` exits, the channel is unreachable. The Go garbage collector cleans up any unreachable heap objects.
+
+However, if you need to signal to receiver that work is complete and the program will not send more values on the channel, you can close the buffered channel. This is common in the fan-out/fan-in pipeline patter.
 
 ## select
 
@@ -223,4 +396,10 @@ func main() {
 
 ## Ranging over channels
 
-## Closing channels
+Range over channels just other collection types, but note that the channel `for range` does not return an index, only a value. The range keyword breaks the loop when the channel is closed:
+
+```go
+for val := range ch {
+    fmt.Printf("%v", val)
+}
+```
