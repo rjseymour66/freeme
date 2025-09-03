@@ -25,6 +25,19 @@ go mod init my-project name                 # local-only
 
 This creates the `go.mod` file at your project root. `go.mod` includes the module name, Go version used to write the project, and third-party dependencies that you can fetch with `go get`.
 
+### go get
+
+Downloads package dependencies into your project. If you already have a package in your project but want to upgrade versions, use the `-u <path>` option.
+
+After you run `go get`, you should always run `go mod tidy` to update your project's dependency graph:
+
+```bash
+go get github.com/entire/module/path
+go get -u github.com/entire/module/path         # upgrade to latest minor version or patch
+go get -u github.com/entire/module/path@v2.0.0  # upgrade to specific version
+go get github.com/entire/module/path@none       # remove unused package (same as 'go mod tidy -v')
+```
+
 ### go mod tidy
 
 Run `go mod tidy` if you change any project dependencies listed in `go.mod`, such as the Go target version or a package. This command will clean up the dependency tree and the `go.mod` file.
@@ -33,15 +46,9 @@ Run `go mod tidy` if you change any project dependencies listed in `go.mod`, suc
 go mod tidy
 ```
 
-### go get
-
-```bash
-go get github.com/entire/module/path
-go get -u github.com/entire/module/path         # upgrade to latest minor version or patch
-go get -u github.com/entire/module/path@v2.0.0  # upgrade to specific version
-go get github.com/entire/module/path@none       # remove unused package (same as 'go mod tidy -v')
-```
 ### go fmt
+
+Formats your source files with Go's built-in style rules:
 
 ```bash
 gofmt -w <file>.go    // formats <file>.go
@@ -50,11 +57,22 @@ gofmt -l dirname/*.go // lists files in dir that do not conform to go formatting
 
 ### goimports
 
-Formats and manages dependency tree:
+Formats and manages dependency tree. It is an advanced version of `go fmt` that adds or removes dependencies to your project. VSCode uses `goimports` when you enable **format-on-save**.
 
 ```bash
 goimports
 ```
+
+### go vet
+
+Analyzes your code to find mistakes or inefficiencies. This might return false positives, so it is not necessary to run in every commit:
+
+```bash
+go vet program.go
+```
+
+
+
 ## Executables
 
 ### go run
