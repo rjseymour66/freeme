@@ -211,7 +211,7 @@ func main() {
 }
 ```
 
-This log produces the following output:
+This logger produces the following output:
 
 ```bash
 {"time":"2025-09-04T08:44:51.867026258-04:00","level":"INFO","msg":"default info logger"}
@@ -238,3 +238,74 @@ This log produces the following output:
 
 
 ## Stack traces
+
+The stack trace (also stack dump) lets you fetch a human-readable list of the functions in use at a critical time in your application. Go's `runtime` package provides utilities to fetch the stack trace.
+
+### Log to stdout
+This example demonstrates a simple way to retrieve the call stack. The `debug.PrintStack` functon logs the trace to STDOUT:
+
+```go
+func main() { first() }
+func first() { second() }
+func second() { third() }
+func third() {
+	debug.PrintStack()
+}
+```
+The output shows how the call stack unwinds from the `PrintStack` function up to main. The first few functions are in the Go library, and the remaining functions are in the program's `main` function in the order in which they were invoked, along with the line number where they were invoked:
+
+```bash
+goroutine 1 [running]:
+runtime/debug.Stack()
+	/usr/local/go/src/runtime/debug/stack.go:26 +0x5e       # source files
+runtime/debug.PrintStack()
+	/usr/local/go/src/runtime/debug/stack.go:18 +0x13
+main.third(...)                                             # program files
+	/path/to/main.go:20
+main.second(...)
+	/path/to/main.go:16
+main.first(...)
+	/path/to/main.go:12
+main.main()
+	/path/to/main.go:8 +0x12
+```
+
+### Persist trace
+
+If you want to send the trace somewhere other than stdout, use the `Stack` function.
+
+This example has a `persistentTrace` funciton that creates and opens a file, then writes the stack trace to that file. A `caller` funciton calls `persistentTrace`, and `main` calls `caller`:
+1. Create the file and defer its close until the function returns.
+2. Create a bytes buffer to store the trace. `Stack` takes a bytes buffer and a boolean flag that determines whether to print the stack trace for all running goroutines. Setting this to `true` can substantially increase the output.
+   
+   {{< admonition "Buffer size" note >}}
+   There is no way to anticipate the size of the trace, so use your best judgement when allocating the bytes buffer.
+   {{< /admonition >}}
+3. Write the buffer to the file.
+
+```go
+func main() {
+	caller()
+}
+
+func caller() {
+	persistentTrace()
+}
+
+func persistentTrace() {
+	f, err := os.OpenFile("trace.file", os.O_RDWR|os.O_CREATE, 0755)    // 1
+	if err != nil {
+		panic(errors.New("could not open log file"))
+	}
+	defer f.Close()
+
+	buf := make([]byte, 1024)                                           // 2
+	runtime.Stack(buf, false)
+
+	_, err = f.Write(buf)                                               // 3
+	if err != nil {
+		log.Fatalf("Error writing bytes: %v", err)
+	}
+    fmt.Printf("Trace written to %s\n", f.Name())
+}
+```
