@@ -1,7 +1,7 @@
 +++
 title = 'Interfaces'
 date = '2025-08-23T17:46:10-04:00'
-weight = 90
+weight = 40
 draft = false
 +++
 

@@ -1,7 +1,7 @@
 +++
 title = 'Functions'
 date = '2025-08-30T10:07:00-04:00'
-weight = 90
+weight = 30
 draft = false
 +++
 
