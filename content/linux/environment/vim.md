@@ -1,7 +1,7 @@
 +++
 title = 'Vim'
 date = '2025-08-18T10:04:38-04:00'
-weight = 10
+weight = 100
 draft = false
 +++
 

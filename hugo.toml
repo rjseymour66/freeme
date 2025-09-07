@@ -19,8 +19,8 @@ theme = 'freeme'
 
 
 [[menus.main]]
-  name = 'System admin'
-  pageRef = '/sysadmin'
+  name = 'Linux'
+  pageRef = '/linux'
   weight = 20
 
 [[menus.main]]
