@@ -1,5 +1,5 @@
 +++
-title = 'Web Servers'
+title = 'HTTP Servers'
 date = '2025-08-20T16:15:43-04:00'
 weight = 20
 draft = false

@@ -49,3 +49,22 @@ draft = false
 - Container orchestration
 - Cloud
 - Terraform
+
+
+
+
+
+## Linux section
+- Basics
+- Kernel
+- Memory
+- Networking
+- Performance
+- Permissions and ownership
+- SSH
+- System info
+- Systemd
+- Text
+- Todo
+- VPNs
+- Web servers
