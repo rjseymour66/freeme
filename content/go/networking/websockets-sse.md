@@ -1,5 +1,6 @@
 +++
 title = 'Websockets and Server-sent events'
+linkTitle = "Websockets and SSEs"
 date = '2025-09-07T10:17:27-04:00'
 weight = 30
 draft = false
