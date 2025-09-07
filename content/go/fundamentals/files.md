@@ -49,7 +49,7 @@ func lineRead(filename string) {
 
 ### Scanner
 
-Read tokenized input with [scanner](https://pkg.go.dev/bufio#Scanner), a high-level utility. Tokenized input is data that uses a delimiter to signal the end of a token. A scanner is memory-safe because it keeps only one token in memory.
+A [scanner](https://pkg.go.dev/bufio#Scanner) is a high-level utility that reads tokenized input. Tokenized input is data that uses a delimiter to signal the end of a data value. A scanner is memory-safe because it keeps only one token in memory.
 
 {{< admonition "Default token size" warning >}}
 A scanner has a default token size of 64KB. If you need to read larger tokens, increase the buffer size with `scanner.Buffer()`.
@@ -174,3 +174,76 @@ func main() {
 ```
 
 ## Writing files
+
+Go's `os` package provides numerous methods to read a file to support multiple use cases.
+
+### Create
+
+`Create` is a simple way to way to write to a file. Pass it the name of a file---if the file exists, it will open the file. If the file doesn't exist, it creates the file. It returns a file handle and an error.
+
+This example creates a file, closes it, then writes a string to the file. This example uses `WriteString`, but you can also write bytes with `Write`:
+
+```go
+func main() {
+	file, err := os.Create("test.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	file.WriteString("test")
+}
+```
+
+### io.Copy (buffered writes)
+
+`Create` is simple and works well, but it requires data in memory. If you want to stream data into your writes, you can use `io.Copy`.
+
+`io.Copy(dest, src)` uses a 32KB buffer to read from the source `Reader`, and it can copy that many bytes to the destination `Writer` until until EOF. It returns the number of bytes written and an error:
+1. Open the source file.
+2. Close the source file.
+3. Create or open the destination file
+4. Close the destination file.
+5. Copy from the source to the destination. You can ignore the number of bytes copied, but you should handle the error.
+
+```go
+func bufferedWrites(destination, source string) error {
+	src, err := os.Open(source)             // 1
+	if err != nil {
+		return err
+	}
+	defer src.Close()                       // 2
+
+	dest, err := os.Create(destination)     // 3
+	if err != nil {
+		return err
+	}
+	defer dest.Close()                      // 4
+
+	_, err = io.Copy(dest, src)             // 5
+	if err != nil {
+		return err
+	}
+	return nil
+}
+```
+
+### OpenFile
+
+`OpenFile` can write to a file with flags and permissions. The flags give you options on how to open the file, and you can combine them with the bitwise OR (`|`). For example, you can append to an existing file, or create and open a file in read-only mode.
+
+This example appends text to the file we created in the [Create](#create) code. The flags mean: open the file for writing only. If the file doesn't exist, create it. If it does exist, write to the end of the file:
+
+```go
+func main() {
+	file, err := os.OpenFile("test.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString("test two!"); err != nil {
+		panic(err)
+	}
+}
+```

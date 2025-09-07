@@ -7,6 +7,9 @@ draft = false
 
 Interfaces are types that declare behavior. To implement an interface in Go, a user-defined type must a method set with signatures that exactly match the methods declared in the interface. If a type implements an interface, then a value of that type can be assigned to values of the interface type.
 
+{{< admonition "" note >}}
+If a type implements an interface, then it can be referred to as an _interface_-er. For example, if a type implements the `Reader` method, you might see it called a "Reader". If it implements the `Writer` method, it is called a "Writer".
+{{< /admonition >}}
 
 When you call a method that accepts an interface value, Go looks at the method set for the user-defined type and tries to find a method that implements the interface. The user-defined type is called the 'concrete type' because it provides the interface concrete behavior. For example, here are the `io.Reader` and `Stringer` interfaces with their signatures between the curly braces:
 
