@@ -18,6 +18,68 @@ Go's `http` package has basic multiplexing and routing. Implementing advanced ro
 - [Gorilla Mux](https://github.com/gorilla/mux): This was previously deprecated but is now in active development.
 - [Gin](https://github.com/gin-gonic/gin): Says its 40x faster than httprouter.
 
+### Built-in method routing
+
+Built-in method routing was introduced in Go 1.22. It lets you specify the HTTP verb in the path definition in the server. For example, here is how you register a GET path:
+
+```go
+func main() {
+	http.HandleFunc("GET /comments", getComments)
+	if err := http.ListenAndServe(":8004", nil); err != nil {
+		panic(err)
+	}
+}
+```
+
+Go's `ServeMux` parses the string to get the HTTP verb and path and store them in its routing table.
+
+Here is a more complex example of an in memory comment API that registers a GET and POST route:
+1. The `getComments` handler writes to the `w` response writer.
+2. The `postComments` handler reads info from the `r` request.
+
+```go
+var comments []comment
+
+func getComments(w http.ResponseWriter, r *http.Request) {
+	commentBody := ""
+	for i := range comments {
+		commentBody += fmt.Sprintf("%s (%s)\n", comments[i].text, comments[i].dateString)
+	}
+	fmt.Fprintf(w, "Comments:\n%s", commentBody) 				// 1
+}
+
+func postComments(w http.ResponseWriter, r *http.Request) {
+	commentText, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	comments = append(comments, comment{
+		text: string(commentText), 
+		dateString: time.Now().Format(time.RFC3339)
+	})
+	w.WriteHeader(http.StatusOK) 								// 2
+}
+
+func main() {
+	http.HandleFunc("GET /comments", getComments)
+	http.HandleFunc("POST /comments", postComments)
+	if err := http.ListenAndServe(":8004", nil); err != nil {
+		panic(err)
+	}
+}
+```
+
+To test the program, start the server, go to `localhost:8004/comments`, and run the following cURL command to create a comment:
+
+```bash
+curl -X POST http://localhost:8004/comments -d "This is a new comment"
+```
+
+{{< admonition "" note >}}
+You only register GET and POST routes, so if you make a request with another verb you get a "Method Not Allowed" response.
+{{< /admonition >}}
+
 ## Handlers
 
 A handler is any type or function that can respond to an HTTP request.
@@ -46,9 +108,12 @@ Notice that the `ServeHTTP` method does not return anything---it only writes to 
 ## Registering a Handler
 
 "Registering a handler" means matching a path to a request handler function. Go provides multiple functions to register handlers. The names are similar, so they can be confusing. Here is a summary:
-- `Handle`: Accepts a path and a Handler. The Handler is any type with a `ServeHTTP` method.
-- `HandlerFunc`: An adaptor type that implements the `Handler` interface. You can use this to cast a function with the same signature as `ServeHTTP`. When you cast the function, the function gets access to the `ServeHTTP` method on the `HandlerFunc`.
-- `HandleFunc`: A convenience method that lets you directly register a function as a handler. The handler must have the same signature as `ServeHTTP`. Under the hood, Go casts the function with `HandlerFunc`.
+
+| Method        | Accepts             | Description                                                                                                                                                                                                                               |
+| :------------ | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Handle`      | path and a Handler  | Handler is any type with a `ServeHTTP` method.                                                                                                                                                                                            |
+| `HandlerFunc` | function            | An adaptor type that implements the `Handler` interface. You can use this to cast a function with the same signature as `ServeHTTP`. When you cast the function, the function gets access to the `ServeHTTP` method on the `HandlerFunc`. |
+| `HandleFunc`  | path and a function | This is a convenience method that lets you directly register a function as a handler. The handler must have the same signature as `ServeHTTP`. Under the hood, Go casts the function with `HandlerFunc`.                                  |
 
 ### Handle
 
@@ -140,6 +205,8 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 	// logic
 }
 ```
+
+## Custom server
 
 ## Query string parameters
 
