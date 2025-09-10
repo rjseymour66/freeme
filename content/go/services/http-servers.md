@@ -473,7 +473,55 @@ Go can extract path parameters, but you might want to consider a router framewor
 - [Gin](https://github.com/gin-gonic/gin)
 {{< /admonition >}}
 
-Go 
+Beginning with Go 1.22, you can extract path parameters with the `PathValue`:
+
+```go
+var comments []comment
+
+func getComments(w http.ResponseWriter, r *http.Request) {
+	commentBody := ""
+	for i := range comments {
+		commentBody += fmt.Sprintf("%s (%s)\n", comments[i].text, comments[i].dateString)
+	}
+	fmt.Fprintf(w, "Comments:\n%s", commentBody) // 1
+}
+
+func getComment(w http.ResponseWriter, r *http.Request) {
+	commentID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if commentID == 0 || len(comments) < commentID {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	fmt.Fprintf(w, "Comment %d: %s", commentID, comments[commentID-1].text)
+}
+
+func postComments(w http.ResponseWriter, r *http.Request) {
+	commentText, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	comments = append(comments, comment{
+		text:       string(commentText),
+		dateString: time.Now().Format(time.RFC3339)})
+	w.WriteHeader(http.StatusOK)
+}
+
+func main() {
+	http.HandleFunc("GET /comments", getComments)
+	http.HandleFunc("GET /comments/{id}", getComment)
+	http.HandleFunc("POST /comments", postComments)
+	if err := http.ListenAndServe(":8000", nil); err != nil {
+		panic("could not start server")
+	}
+}
+```
 
 This requires a third-party router like Chi or Gorilla Mux:
 
