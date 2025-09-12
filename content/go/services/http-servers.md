@@ -65,7 +65,7 @@ func main() {
 }
 ```
 
-### Middleware
+### Middleware (!)
 
 ```go
 var validAgent = regexp.MustCompile(`(?i)(chrome|firefox)`)
@@ -447,6 +447,13 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 ### Query string parameters
 
+`GET` and `DELETE` requests use query parameters to send additional information in a request. The additional information is often used to refine the values returned in the response. The most common use cases include the following:
+- Filtering or searching information
+- Pagination
+- Sorting or ordering
+- Optional values
+
+
 You can extract values from a `URL`'s query string with the `Query()` method. It returns either the value or an empty string if there is no value for the specified key:
 
 ```go
@@ -473,21 +480,13 @@ Go can extract path parameters, but you might want to consider a router framewor
 - [Gin](https://github.com/gin-gonic/gin)
 {{< /admonition >}}
 
-Beginning with Go 1.22, you can extract path parameters with the `PathValue`:
+Beginning with Go 1.22, you can extract path parameters with the `PathValue`. To define a path with a path parameter, enclose the parameter variable in curly braces (`{}`). The following example has a handler that retrieves the value for the `id` parameter and registers it to a path that includes the variable:
+1. Get the path parameter value.
+2. Register the path with the variable in curly braces.
 
 ```go
-var comments []comment
-
-func getComments(w http.ResponseWriter, r *http.Request) {
-	commentBody := ""
-	for i := range comments {
-		commentBody += fmt.Sprintf("%s (%s)\n", comments[i].text, comments[i].dateString)
-	}
-	fmt.Fprintf(w, "Comments:\n%s", commentBody) // 1
-}
-
 func getComment(w http.ResponseWriter, r *http.Request) {
-	commentID, err := strconv.Atoi(r.PathValue("id"))
+	commentID, err := strconv.Atoi(r.PathValue("id")) 			// 1
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -497,37 +496,20 @@ func getComment(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
-	fmt.Fprintf(w, "Comment %d: %s", commentID, comments[commentID-1].text)
-}
-
-func postComments(w http.ResponseWriter, r *http.Request) {
-	commentText, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	comments = append(comments, comment{
-		text:       string(commentText),
-		dateString: time.Now().Format(time.RFC3339)})
-	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Comment %d: %s",
+		commentID, comments[commentID-1].text)
 }
 
 func main() {
-	http.HandleFunc("GET /comments", getComments)
-	http.HandleFunc("GET /comments/{id}", getComment)
-	http.HandleFunc("POST /comments", postComments)
+	http.HandleFunc("GET /comments/{id}", getComment)			// 2
 	if err := http.ListenAndServe(":8000", nil); err != nil {
 		panic("could not start server")
 	}
 }
 ```
-
-This requires a third-party router like Chi or Gorilla Mux:
-
-```go
-id := chi.URLParam(r, "id") // /users/123
-```
+{{< admonition "Path matching" note >}}
+Go normally routes to the longest matching path. However, it matches the most specific path when you use path variables.
+{{< /admonition >}}
 
 ### Headers
 
@@ -547,6 +529,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintln(w, "Form value:", name)
 }
 ```
+```go
+func postHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	username := r.Form.Get("username")
+	commentText := r.Form.Get("comment")
+	comments = append(comments,
+		comment{
+			username:   username,
+			text:       commentText,
+			dateString: time.Now().Format(time.RFC3339),
+		})
+
+	http.Redirect(w, r, "/comments", http.StatusFound)
+}
+```
+
+
+
 
 ### Multipart Form Data
 

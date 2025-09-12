@@ -43,6 +43,11 @@ theme = 'freeme'
   pageRef = '/go'
   weight = 60
 
+[[menus.main]]
+  name = 'Writing'
+  pageRef = '/writing'
+  weight = 70
+
 
 [module]
 [module.hugoVersion]
