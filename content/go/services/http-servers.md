@@ -367,6 +367,10 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 }
 ```
 
+## JSON Web Tokens
+
+
+
 ## Writing to a writer
 
 There are multiple ways to write to a Writer, depending on the data that your handler returns.
@@ -440,7 +444,43 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated) // 201 Created
 	fmt.Fprintln(w, "Resource created successfully!")
 }
+```
 
+### Cookies
+
+Because HTTP is a stateless protocol, we use cookies to maintain state across requests. Cookies are ephemeral and easily re-created.
+
+This handler reads comments from a form and sets a `username` cookie if it is not present in the request:
+1. Parse the form.
+2. Get the username value from the form.
+3. Check if there is a `username` cookie.
+4. If the cookie is present, override the form value with the value stored in the cookie.
+5. Get the comment data from the form and create a comment object.
+6. Set a cookie named `username` with the value either parsed from the form or stored in the active cookie. Set it to expire in 24 hours.
+
+```go
+func cookiePostHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm() 											// 1
+
+	username := r.Form.Get("username") 						// 2
+	usernameCookie, err := r.Cookie("username") 			// 3
+	if err == nil { 										// 4
+		username = usernameCookie.Value
+	}
+
+	commentText := r.Form.Get("comment") 					// 5
+	comments = append(comments, comment{
+		username:   username,
+		text:       commentText,
+		dateString: time.Now().Format(time.RFC3339)},
+	)
+
+	http.SetCookie(w, &http.Cookie{ 						// 6
+		Name:    "username",
+		Value:   username,
+		Expires: time.Now().Add(24 * time.Hour)},
+	)
+}
 ```
 
 ## Reading from a Reader
@@ -538,6 +578,8 @@ Form data is encoded in one of the following formats:
 
 #### Parsing forms
 
+The `Request` type has a `Form`
+
 When you receive POST form data, you need to parse the form and then extract values. The request method that parses the form depends on the encoding format:
 
 | Format                              | Function             |
@@ -598,16 +640,52 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 
 #### Multipart Form Data
 
+Multipart form data is an encoding that web browsers and HTTP clients use to send mixed data types, such as binary file data and text from fields. For example,you might have a form that uploads a file:
+
+```html
+<form enctype="multipart/form-data" method="post" action="/upload">
+  <input type="file" name="uploadfile" />
+  <input type="submit" value="Upload" />
+</form>
+```
+
+To parse this data, use the request object's `ParseMultipartForm` method. This handler uploads a form and copies it to the `/tmp` directory on the server:
+1. Parse the form with `ParseMultipartForm`. Pass this function the max amount of memory to allocate for the file upload operation. `10 << 20` is 10MB---it is a bitwise left shift operation that shifts the bits of the number 10 to the left by 20 places.
+2. Retrieve the file with `FormFile`. This method returns the following:
+   - A file that you read with any `Reader`.
+   - Metadata about the uploaded file.
+   - An error.
+3. Close the file.
+4. Print file metadata.
+5. Create a file in `/tmp`. Use the file metadata to name the file.
+6. Handle any errors.
+7. Close the new file.
+8. Copy the contents of the uploaded file into the newly created local file.
+
 ```go
-func handler(w http.ResponseWriter, r *http.Request) {
-    r.ParseMultipartForm(10 << 20) // 10 MB limit
-    file, header, err := r.FormFile("upload")
+func fileUploadHandler(w http.ResponseWriter, r *http.Request) {
+    r.ParseMultipartForm(10 << 20) 											// 1
+
+    file, handler, err := r.FormFile("uploadfile") 							// 2
     if err != nil {
-        http.Error(w, "File error", http.StatusBadRequest)
+        http.Error(w, "Error retrieving file", http.StatusBadRequest)
         return
     }
-    defer file.Close()
-    fmt.Fprintf(w, "Uploaded file: %s\n", header.Filename)
+    defer file.Close() 														// 3
+
+    fmt.Fprintf(w, "Uploaded File: %+v\n", handler.Filename) 				// 4
+    fmt.Fprintf(w, "File Size: %+v\n", handler.Size)
+    fmt.Fprintf(w, "MIME Header: %+v\n", handler.Header)
+
+    // You can now save the file, read its contents, etc.
+    // Example: save it to local disk
+    dst, err := os.Create("/tmp/" + handler.Filename) 						// 5
+    if err != nil {															// 6
+        http.Error(w, "Unable to create file", http.StatusInternalServerError)
+        return
+    }
+    defer dst.Close() 														// 7
+    io.Copy(dst, file) 														// 8
 }
 ```
 
@@ -646,6 +724,26 @@ func decodeJSON(w http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		fmt.Println("Line:", scanner.Text())
 	}
+}
+```
+
+### Cookies
+
+You can read cookies with the request's `Cookie` method:
+1. Create an empty string.
+2. Check if there is a `username` cookie.
+3. If the cookie is present, set `username` to the cookie value.
+
+```go
+func commentHandler(w http.ResponseWriter, r *http.Request) {
+
+	username := ""
+	usernameCookie, err := r.Cookie("username")
+	if err == nil {
+		username = usernameCookie.Value
+	}
+
+	// business logic
 }
 ```
 
