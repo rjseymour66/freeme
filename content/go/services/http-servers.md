@@ -522,34 +522,81 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 ### Forms
 
+When you submit a form in HTML, the browser encodes the submitted fields and sends them in the request body. These fields are specified with the `name` attribute. For example, the `username` and `password` fields are submitted from this form:
+
+```html
+<form action="/signup" method="POST">
+  <input type="text" name="username">
+  <input type="password" name="password">
+  <button type="submit">Sign Up</button>
+</form>
+```
+
+Form data is encoded in one of the following formats:
+- `application/x-www-form-urlencoded`: Encoded like query parameters. For example, `username=john&password=secret`.
+- `multipart/form-data`: Forms that send files or binary data.
+
+#### Parsing forms
+
+When you receive POST form data, you need to parse the form and then extract values. The request method that parses the form depends on the encoding format:
+
+| Format                              | Function             |
+| :---------------------------------- | :------------------- |
+| `application/x-www-form-urlencoded` | `ParseForm`          |
+| `multipart/form-data`               | `ParseMultipartForm` |
+
+
+These methods populate the `r.Form` and `r.PostForm` fields on the request object. The method you choose depends on how you want to handle the response. The following table describes how each method handles request data:
+
+| Field        | Contents                                            |
+| ------------ | --------------------------------------------------- |
+| `r.Form`     | Query params and form values from the request body. |
+| `r.PostForm` | Only form values from the request body.             |
+
+
+In general, you can use `r.Form` unless you need to handle the query parameter values separate from the request body.
+
+After you parse the form, you should always check for a parsing error:
+
 ```go
-func handler(w http.ResponseWriter, r *http.Request) {
-    r.ParseForm() // required
-    name := r.FormValue("name")
-    fmt.Fprintln(w, "Form value:", name)
+func formHandler(w http.ResponseWriter, r *http.Request) {
+    if err := r.ParseForm(); err != nil {
+        http.Error(w, "Parse error", http.StatusBadRequest)
+        return
+    }
+	// logic
 }
 ```
+
+This handler processes form data for a commenting application:
+1. Parse the form.
+2. Check for parsing errors.
+3. Get named form data from the `r.Form` field.
+4. Create a comment in memory.
+5. Redirect the user with the POST/Redirect/GET pattern. This pattern redirects the browser to a web page instead of showing a blank response. This is a pattern to prevent duplicate submissions. When the user submits a form with POST, the server processes the request then redirects the user to a GET page. Here, they are redirected to `/comments`, which displays a list of comments.
+
 ```go
 func postHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	r.ParseForm() 												// 1
+	if err := r.ParseForm(); err != nil {						// 2
+		http.Error(w, "Parse error", http.StatusBadRequest)
+		return
+    }
 
-	username := r.Form.Get("username")
+	username := r.Form.Get("username") 							// 3
 	commentText := r.Form.Get("comment")
-	comments = append(comments,
+	comments = append(comments, 								// 4
 		comment{
 			username:   username,
 			text:       commentText,
 			dateString: time.Now().Format(time.RFC3339),
 		})
 
-	http.Redirect(w, r, "/comments", http.StatusFound)
+	http.Redirect(w, r, "/comments", http.StatusFound) 			// 5
 }
 ```
 
-
-
-
-### Multipart Form Data
+#### Multipart Form Data
 
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
