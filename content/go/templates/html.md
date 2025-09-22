@@ -288,3 +288,174 @@ func main() {
 ```
 
 ## Nested templates
+
+Many sections of a web page are identical. You can nest templates within each other to compose a single large template file from two or more smaller template files.
+
+For example, most web pages have an identical `<head>` element. You can create a `head` template and share it across all web pages, which reduces duplication.
+
+### Sharing data
+
+To add a template to another, use the `{{template <template> .}}` directive, which consists of three parts:
+- `template`: Tells the template engine to include another template at this location.
+- `<template> `: Name of the template to include.
+- `.`: Dataset to pass to the template. A dot (`.`) passes the dataset from the parent template, also called the "current context".
+
+To illustrate, here is a `<head>` template and an index file that injects the `<head>` template:
+```html
+<!-- head.html -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ .Title }}</title>
+</head>
+
+<!-- index.html -->
+  <!DOCTYPE html>
+<html lang="en">
+  {{template "head.html" .}}
+  <body>
+    <h1>{{ .Title }}</h1>
+    <p>{{ .Content }}</p>
+  </body>
+</html>
+```
+In the `<head>` template, the `<title>` element contains `{{.Title}}`, which renders the `Title` data from the parent dataset. This is the same `Title` that is used in the `<h1>` element in `index.html` because we passed the parent dataset to the `<head>` template, which is the same dataset available to `index.html`.
+
+### Serving the files
+
+The code is similar to other examples on this page, except that the `init` function parses all template files that compose the web page and the handler specifies which template to render:
+1. Parses both template files into the same template set. This makes `head.html` available to `index.html`.
+2. The handler calls `ExecuteTemplate` to write the template and its data to the Writer. This function lets you specify which template to render. Other examples on this page use the `Execute` function, which executes the first file passed to `ParseFiles`.
+
+```go
+var t *template.Template
+
+func init() {
+	t = template.Must(template.ParseFiles("html/index.html", "html/head.html"))     // 1
+}
+
+type Page struct {
+	Title, Content string
+}
+
+func displayPage(w http.ResponseWriter, r *http.Request) {
+	p := &Page{
+		Title:   "An Example",
+		Content: "This is example content",
+	}
+	t.ExecuteTemplate(w, "index.html", p)                                           // 2
+}
+func main() {
+	http.HandleFunc("/", displayPage)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		panic(err)
+	}
+}
+```
+
+## Inheritance
+
+Template inheritance lets you compose multiple unique web pages from a single base template. A common pattern uses a base template defines the structure of the page by invoking additional templates and their data context. For example, you might create a base template that invokes a head template that renders a different `<title>` element for each page. In this pattern, it is said that the content templates "extend" the base template.
+
+### Base templates
+
+Here is a `base.html` template file. This uses a few key topics that are key to understanding how templates are composed:
+1. `define` directive that starts the "base" template. All `define` directives must have an `{{end}}` tag.
+2. Invokes the `title` template, which is defined in another file.
+3. `block` directives define and immediately execute a template. Here, it defines a template named `styles` that adds CSS to the file.
+
+```go
+{{define "base"}}<!DOCTYPE html>                    // 1
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{template "title" .}}</title>           // 2
+    {{ block "styles" . }}<style>                   // 3
+      h1 {
+        color: #400080;
+      }
+    </style>{{ end }}
+  </head>
+  <body>
+    <h1>{{template "title" .}}</h1>
+    {{template "content" .}}
+    {{block "scripts" .}}{{end}}
+  </body>
+</html>{{end}}
+```
+
+### Extending the base
+
+To extend the `base` template, the extending file must defines all sections invoked from the `base` template. In this case, the extending templates must define a `title` and `content` section.
+
+The `user.html` template file defines both the `title` and `content` templates that are pulled into the preceding `base` template:
+1. `title` template definition and end.
+2. `content` template definition.
+3. Closing the `content` template with `{{end}}`.
+
+```go
+{{define "title"}}User: {{.Username}}{{end}}        // 1
+{{define "content"}}                                // 2
+<ul>
+    <li>Username: {{.Username}}</li>
+    <li>Name: {{.Name}}</li>
+</ul>
+{{end}}                                             // 3
+```
+
+### Parsing the templates
+
+
+Here, we parse multiple files with the `base.html` template to store them in a map:
+1. Create a map with `string` keys and `Template` template object values.
+2. Use a `temp` variable to parse template objects in place. First, parse the `user.html` file with `base.html`.
+3. Store the template object in the `t` map with `user.html` as the key.
+4. Repeat this parsing process with `index.html`, and store it in the map with `index.html` as its key.
+5. Execute each template with the `ExecuteTemplate` function. To call the correct template, use its key name in the map. For example, `displayPage` executes the template object located at `t["index.html"]` and injects `Page` data.
+
+```go
+var t map[string]*template.Template                     // 1
+
+func init() {
+	t = make(map[string]*template.Template)
+
+	temp := template.Must(template.ParseFiles("html/base.html", "html/user.html"))  // 2
+	t["user.html"] = temp                                                           // 3
+
+	temp = template.Must(template.ParseFiles("html/base.html", "html/index.html"))  // 4
+	t["index.html"] = temp
+}
+
+type Page struct {
+	Title, Content string
+}
+
+type User struct {
+	Username, Name string
+}
+
+func displayPage(w http.ResponseWriter, r *http.Request) {
+	p := &Page{
+		Title:   "An Example",
+		Content: "This is example content",
+	}
+	t["index.html"].ExecuteTemplate(w, "base", p)               // 5
+}
+
+func displayUser(w http.ResponseWriter, r *http.Request) {
+	u := &User{
+		Username: "swordsmith",
+		Name:     "Inigo Montoya",
+	}
+	t["user.html"].ExecuteTemplate(w, "base", u)
+}
+
+func main() {
+	http.HandleFunc("/", displayPage)
+	http.HandleFunc("/user", displayUser)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		panic(err)
+	}
+}
+```
