@@ -91,7 +91,7 @@ A template set is a container that maps template names to the parse tree for the
 
 
 Then, you can render an individual template from that set in a handler:
-1. `template.New()` creates and returns a template set `t`. This is a container for all HTML templates that you want to prepare for rendering.
+1. `template.New()` creates and returns a template set `t`. This is a container for all HTML templates that you want to prepare for rendering. You will not often (ever?) reference the template set name after you create it with `New()`.
 2. `t.ParseGlob` reads every HTML file in the specified path pattern and parses them into the template set you created with `New()`. In Go, the `init()` function always runs before `main`.
 3. Within the handler, you call `t.ExecuteTemplate` to look up a template file in your template set `t` and execute it with (inject) the `Page` object `p` as your data context.
 
@@ -365,25 +365,36 @@ Here is a `base.html` template file. This uses a few key topics that are key to 
 3. `block` directives define and immediately execute a template. Here, it defines a template named `styles` that adds CSS to the file.
 
 ```go
-{{define "base"}}<!DOCTYPE html>                    // 1
+{{define "base" -}}                                 // 1
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{template "title" .}}</title>           // 2
-    {{ block "styles" . }}<style>                   // 3
+    {{ block "styles" . -}}                         // 3
+    <style>
       h1 {
         color: #400080;
       }
-    </style>{{ end }}
+    </style>
+    {{- end }}
   </head>
   <body>
     <h1>{{template "title" .}}</h1>
     {{template "content" .}}
     {{block "scripts" .}}{{end}}
   </body>
-</html>{{end}}
+</html>
+{{- end}}
 ```
+
+{{< admonition "Trimming whitespace" tip >}}
+By default, Go templates respect whitespace and newline characters created by the templating directives. To remove the whitespace and newlines, add dashes inside the double brackets before or after the whitespace:
+- `{{- end}}`: removes before
+- `{{define "base" -}}`: removes after
+- `{{- end -}}`: removes before and after
+{{< /admonition >}}
 
 ### Extending the base
 
@@ -457,5 +468,80 @@ func main() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		panic(err)
 	}
+}
+```
+
+
+## Sending email
+
+Many service notifications, registrations, etc are communicated through email. Because we don't need the `html/template` package's context-awareness, we can use Go's `text/template` package to send plaintext emails.
+
+This example sends a simple mail transfer protocol (SMTP) message:
+1. Struct that holds email components.
+2. Struct that holds SMTP server credentials.
+3. Template string for the email body.
+4. Global template set.
+5. Use `init` to create a new template set before `main` starts.
+6. Parse the template string as a template body.
+7. Create an `EmailMessage`.
+8. Create a bytes buffer and write the formatted email message to the buffer.
+9. Create an object that contains the email server authentication information.
+10. `PlainAuth` creates a PLAIN authentication mechanism.
+11. Send the email with `SendMail`.
+    
+```go
+type EmailMessage struct {                          // 1
+	From, Subject, Body string
+	To                  []string
+}
+
+type EmailCredentials struct {                      // 2
+	Username, Password, Server string
+	Port                       int
+}
+
+                                                    // 3
+const emailTemplate = `From: {{.From}}              
+To: {{.To}}
+Subject {{.Subject}}
+{{.Body}}
+`
+
+var t *template.Template                            // 4
+
+func init() { 
+	t = template.New("email")                       // 5
+	t.Parse(emailTemplate)                          // 6
+}
+
+func main() {
+	message := &EmailMessage{                       // 7
+		From:    "me@example.com",
+		To:      []string{"you@example.com"},
+		Subject: "A test",
+		Body:    "Just a quick hello",
+	}
+
+	var body bytes.Buffer                           // 8
+	t.Execute(&body, message)
+
+	authCreds := &EmailCredentials{                 // 9
+		Username: "myUsername",
+		Password: "myPassword",
+		Server:   "smtp.example.com",
+		Port:     25,
+	}
+	auth := smtp.PlainAuth("",                      // 10
+		authCreds.Username,
+		authCreds.Password,
+		authCreds.Server,
+	)
+
+	smtp.SendMail(                                  // 11
+		authCreds.Server+":"+strconv.Itoa(authCreds.Port),
+		auth,
+		message.From,
+		message.To,
+		body.Bytes())
 }
 ```
