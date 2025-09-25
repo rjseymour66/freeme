@@ -70,6 +70,145 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+### From an alternate location
+
+You might need to serve your styles or JS from a CDN to increase performance. This example lets you pass the location of the stylesheet as a command-line argument:
+1. Define a flag with the default stylesheet location. For example, in your dev environment.
+2. The template string adds a `Location` in place of the `href` URL.
+3. Create an anonymous struct that contains the template data.
+4. Parse the flags and template before `main` runs.
+
+```go
+var t *template.Template
+var l = flag.String("location", "http://localhost:8080", "A location")          // 1
+
+var tpl = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello!</title>
+	<link rel="stylesheet" href="{{.Location}}/style.css">                      // 2
+</head>
+<body>
+    <h1>This is a test!</h1>
+</body>
+</html>`
+
+func serveStyles(w http.ResponseWriter, r *http.Request) {
+	data := struct{ Location *string }{                                         // 3
+		Location: l,
+	}
+	t.Execute(w, data)
+}
+
+func init() {
+	flag.Parse()                                                                // 4
+	t = template.Must(template.New("page").Parse(tpl))
+}
+
+func main() {
+	http.HandleFunc("/styles", serveStyles)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		panic(err)
+	}
+}
+```
+
 
 ## Embedding files in a binary
 
+You might need to store non-executable files in a binary, such as images or stylesheets, directly in the Go binary. This means that your program does not have to locate the files in the host's file system. Embedding files keeps your application self-contained, which is great for the following use cases:
+- Container image or CLI tool: Limi the number of resources that needs to be built into the image or tool.
+- Doc servers: Bundle markdown files into the binary to serve.
+- Web UI for CLI apps: Monitoring or db tools can ship wit a built-in web UI.
+- Improved portability: No risk of missing critical files.
+
+
+### Filesystem
+
+The following example embeds a filesystem in your binary. It converts a file to bytes or a string, stores that data in a variable, then it uses the variable ot serve the file with the `ServeContent` method.
+
+Here is a basic example:
+1. At build time, the compiler takes the `files/` directory and embeds it in the binary. The embedded value is defined in the line directly below the `go:embed` directive. These files are served from the `<server-IP>:<port>/files/<filename>` directory. For example, you can view `style.css` at `http://localhost:8080/files/style.css` with the following project structure:
+   ```bash
+   project-root
+   ├── files
+   │   ├── hello.html
+   │   ├── style.css
+   │   └── test.html
+   ├── go.mod
+   └── main.go
+   ```
+   The `//go:embed` directive cannot exist within a function---it is for the compiler only.
+2. `embed.FS` is a filesystem type that lets you access embedded files like a read-only filesystem. `f` is the in-memory representation of that filesystem.
+3. `http.FS` is an adapter that converts the `embed.FS` into a `FileSystem` implementation.
+
+```go
+//go:embed files            // 1
+var f embed.FS              // 2
+
+func main() {
+	if err := http.ListenAndServe(":8080", http.FileServer(http.FS(f))); err != nil {   // 3
+		panic(err)
+	}
+}
+```
+
+### Single string
+
+You can also embed a single file and store its contents in a string. This has the following use cases:
+- Inline templates.
+- Configuration file, so your app always has fallback settings.
+- License or EULA, such as a legal notice or README.
+- SQL queries that you can load at runtime instead of shipping `.sql` files.
+
+As a simple demonstration, this example reads `hello.html`, stores it in a variable, then logs the variable to STDOUT:
+
+```go
+//go:embed files/hello.html
+var myString string
+
+func main() {
+	log.Println(fmt.Sprintf("embedded value: %s", myString))
+}
+```
+
+### Config files
+
+Here is an example of an embedded JSON configuration file:
+1. Embed the config file as a `string`.
+2. Create a struct for the config file contents.
+3. Parse the embedded config into a struct with `json.Unmarshal`.
+4. Use the config. Here, we print its contents to STDOUT.
+```go
+import (
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"log"
+)
+
+//go:embed config.json
+var configData string                           // 1
+
+type Config struct {                            // 2
+	Server   string `json:"server"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func main() {
+	var cfg Config                              // 3
+	if err := json.Unmarshal([]byte(configData), &cfg); err != nil {
+		log.Fatalf("error parsing config: %v", err)
+	}
+
+	fmt.Printf("Connecting to %s:%d as %s\n",   // 4
+    cfg.Server, 
+    cfg.Port, 
+    cfg.Username
+    )
+}
+```
