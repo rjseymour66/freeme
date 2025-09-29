@@ -94,6 +94,11 @@ func main() {
 }
 ```
 
+
+## Transport layer (TODO)
+
+The transport layer sits between the application code and the network connection.
+
 ## Timeouts
 
 Timeout errors occur when the client waits too long for a response from a server and terminates the operation or connection. This might happen whether or not you explicitly set a timeout. You can detect a timeout error and retry the operation. The server might respond, or you might be routed to another running instance.
@@ -277,6 +282,58 @@ func main() {
 	fmt.Println(res.StatusCode)                 // 2
 }
 ```
+
+### Common errors
+
+#### 2xx – Success
+
+| Status Code | Name       | Description                                                          |
+| ----------- | ---------- | -------------------------------------------------------------------- |
+| 200         | OK         | The request succeeded and the server returned the requested data.    |
+| 201         | Created    | The request succeeded, and a new resource was created.               |
+| 202         | Accepted   | The request has been accepted for processing, but not completed yet. |
+| 204         | No Content | The request succeeded, but there is no content to send back.         |
+
+#### 3xx – Redirection
+
+| Status Code | Name               | Description                                                                 |
+| ----------- | ------------------ | --------------------------------------------------------------------------- |
+| 301         | Moved Permanently  | The resource has been moved to a new permanent URL.                         |
+| 302         | Found              | The resource is temporarily located at a different URL.                     |
+| 303         | See Other          | The client should retrieve the resource using a GET request to another URI. |
+| 304         | Not Modified       | The resource has not changed since the last request (used with caching).    |
+| 307         | Temporary Redirect | The resource is temporarily located at a new URL, method not changed.       |
+| 308         | Permanent Redirect | The resource has permanently moved to a new URL, method not changed.        |
+
+#### 4xx – Client Error
+
+| Status Code | Name                   | Description                                                                  |
+| ----------- | ---------------------- | ---------------------------------------------------------------------------- |
+| 400         | Bad Request            | The server could not understand the request due to invalid syntax.           |
+| 401         | Unauthorized           | Authentication is required or has failed.                                    |
+| 403         | Forbidden              | The client is authenticated but does not have permission to access resource. |
+| 404         | Not Found              | The requested resource could not be found.                                   |
+| 405         | Method Not Allowed     | The HTTP method is not supported for this resource.                          |
+| 408         | Request Timeout        | The server timed out waiting for the request.                                |
+| 409         | Conflict               | The request conflicts with the current state of the resource.                |
+| 410         | Gone                   | The resource requested is no longer available and will not return.           |
+| 413         | Payload Too Large      | The request body is larger than the server is willing to process.            |
+| 415         | Unsupported Media Type | The request format is not supported by the server.                           |
+| 429         | Too Many Requests      | The client has sent too many requests in a given time.                       |
+
+
+#### 5xx – Server Error
+
+| Status Code | Name                  | Description                                                                |
+| ----------- | --------------------- | -------------------------------------------------------------------------- |
+| 500         | Internal Server Error | A generic server error. Something went wrong on the server.                |
+| 501         | Not Implemented       | The server does not support the functionality required to fulfill request. |
+| 502         | Bad Gateway           | The server, acting as a gateway, received an invalid response.             |
+| 503         | Service Unavailable   | The server is temporarily unable to handle the request (overloaded/down).  |
+| 504         | Gateway Timeout       | The server, acting as a gateway, timed out waiting for an upstream server. |
+
+
+
 ### Check successful request
 
 Here is a quick `if` clause to check whether a request returned a successful 2xx success code. If the status code is below 200 or greater than 300, it returns a formatted error with the HTTP status:
@@ -285,6 +342,21 @@ Here is a quick `if` clause to check whether a request returned a successful 2xx
 if res.StatusCode < 200 || res.StatusCode > 300 {
     errFmt := "Unsuccessful HTTP request. Status: %s"
     return fmt.Errorf(errFmt, res.Status)
+}
+```
+### Check error class
+
+This snippet checks the error class with a `switch` statement:
+
+```go
+res, err := http.Get("https://example.com")
+switch res.StatusCode {
+case 300 <= res.StatusCode && res.StatusCode < 400:
+    fmt.Println("Redirect Message")
+case 400 <= res.StatusCode && res.StatusCode < 500:
+    fmt.Println("Client error")
+case 500 <= res.StatusCode && res.StatusCode < 600:
+    fmt.Println("Server error")
 }
 ```
 
@@ -296,7 +368,7 @@ The `Error` function in the `http` package is plaintext only and sets `X-Content
 
 Create custom errors as structs. Because HTTP is often parsed as JSON, include struct tags to control what is returned:
 1. HTTP status code. For example, `404` or `500`. `json:"-"` means that this value is not included in the JSON response---it is used only in server logic. For example, the JSON consumed by the application does not need this value, but the API client can read it in the response on the protocol level.
-2. This returns application-specific code, such as `1001` for invalid input. `omitempty` means that if this value is `0`, it is not marshalled into JSON.
+2. This returns application-specific code, such as `1001` for invalid input. `omitempty` means that if this value is `0`, it is not marshaled into JSON.
 3. Human readable string that is always returned in the JSON message.
    
 ```go
@@ -332,7 +404,7 @@ This outputs an error in the following format:
 3. If the marshalling fails, return an HTTP 500 error.
 4. Set the response header to notify the client the response includes data in JSON format.
 5. Write the status code with the custom error.
-6. Write the marshalled JSON to the `Response`.
+6. Write the marshaled JSON to the `Response`.
 
 ```go
 func JSONError(w http.ResponseWriter, e Error) {
@@ -363,11 +435,198 @@ func displayError(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### Consuming custom errors
+### Using custom errors
+
+This example uses the [custom error type](#creating-custom-errors) in an HTTP request. This error type implments the `Error` interface, which means you can return it where Go expects an `error` type:
+
+```go
+type Error struct {
+	HTTPCode int    `json:"-"`
+	Code     int    `json:"code,omitempty"`
+	Message  string `json:"message"`
+}
+
+func (e Error) Error() string {
+	fs := "HTTP: %d, Code: %d, Message: %s"
+	return fmt.Sprintf(fs, e.HTTPCode, e.Code, e.Message)
+}
+```
+
+The `get` method is a wrapper around the `http.Get` method with smarter error handling:
+1. Use the native `Get` method and return any errors.
+2. Check if this is a successful response:
+   - If it was successful, skip the `if` clause and return the response and a `nil` error.
+   - If it was not successful, perform additional error checking.
+3. Check if the correct content type---JSON---was returned.
+4. Read the response body into a buffer.
+5. Create an anonymous `data` struct with the custom `Err` error type.
+6. Unmarshal the buffer into the `data` struct. While parsing the JSON, if there is a top-level field named `error`, store its contents in `data.Err`.
+7. Check whether there was an error parsing the JSON.
+8. Set the `data.Err.HTTPCode` to the response status code.
+9.  Return the response and the populated custom `Error` struct.
+
+```go
+func get(u string) (*http.Response, error) {
+	res, err := http.Get(u)                                         // 1
+	if err != nil {
+		return res, err
+	}
+
+	if res.StatusCode < 200 || res.StatusCode >= 300 {              // 2
+		if res.Header.Get("Content-Type") != "application/json" {   // 3
+			sm := "Unknown error. HTTP status: %s"
+			return res, fmt.Errorf(sm, res.Status)
+		}
+
+		b, _ := io.ReadAll(res.Body)                                // 4
+		res.Body.Close()
+		
+        var data struct {                                           // 5
+			Err Error `json:"error"`
+		}
+		err = json.Unmarshal(b, &data)                              // 6
+		if err != nil {                                             // 7
+			sm := "Unable to parse JSON: %s. HTTP status: %s"
+			return res, fmt.Errorf(sm, err, res.Status)
+		}
+
+		data.Err.HTTPCode = res.StatusCode                          // 8
+		return res, data.Err                                        // 9
+	}
+	return res, nil
+}
+```
+
+Here is how you can call the method in the application. Notice how it behaves like the native `Get` method, but it return the custom `Error`:
+
+```go
+func main() {
+	res, err := get("http://example.com")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	b, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	fmt.Printf("%s", b)
+}
+```
+
+## JSON
+
+The most common data format for REST APIs is JSON. Go's [encoding/json package](https://pkg.go.dev/encoding/json) provides all the tools required to parse JSON data into Go data structs.
+
+When JSON data is parsed, it is _unmarshaled_. When you unmarshal a JSON object, you convert the JSON-encoded bytes into an in-memory representation, commonly a struct.
+
+The following example parses JSON data into a struct. For simplicity, the JSON object is stored in a string, but it is more likely to be read from an HTTP response body:
+1. Create the struct that models the data. Use struct tags to map a struct field to a field in the JSON object.
+2. In-memory JSON object.
+3. Create a `Person` object to hold the parsed JSON.
+4. `json.Unmarshal` takes a slice of bytes and a pointer to a data structure to store the data. This method mutates the data, so remember to pass a memory address rather than a value.
+5. Handle the error.
+6. Do something with the parsed JSON.
+
+```go
+type Person struct {                            // 1
+	Name string `json:"name"`
+}
+                                                // 2
+var JSON = `{                                   
+	"name": "Jimmy John"
+}`
+
+func main() {
+	var p Personv                               // 3
+	err := json.Unmarshal([]byte(JSON), &p)     // 4
+	if err != nil {                             // 5
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(p)                              // 6
+}
+```
+### Unstructured JSON
+
+In some circumstances, you might not know the structure of the JSON data before you consume it. To parse arbitrary JSON, unmarshal the data into an `interface{}`.
+
+For example, here is an in-memory JSON object with an unknown schema:
+
+```go
+var ks = []byte(`{ 
+"firstName": "Jean", 
+"lastName": "Bartik", 
+"age": 86, 
+"education": [ 
+     { 
+            "institution": "Northwest Missouri State Teachers College", 
+            "degree": "Bachelor of Science in Mathematics" 
+     }, 
+     {  
+            "institution": "University of Pennsylvania", 
+            "degree": "Masters in English" 
+     } 
+], 
+"spouse": "William Bartik", 
+"children": [ 
+     "Timothy John Bartik", 
+     "Jane Helen Bartik", 
+     "Mary Ruth Bartik" 
+]  
+}`)
+```
+
+To parse the data, create an `interface{}` type and then unmarshal the JSON into a pointer to that interface:
+
+```go
+func main() {
+	var f interface{}
+	err := json.Unmarshal(ks, &f)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println(f)
+}
+```
+
+After the data is marshaled into the `interface{}`, you need to inspect it. This table describes the types that Go unmarshals data into:
+
+| JSON Type   | Go Type                  |
+| ----------- | ------------------------ |
+| **string**  | `string`                 |
+| **number**  | `float64`                |
+| **boolean** | `bool`                   |
+| **null**    | `nil`                    |
+| **array**   | `[]interface{}`          |
+| **object**  | `map[string]interface{}` |
+
+This method shows how you can walk through an unstructured JSON object to learn each field's type and value:
+
+```go
+func printJSON(v interface{}) {
+	switch vv := v.(type) {
+	case string:
+		fmt.Println("is string,", vv)
+	case float64:
+		fmt.Println("is float64,", vv)
+	case []interface{}:
+		fmt.Println("is an array:")
+		for i, u := range vv {
+			fmt.Print(i, " ")
+			printJSON(u)
+		}
+	case map[string]interface{}:
+		fmt.Println("is an object:")
+		for i, u := range vv {
+			fmt.Print(i, " ")
+			printJSON(u)
+		}
+	default:
+		fmt.Println("Unknown type")
+	}
+}
+```
+
+## Semantic versioning
 
 
-
-
-## Transport layer (TODO)
-
-The transport layer sits between the application code and the network connection.
