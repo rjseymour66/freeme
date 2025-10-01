@@ -627,6 +627,50 @@ func printJSON(v interface{}) {
 }
 ```
 
-## Semantic versioning
+## Reusing connections
+
+### Keep-alive
+
+HTTP keep-alive is a feature of the HTTP protocol that lets a single TCP connection be reused for multiple requests and responses. Go's `DefaultClient` uses the `http.DefaultTransport`, which enables HTTP keep-alive for 30 seconds. To maintain this default, do not change the `KeepAlive` setting in a custom client.
 
 
+### Close response bodies
+
+Another method to reuse connections is closing response bodies after you read them rather than deferring their closing until the caller returns.
+
+For example, this snippet makes multiple GET requests and closes the body after each call.
+
+1. Make a request.
+2. Read the body.
+3. Close the request body.
+4. Do work with the body.
+
+```go
+func main() {
+	res, err := http.Get("http://example.com")      // 1
+	if err != nil {
+		os.Exit(1)
+	}
+
+	body, err := io.ReadAll(res.Body)               // 2
+	if err != nil {                 
+		os.Exit(1)
+	}
+	res.Body.Close()                                // 3
+
+	fmt.Println(body)                               // 4
+
+	res2, err := http.Get("http://example.com")     // 1
+	if err != nil {
+		os.Exit(1)
+	}
+
+	body2, err := io.ReadAll(res2.Body)             // 2
+	if err != nil {
+		os.Exit(1)
+	}
+	res2.Body.Close()                               // 3
+
+	fmt.Println(body2)                              // 4
+}
+```
