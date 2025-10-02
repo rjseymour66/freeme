@@ -5,6 +5,8 @@ weight = 100
 draft = false
 +++
 
+Logs are records of events that occur during the running of an application. When something breaks, they are an invaluable diagnostic resource.
+
 The IETF maintains standards for logging in [RFC 5424](https://datatracker.ietf.org/doc/html/rfc5424).
 
 ## log package
@@ -34,6 +36,14 @@ func main() {
     log.Println("Standard flags")               // 2025/09/02 08:51:49 Standard flags
 	log.SetFlags(log.Ltime | log.Lshortfile)    // 2025/09/02 08:51:49 Standard flags
 	log.Println("Time and short file")          // 08:51:49 main.go:18: Time and short file
+}
+```
+
+By default, the logger prints the date and time. To unset these defaults, pass `0` to `SetFlags`:
+
+```go
+func main() {
+	log.SetFlags(0)
 }
 ```
 
@@ -174,6 +184,7 @@ func main() {
 
 In the previous example, the `Debug` messages are not logged to the console. You can change that with a custom structured logger.
 
+
 ### JSON logging
 
 This example:
@@ -236,6 +247,38 @@ This logger produces the following output:
 | **`slog.Any(key string, value any)`**                | Generic — lets slog infer the type. Use for custom structs, slices, maps, etc. |
 | **`slog.Group(key string, attrs ...slog.Attr)`**     | Groups attributes under a nested object.                                       |
 
+## Syslog
+
+Syslog is system-level logging that writes to the `syslog` daemon, such as `rsyslog` or `journald`. It is not supported across all operating systems, so you should probably use the `slog` package for application-level logging and collect logs with another method.
+
+Here is basic implementation:
+
+```go
+var logger *log.Logger
+
+func init() {
+	var err error
+	logger, err = syslog.NewLogger(syslog.LOG_USER|syslog.LOG_NOTICE, 0)
+	if err != nil {
+		log.Fatal("cannot write to syslog: ", err)
+	}
+}
+```
+
+### Log levels
+
+Syslog uses log levels, which indicate the event's severity and importance. This table describes the log levels as defined in RFC 5424, the syslog protocol spec:
+
+| Code | Level     | Description                                                  |
+| ---- | --------- | ------------------------------------------------------------ |
+| 0    | EMERGENCY | System is unusable.                                          |
+| 1    | ALERT     | Action must be taken immediately.                            |
+| 2    | CRITICAL  | Critical conditions (hard failures).                         |
+| 3    | ERROR     | Error conditions.                                            |
+| 4    | WARNING   | Warning conditions (not an error, but something to look at). |
+| 5    | NOTICE    | Normal but significant condition.                            |
+| 6    | INFO      | Informational messages.                                      |
+| 7    | DEBUG     | Debug-level messages, lowest priority.                       |
 
 ## Stack traces
 

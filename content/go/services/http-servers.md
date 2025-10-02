@@ -127,7 +127,7 @@ The `main` function contains the server and graceful shutdown logic:
 1. Create a new `handler` with the constructor method.
 2. Create a server with the handler.
 3. Create a buffered channel that accepts OS signals.
-4. Listen specifically for interrupt and kill signals.
+4. Use `signal.Notify` to listen specifically for interrupt and kill signals. This function lets you listen for one or more OS signals with a channel. When the program receives a signal, it sends it to the given channel.
 5. Run the server in a separate go routine
 6. Wait for a signal in the `stop` channel. This blocks the main thread from executing the remainder of the code until the channel receives a message.
 7. Create a context that gives processes 5 seconds to complete their work before shut down.

@@ -5,7 +5,7 @@ weight = 10
 draft = false
 +++
 
-An error indicates that a task was not successfully completed.
+Unlike other languages, Go doesn't have exceptions---it has errors. An `error` is a built-in type that represents an unexpected condition. It indicates that a task was not successfully completed.
 
 Go "bubbles up" errors to a receiver to be handled in one or more places in the call stack. An example is when you return an `error` type to the caller for handling. Errors are idiomatically returned as the last return value. For example:
 
@@ -138,11 +138,45 @@ func echoString(s string) (string, error) {
 }
 ```
 
+## Helper functions
+
+If you find yourself doing repetitive error checking, then you can create a helper function that takes an error and prints a message:
+
+```go
+func checkError(err error, msg string) {
+	if err != nil {
+		log.Println("Error encountered:", msg)
+		// additional error handling
+	}
+}
+```
+
+Use this helper function in place of the standard `if err != nil...` check. For example:
+
+```go
+func main() {
+	a := -8
+	b := 1
+	err := alwaysPositive(a, b)
+	checkError(err, "Result not positive")
+}
+```
+
+This prints the following output to STDOUT:
+
+```bash
+go run .
+2025/10/01 22:51:39 Error encountered: Result not positive
+```
+
 ## Wrapping errors
 
 Wrap errors with the `%w` formatting verb:
 
 ```go
+var ErrEmptyString = errors.New("No string supplied")
+// ...
+
 fmt.Errorf("Error: %w", ErrEmptyString)
 ```
 
@@ -150,11 +184,13 @@ fmt.Errorf("Error: %w", ErrEmptyString)
 
 ### errors.Is
 
-`errors.Is` helps you identify an error variable, also called a sentinel variable. It is a recursive implementation of `errors.Unwrap`, which can identify a sentinel error when the error is returned directly from the caller. `errors.Is` is better because it handles bubbling up the error chain.
+`errors.Is` performs an equality check to help you identify an error variable, also called a sentinel variable. It is a recursive implementation of `errors.Unwrap`, which can identify a sentinel error when the error is returned directly from the caller. `errors.Is` is better because it handles bubbling up the error chain.
 
 This trivial example wraps the error to provide additional information:
 
 ```go
+var ErrEmptyString = errors.New("No string supplied")
+
 func main() {
 	result, err := echoString("Test")
 
