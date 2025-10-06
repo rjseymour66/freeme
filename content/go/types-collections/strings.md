@@ -451,3 +451,100 @@ This table summarizes the possible output formats:
 | `FormatFloat(1234.56789, 'E', 3, 64)`  | `1.235E+03`  |
 | `FormatFloat(1234.56789, 'g', 6, 64)`  | `1234.57`    |
 | `FormatFloat(1234.56789, 'f', -1, 64)` | `1234.56789` |
+
+
+## Reading from STDIN
+
+Command line tools that accept user input or output from a piped command need to read strings from stdin.
+
+### Scan
+
+Use `Scan` to read a single string with no spaces. You need to create a variable, and then pass `Scan` a pointer to that variable so it can change its value:
+
+1. Create a `string` variable.
+2. Pass `Scan` a pointer to the variable.
+3. Handle any errors.
+
+```go
+func main() {
+	var input string 									// 1
+	fmt.Print("Please enter a word: ")
+	n, err := fmt.Scan(&input) 							// 2
+	if err != nil { 									// 3
+		fmt.Println("error with user input:", err, n)
+	} else {
+		fmt.Println("You entered: ", input)
+	}
+}
+```
+
+{{< admonition "" note >}}
+`Scan` can read data types other than `string`, such as numbers, etc.
+{{< /admonition >}}
+
+### ReadString
+
+Use `ReadString` if you need to capture input with spaces, such as a sentence. 
+
+1. Create a new reader from Stdin. `NewReader` wraps Stdin in a buffered reader for more efficient reads. The `bufio` Reader also has [many methods](https://pkg.go.dev/bufio#Reader) that helps reading input.
+2. `ReadString` takes a delimiter, so this implementation reads from Stdin until it encounters an newline character. When you press the Enter key, the program moves to the next step.
+3. Handles any errors.
+   
+```go
+func main() {
+	reader := bufio.NewReader(os.Stdin) 			// 1
+	fmt.Print("Please enter input: ")
+	input, err := reader.ReadString('\n') 			// 2
+	if err != nil { 								// 3
+		fmt.Println("error with user input:", err) 	
+	} else {
+		fmt.Println("You entered: ", input)
+	}
+}
+```
+
+## HTML escaping
+
+You need to sanitize string input when you inject it into a webpage to prevent cross-site scripting (XSS) and HTML injection attacks.
+
+The `EscapeString` method converts special characters into their HTML entity equivalents. The `UnescapeString` method does the opposite:
+
+```go
+str := `<p>Ampersand (&) and "quotes".</p>`
+escaped := html.EscapeString(str)         // &lt;p&gt;Ampersand (&amp;) and &#34;quotes&#34;.&lt;/p&gt;
+unescaped := html.UnescapeString(escaped) // <p>Ampersand (&) and "quotes".</p>
+```
+
+## Regex
+
+Regular expressions (regex) is a notation for describing a search pattern in a string. The syntax is used across many languages, such as Perl and Python.
+
+To use Go's `regex` package, perform these general steps:
+1. Create a `Regexp` struct instance from your regex definition.
+2. Call one of its `Find` methods to return a matching string or index.
+
+Here is a table summarizing the available methods:
+
+| Method                           | Description                                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `regexp.Compile`                 | Compiles a regular expression into a `*Regexp` object. Returns an error if the expression is invalid.    |
+| `regexp.MustCompile`             | Like `Compile`, but panics if the expression is invalid. Commonly used for constant regex patterns.      |
+| `regexp.Match`                   | Checks if the byte slice matches the regex pattern (no need to compile). Returns a boolean and an error. |
+| `regexp.MatchString`             | Checks if the string matches the regex pattern (no need to compile). Returns a boolean and an error.     |
+| `(*Regexp).Match`                | Reports whether the regex matches the given byte slice.                                                  |
+| `(*Regexp).MatchString`          | Reports whether the regex matches the given string.                                                      |
+| `(*Regexp).Find`                 | Returns the first match of the regex in the byte slice, or `nil` if no match is found.                   |
+| `(*Regexp).FindString`           | Returns the first match of the regex in the string, or an empty string if no match is found.             |
+| `(*Regexp).FindAll`              | Returns all matches (up to `n`) of the regex in the byte slice. Use `-1` for all matches.                |
+| `(*Regexp).FindAllString`        | Returns all matching substrings (up to `n`) in the string.                                               |
+| `(*Regexp).FindSubmatch`         | Returns a slice of byte slices: the full match followed by any capturing group matches.                  |
+| `(*Regexp).FindSubmatchIndex`    | Returns a slice of index pairs identifying the start and end of the full match and submatches.           |
+| `(*Regexp).FindAllSubmatch`      | Returns all matches and their submatches in a byte slice.                                                |
+| `(*Regexp).FindAllSubmatchIndex` | Returns all match and submatch indices.                                                                  |
+| `(*Regexp).ReplaceAll`           | Replaces all matches in the byte slice with the replacement text.                                        |
+| `(*Regexp).ReplaceAllString`     | Replaces all matches in the string with the replacement text.                                            |
+| `(*Regexp).ReplaceAllFunc`       | Replaces all matches using a function that computes each replacement.                                    |
+| `(*Regexp).ReplaceAllStringFunc` | Replaces all matches in the string using a function that computes each replacement.                      |
+| `(*Regexp).Split`                | Splits a string into substrings around matches of the regex. `n` limits the number of substrings.        |
+| `(*Regexp).SubexpNames()`        | Returns the names of the capturing groups in the regex (if any).                                         |
+| `(*Regexp).NumSubexp()`          | Returns the number of capturing groups in the regex.                                                     |
