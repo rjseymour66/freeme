@@ -523,7 +523,129 @@ To use Go's `regex` package, perform these general steps:
 1. Create a `Regexp` struct instance from your regex definition.
 2. Call one of its `Find` methods to return a matching string or index.
 
-Here is a table summarizing the available methods:
+All examples in this section use the following string:
+
+```go
+src := `I loved her against reason, against promise, 
+against peace, against hope, against happiness, against 
+all discouragement that could be.`
+```
+
+### Creating a regex
+
+To create a regex, use either the `Compile` or `MustCompile` method. `Compile` returns an error, but `MustCompile` panics if there is an issue.
+
+For the regex definition, use backticks. Regex patterns commonly use backslashes, which are interpreted differently with double quotes. This regex matches any string that starts with "against" and has any word after it:
+
+```go
+re, err := regexp.Compile(`against [\w]+`)
+must := regexp.MustCompile(`against [\w]+`)
+```
+After you create the regex, you can use it to find matches.
+
+
+### MatchString
+
+Returns a boolean that indicates if the regex has any matches in the string:
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+matchString := re.MatchString(src) 	// true
+```
+
+### FindString
+
+Returns the matching string:
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+findString := re.FindString(src) 	// against reason
+```
+
+### FindAllString
+
+Takes two arguments: the source string, and the number of matches that you want returned. To return all matches, enter a negative number (`-1`):
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+findAllString := re.FindAllString(src, -1)
+fmt.Printf("%q\n", findAllString)
+// ["against reason" "against promise" "against peace" "against hope" "against happiness"]
+```
+
+### FindStringIndex
+
+Finds indices for the first match and returns them in a slice. The first integer indicates is the starting index, and the second integer is the ending index:
+1. Get the slice of integers.
+2. Use the indices in the slice to extract a matching string.
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+locs := re.FindStringIndex(src) 		// [12, 26]
+locsMatch := src[locs[0]:locs[1]] 		// against reason
+```
+
+### FindAllStringIndex
+
+Returns a two-dimensional slice of the start and end indices for all matching strings:
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+allLocs := re.FindAllStringIndex(src, -1)
+// [[12 26] [28 43] [46 59] [61 73] [75 92]]
+```
+
+### ReplaceAllString
+
+Replaces all matches in the `src` string with the second argument:
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+replaced := re.ReplaceAllString(src, "anything")
+// I loved her anything, anything, 
+// anything, anything, anything, against 
+// all discouragement that could be.
+```
+
+### ReplaceAllStringFunc
+
+This method accepts as its second parameter a function that runs on each match.
+
+For example, you can make all matches uppercase:
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+replacedUpper := re.ReplaceAllStringFunc(src, strings.ToUpper)
+// I loved her AGAINST REASON, AGAINST PROMISE, 
+// AGAINST PEACE, AGAINST HOPE, AGAINST HAPPINESS, against 
+// all discouragement that could be.
+```
+
+You can also define a higer-order function that performs custom mutations:
+1. The method must take a string argument and return a string. This function capitalizes the second word in the match ("reason").
+2. Pass the function to `ReplaceAllStringFunc` as the second parameter. Do not add parentheses (`()`) after the function. This is because adding `()` means you get the result of the function. `ReplaceAllStringFunc` takes only a function with a specific signature, and it calls that function internally.
+
+```go
+re := regexp.MustCompile(`against [\w]+`)
+f := func(in string) string {  							// 1
+	split := strings.Split(in, " ")
+	split[1] = strings.ToUpper(split[1])
+	return strings.Join(split, " ")
+}
+replacedCustom := re.ReplaceAllStringFunc(src, f) 		// 2
+// I loved her against REASON, against PROMISE, 
+// against PEACE, against HOPE, against HAPPINESS, against 
+// all discouragement that could be.
+```
+
+### All methods
+
+The following table summarizing the available methods. Here are some common patterns in the function names that help you understand their behavior:
+- `*All`: Return all matches in a string, depending on `n`.
+- Without `*All`: Return only the first match.
+- `*String`: Returns strings or slices of strings.
+- Without `*String`: Returns an array of bytes (`[]byte`).
+- `*Index`: Returns the index of the match.
 
 | Method                           | Description                                                                                              |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
