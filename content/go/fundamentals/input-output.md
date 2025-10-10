@@ -5,6 +5,10 @@ weight = 60
 draft = false
 +++
 
+In Go, input and output center around the `io.Reader` and `io.Writer` interfaces. A type that implements `io.Reader` is a "reader", and a type that implements `io.Writer` is a "writer". Here is a summary of each:
+- Reader: A type that reads its own bytes. Each reader has a `Read` method that reads the contents of the reader itself and stores it in a slice of bytes in memory.
+- Writer: A type that can receive bytes. Each writer has a `Write` method that writes a slice of bytes from memory into the writer itself.
+
 ## io.Reader
 
 A reader is something that you can read bytes from. Think of it as a mechanism that reads data from a stream and stores it in memory:
@@ -45,6 +49,34 @@ func main() {
 }
 ```
 
+### Buffered reader (!)
+
+- you don' thave to explicitly create a buffer
+- you pass NewReader a 
+
+`bufio.NewReader` wraps an existing reader and adds to it an in-memory buffer. This is more efficient than `Read` because each `Read` call works directly with the disk, which triggers a system call. Reading from a buffer combines the small reads into memory in chunks, then 
+
+By default, the buffer is 4,096 bytes (4KB). If you want to change the size of the buffer, use `bufio.NewReaderSize`. The reader fills the buffer each time it reads data. The following example uses each:
+1. 
+
+```go
+func main() {
+	file, err := os.Open("example.txt")
+	if err != nil {
+		log.Fatalln("Error opening file:", err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading line:", err)
+		return
+	}
+	fmt.Printf("Read line: %s", line)
+}
+```
+
 ### ReadAll
 
 You don't have to explicitly define a slice of bytes to store the contents of a reader. You can use `ReadAll` to read the entire contents of the reader into a slice of bytes:
@@ -64,6 +96,8 @@ func main() {
 	fmt.Println(str, err)           // 4
 }
 ```
+
+
 
 ### As a parameter
 
@@ -90,7 +124,7 @@ func main() {
 
 ## io.Writer
 
-A writer is anything that you can write bytes to. Think of it as a mechanism that writes in-memory data into an output:
+A writer is anything that you can write bytes to an output stream. Think of it as a mechanism that writes in-memory data into an output:
 
 ```
 []bytes -> Writer -> output destination
@@ -108,7 +142,7 @@ type Writer interface {
 
 For example, a file in Go is a writer because the [File interface](https://pkg.go.dev/io/fs#File) implements `Write`. The following example writes an in-memory slice of bytes to the file with the `Write` method:
 1. Creates a file and returns a file handle and an error. The file is a writer.
-2. Create an in-memory slice of bytes. This could also be a network connection.
+2. Create an in-memory slice of bytes. This could be any output stream, such as a network connection.
 3. The file's `Write` method writes the slice to the file and returns the number of bytes written and an error.
 4. Output the number of bytes written and an error.
 
@@ -121,6 +155,27 @@ func main() {
 
 	n, err := f.Write(data)                     // 3
 	fmt.Println(n, err)                         // 4
+}
+```
+
+### Buffered writer (!)
+
+
+```go
+func main() {
+	url := "https://www.example.com"
+	r, err := http.Get(url)
+	if err != nil {
+		log.Fatalln("Cannot get URL", err)
+	}
+	defer r.Body.Close()
+
+	file, _ := os.Create("copy.html")
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	io.Copy(writer, r.Body)
+	writer.Flush()
 }
 ```
 
@@ -138,5 +193,38 @@ func main() {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "Hello, %s.", "Charles")
 	str := buf.String()
+}
+```
+
+## Copy from reader to writer
+
+`io.Copy` with a buffered writer is the most performant way to read from a reader and write to a writer. Otherwise, you need to need to use expensive, low-level methods:
+
+1. Make an HTTP GET request.
+2. Create a writer that you can write the response to. The file handler is a writer.
+3. Create a buffered writer. `NewWriter` wraps a writer and returns a writer with a buffer (4KB, by default).
+4. `io.Copy` reads the response body stream and writes it to the buffered writer until there is nothing to read. It writes in 4KB chunks.
+   
+   Internally, `io.Copy` reads from the source and writes to the destination in a loop, until there is nothing left to read.
+5. Flush the writer contents to disk. Because the writer waits until its buffer is full, this ensures that no bytes remain in the buffer after all data is extracted from the source.
+   
+   `Flush()` writes data to the underlying writer---the writer wrapped in the buffered writer. Here, that is `file`. This behavior is why you can call `Flush()` after the `Copy` operation.
+
+
+```go
+func main() {
+	url := "https://www.example.com"
+	r, err := http.Get(url)
+	if err != nil {
+		log.Fatalln("Cannot get URL", err)
+	}
+	defer r.Body.Close()
+
+	file, _ := os.Create("copy.html")
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	io.Copy(writer, r.Body)
+	writer.Flush()
 }
 ```
