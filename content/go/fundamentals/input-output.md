@@ -27,9 +27,32 @@ type Reader interface {
 
 Any struct that implements the `Reader` interface is called a "reader". This means the struct must have a `Read` method that takes a slice of bytes and returns the number of bytes read and an error. You read data _from_ the reader into a slice of bytes. So, a reader is something that allows you to read data from it.
 
-### From a buffer
 
-For example, a file in Go is a reader because the [File interface](https://pkg.go.dev/io/fs#File) implements `Read`. The following example reads data from the file into a buffer of bytes and prints its contents to the console:
+| When to Use                | Reader | BufferedReader |
+| -------------------------- | ------ | -------------- |
+| Simple, small reads        | ✅      | ❌              |
+| Line-by-line reading       | ❌      | ✅              |
+| Minimize syscalls          | ❌      | ✅              |
+| Real-time reads (no delay) | ✅      | ❌              |
+| Parsing or tokenizing      | ❌      | ✅              |
+
+
+### Unbuffered
+
+`Read` reads data directly from the input stream. It provides basic, sequential reading---one read at a time with no buffering. This can be costly because each `Read` operation requires a system call, so use `Read` when you are reading a small or known amount of data and you need control over how many bytes are read each time.
+
+Use unbuffered I/O in the following circumstances:
+
+| Use Case                         | Example                                                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Small files directly**         | Use `os.Open()` + `Read()` for config files or metadata <br>`file.Read(buf)`                        |
+| **From in-memory data**          | Use `strings.NewReader("data")` or `bytes.NewReader()` when you already have the content in memory. |
+| **From a network connection**    | Use `conn.Read()` to process packets or headers directly from a TCP stream.                         |
+| **Stdin directly (single read)** | `os.Stdin.Read(buf)` for reading a fixed-size input or when buffering isn’t needed.                 |
+| **Composing custom readers**     | Implement `io.Reader` to wrap or transform streams (e.g., decrypting reader, counting reader).      |
+
+
+In this example, we read a small file directly. A file in Go is a reader because the [File interface](https://pkg.go.dev/io/fs#File) implements `Read`. The following example reads data from the file into a buffer of bytes and prints its contents to the console:
 1. Returns a file handle and an error. The file is a reader.
 2. Create a buffer that can hold 1KB.
 3. `Read` reads bytes from the file reader into the buffer.
@@ -49,32 +72,119 @@ func main() {
 }
 ```
 
-### Buffered reader (!)
+### Buffered
 
-- you don' thave to explicitly create a buffer
-- you pass NewReader a 
+The `bufio` package provides the `NewReader` method, which wraps an existing reader and uses an in-memory buffer. Buffered I/O reads directly from memory, which reduces the number of system calls during each operation.
 
-`bufio.NewReader` wraps an existing reader and adds to it an in-memory buffer. This is more efficient than `Read` because each `Read` call works directly with the disk, which triggers a system call. Reading from a buffer combines the small reads into memory in chunks, then 
+Use buffered I/O in the following circumstances:
 
-By default, the buffer is 4,096 bytes (4KB). If you want to change the size of the buffer, use `bufio.NewReaderSize`. The reader fills the buffer each time it reads data. The following example uses each:
-1. 
+| Use Case                                        | Example                                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Text input line by line**                     | Wrap stdin or a file: `reader := bufio.NewReader(os.Stdin)` → `line, _ := reader.ReadString('\n')` |
+| **Parsing structured files (CSV, JSONL, logs)** | Use buffering to efficiently read large files without loading them fully in memory.                |
+| **From network sockets efficiently**            | `bufio.NewReader(conn)` minimizes syscalls when reading variable-sized messages.                   |
+| **Interactive CLI input**                       | Use `ReadString('\n')` to get user input with editing or line buffering.                           |
+| **Scanning tokens or prefixes**                 | Use `Peek()` or `ReadBytes()` to inspect part of the stream without consuming all data yet.        |
+
+
+The reader fills the buffer each time it reads data. This example reads text line-by-line:
+1. Returns a file handle and an error. The file is a reader.
+2. Create a buffered reader.
+3. Read the file in an inifinte `for` loop.
+4. `ReadString` reads until it reaches the given delimiter, then returns a string and an error.
+5. Check for EOF and return when you reach it.
+6. Do something with the new data during each loop.
 
 ```go
 func main() {
-	file, err := os.Open("example.txt")
+	file, err := os.Open("source.txt")                  // 1
 	if err != nil {
 		log.Fatalln("Error opening file:", err)
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println("Error reading line:", err)
-		return
+	reader := bufio.NewReader(file)                     // 2
+
+	for {                                               // 3
+		line, err := reader.ReadString('\n')            // 4
+		if err != nil {
+			if err.Error() == "EOF" {                   // 5
+				fmt.Print(line)
+				break
+			}
+			log.Fatalf("Error reading line:", err)
+		}
+		fmt.Printf("%s", line)                          // 6
 	}
-	fmt.Printf("Read line: %s", line)
 }
+```
+
+By default, the buffer is 4,096 bytes (4KB). If you want to change the size of the buffer, use `bufio.NewReaderSize`. This example creates a buffer that is 20 bytes in length and uses some methods to check the status of the buffer:
+
+1. Create a reader from a string.
+2. Wrap the string reader with a buffered reader of size 20 bytes.
+   {{< admonition "Internal minimum buffer size" note >}}
+   The minimum buffer size in bytes is 16. If you create a buffer smaller than 16 bytes, Go silently rounds the buffer size up to 16.
+   {{< /admonition >}}
+3. Log the buffer size with `Size()`.
+4. for loop that iterates through `stringReader` one byte at a time.
+5. `ReadByte()` returns a single byte and an error.
+6. If you reach the end of the file, return.
+7. Log the byte you read, how many bytes are in the buffer (`Buffered()`), and the size of the buffer.
+   
+```go
+func main() {
+	data := "This is data that we will read one byte at a time."
+	stringReader := strings.NewReader(data)                         // 1
+
+	bufferedSize := 20
+	br := bufio.NewReaderSize(stringReader, bufferedSize)           // 2
+
+	fmt.Printf("Reader buffer size: %d\n\n", br.Size())             // 3
+
+	for i := 0; i < len(data); i++ {                                // 4
+		b, err := br.ReadByte()                                     // 5
+		if err != nil {
+			if err == io.EOF {                                      // 6
+				fmt.Println("End of file")
+				break
+			}
+			fmt.Printf("Error reading byte: %v\n", err)
+			return
+		}
+
+		fmt.Printf("Read byte: %c (Buffered: %d/%d)\n", b, br.Buffered(), br.Size())    // 7
+	}
+}
+```
+
+This outputs the following:
+
+```bash
+Reader buffer size: 20
+
+Read byte: T (Buffered: 19/20)
+Read byte: h (Buffered: 18/20)
+Read byte: i (Buffered: 17/20)
+Read byte: s (Buffered: 16/20)
+Read byte:   (Buffered: 15/20)
+Read byte: i (Buffered: 14/20)
+Read byte: s (Buffered: 13/20)
+Read byte:   (Buffered: 12/20)
+Read byte: d (Buffered: 11/20)
+Read byte: a (Buffered: 10/20)
+Read byte: t (Buffered: 9/20)
+Read byte: a (Buffered: 8/20)
+Read byte:   (Buffered: 7/20)
+Read byte: t (Buffered: 6/20)
+Read byte: h (Buffered: 5/20)
+Read byte: a (Buffered: 4/20)
+Read byte: t (Buffered: 3/20)
+Read byte:   (Buffered: 2/20)
+Read byte: w (Buffered: 1/20)
+Read byte: e (Buffered: 0/20)
+Read byte:   (Buffered: 19/20)
+...
 ```
 
 ### ReadAll
@@ -96,8 +206,6 @@ func main() {
 	fmt.Println(str, err)           // 4
 }
 ```
-
-
 
 ### As a parameter
 
@@ -138,7 +246,18 @@ type Writer interface {
 }
 ```
 
-### From memory
+Go provides buffered and unbuffered methods. This table summarizes why you would use each:
+
+| Feature               | Regular Writer (`os.File`) | Buffered Writer (`bufio.Writer`) |
+| --------------------- | -------------------------- | -------------------------------- |
+| Writes directly to OS | ✅                          | ❌                                |
+| Batches small writes  | ❌                          | ✅                                |
+| Fewer system calls    | ❌                          | ✅                                |
+| Must call `Flush()`   | ❌                          | ✅                                |
+| Best for              | Large single writes        | Many small writes                |
+
+
+### Unbuffered
 
 For example, a file in Go is a writer because the [File interface](https://pkg.go.dev/io/fs#File) implements `Write`. The following example writes an in-memory slice of bytes to the file with the `Write` method:
 1. Creates a file and returns a file handle and an error. The file is a writer.
@@ -158,26 +277,9 @@ func main() {
 }
 ```
 
-### Buffered writer (!)
+### Buffered
 
-
-```go
-func main() {
-	url := "https://www.example.com"
-	r, err := http.Get(url)
-	if err != nil {
-		log.Fatalln("Cannot get URL", err)
-	}
-	defer r.Body.Close()
-
-	file, _ := os.Create("copy.html")
-	defer file.Close()
-
-	writer := bufio.NewWriter(file)
-	io.Copy(writer, r.Body)
-	writer.Flush()
-}
-```
+See [Copy from reader to writer](#copy-from-reader-to-writer).
 
 ### As a parameter
 
@@ -228,3 +330,174 @@ func main() {
 	writer.Flush()
 }
 ```
+
+## Reading files
+
+Go provides a few options for reading files:
+- `ReadFile`: Loads the entire file in memory and closes it automatically. This is good for small to medium files.
+- `os.Open` + `Read`: Reads into a buffer and lets you control how much data is read at a time. Good for large files.
+
+This table compares use cases for each method:
+
+| Use Case                        | Recommended                 |
+| ------------------------------- | --------------------------- |
+| Small file (config.json, < 1MB) | `os.ReadFile`               |
+| Large log file (1GB+)           | `os.Open` + `Read`          |
+| Stream or pipe (stdin, socket)  | `os.Open` or `bufio.Reader` |
+| Test fixture or static HTML     | `os.ReadFile`               |
+| Continuous data read            | `os.Open`                   |
+
+
+This table summarizes the features:
+
+| Feature               | `os.ReadFile` | `os.Open` + `Read`      |
+| --------------------- | ------------- | ----------------------- |
+| Reads all at once     | ✅             | ❌                       |
+| Stream / partial read | ❌             | ✅                       |
+| Automatic close       | ✅             | ❌                       |
+| Control over buffer   | ❌             | ✅                       |
+| Best for small files  | ✅             | ⚠️                       |
+| Best for large files  | ❌             | ✅                       |
+| Memory use            | High          | Low                     |
+| Simplicity            | Very simple   | More code, more control |
+
+
+
+### ReadFile
+
+`ReadFile` loads the entire file in memory and closes it automatically. This is good for small to medium files:
+1. `ReadFile` returns a slice of bytes and an error.
+2. Convert the bytes into a string.
+3. Do some work with the string data.
+
+```go
+func main() {
+	bytes, err := os.ReadFile("source.txt")         // 1
+	if err != nil {
+		log.Println("Cannot read file: ", err)
+	}
+	str := string(bytes)                            // 2
+	fmt.Println(str)                                // 3
+}
+```
+
+
+### os.Open and Read
+
+Manually opening and reading the file gives you more control over how much data you read. The following example creates a buffer that is the size of the entire file:
+1. `Open` returns a file handle in read-only mode. For other options, use `OpenFile`.
+2. Always close the file.
+3. Get the file size with `Stat` so you know how large to make the buffer.
+4. Create a buffer the size of the file.
+5. The file is a reader, so pass its `Read` method buffer to store its contents.
+6. Log the number of bytes read from the file.
+7. Do some work with the file.
+
+```go
+func main() {
+	f, err := os.Open("source.txt")                     // 1
+	if err != nil {
+		log.Println("Cannot read file: ", err)
+	}
+	defer f.Close()                                     // 2
+
+	stat, err := f.Stat()                               // 3
+	if err != nil {
+		log.Println("Cannot read file stats: ", err)
+	}
+
+	buf := make([]byte, stat.Size())                    // 4
+
+	bytes, err := f.Read(buf)                           // 5
+	if err != nil {
+		log.Println("Cannot read buffer: ", err)
+	}
+
+	fmt.Printf("Read %d bytes from file\n", bytes)      // 6
+	fmt.Println(string(buf))                            // 7
+}
+```
+
+## Writing files
+
+Go provides a few options for writing to files:
+- `WriteFile`: Simplest method. It loads the entire file in memory and writes it at once. Good for small to medium files.
+- `os.Open` and `Write`: Lets you perform multiple writes and gives you control over how you write (append, truncate, position). Good for streaming data or large file writes.
+
+This table compares use cases for each method:
+
+| Use Case                            | Recommended                               |
+| ----------------------------------- | ----------------------------------------- |
+| Small config file                   | `os.WriteFile`                            |
+| Large file (stream or batch writes) | `os.OpenFile` + `Write`                   |
+| Append logs continuously            | `os.OpenFile(..., os.O_APPEND, ...)`      |
+| Write structured output in chunks   | `os.OpenFile` + `Write` or `bufio.Writer` |
+| Simple output to disk               | `os.WriteFile`                            |
+
+This table summarizes the feature of each method:
+
+| Feature                         | `os.WriteFile` | `os.OpenFile` + `Write` | `os.OpenFile` + `bufio.Writer` |
+| ------------------------------- | -------------- | ----------------------- | ------------------------------ |
+| Writes all at once              | ✅              | ❌                       | ❌                              |
+| Stream / chunk writing          | ❌              | ✅                       | ✅                              |
+| Buffering                       | ❌              | ❌                       | ✅                              |
+| Simplicity                      | ✅              | ⚠️                       | ⚠️                              |
+| Performance (small data)        | ✅              | ✅                       | ✅                              |
+| Performance (many small writes) | ❌              | ⚠️                       | ✅                              |
+| Automatic close                 | ✅              | ❌                       | ❌                              |
+
+
+
+### WriteFile
+
+`WriteFile` loads all data in memory and writes to a file at once. This is the simplest method and best for small to medium files:
+1. Data that you want to write to the file.
+2. `WriteFile` takes a file name, a slice of bytes to write to the file, and a set of Unix file permissions. The leading `0` is the sticky bit for SUID. The remaining permissions are owner, group, and user. `0644` gives the owner read and write permissions, and other groups and users read-only permissions.
+   
+   If the file does not exist, `WriteFile` creates the file with the given permissions. If it does exist, it removes all data in the file and writes to it, but it does not change the permissions.
+3. Check for errors.
+
+```go
+func main() {
+	data := []byte("WriteFile operation for small files!")  // 1
+
+	err := os.WriteFile("writefile.txt", data, 0644)        // 2
+	if err != nil {                                         // 3
+		log.Println("Cannot write to file: ", err)
+	}
+}
+```
+
+### os.Create/OpenFile and Write
+
+1. Data that you want to write to the file.
+2. Create a destination file. `Create` creates a file with 0666 permissions, which gives the owner, group, and user read and write permissions on the file if the file doesn't exist. If it does exist, it removes the data in the file and preserves the permissions.
+   
+   Alternatively, you could use `OpenFile` to create the file with custom flags. Here, these flags mean create the file if it doesn't exist, open it in write only mode, and if the file exists, clear its contents before you write data.
+3. Always close the file.
+4. Write the data to the file.
+5. Log the number of bytes written.
+6. Do some work with the data.
+   
+```go
+func main() {
+	data := []byte("WriteFile operation for streams or large files!")   // 1
+
+	f, err := os.Create("create.txt")                                   // 2
+    // f, err := os.OpenFile("output.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Println("Cannot create file: ", err)
+	}
+	defer f.Close()                                                     // 3
+
+	n, err := f.Write(data)                                             // 4
+	if err != nil {
+		log.Println("Cannot write to file: ", err)
+	}
+	fmt.Printf("Wrote %d bytes to file\n", n)                           // 5
+	fmt.Println(string(data))                                           // 6
+}
+```
+
+## Temporary files
+
