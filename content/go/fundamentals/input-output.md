@@ -501,3 +501,65 @@ func main() {
 
 ## Temporary files
 
+A temporary file is an ephemeral file that temporarily stores data for a program task and is deleted when either the program completes or the data is persisted on disk. For security purposes, temp files are created with `0600` permissions.
+
+Example use cases include the following:
+- Unit tests that need a temporary workspace
+- Temporary file uploads or transformations
+- Caching intermediate data
+- Writing logs or output that doesn’t need to persist
+
+The following example shows how you can create and delete temporary files:
+1. Create a temporary directory. `os.TempDir()` creates the directory in the host system's temp directory, and the second argument is a name pattern, where `*` is replaced with a random string. This code is run on Linux, so it creates the following directory: `/tmp/tmpdir_518411422`.
+2. Use `os.RemoveAll` to clean up your temp directory and files. This method recursively deletes the given directory and all its contents.
+3. `os.CreateTemp` creates a temporary file in `tmpdir`. The second argument is a name pattern, where `*` is replaced with a random string.
+4. `os.Remove` takes the name of a file or empty directory and removes it. This is unnecessary in this example because `os.RemoveAll` deletes the temp directory and its contents, but I am adding this here for completeness.
+5. Byte data to write to the temp file.
+6. Writes `data` to the temp file.
+7. If there is no error, this line logs `data` and the temp file name to the console. This line outputs the following message to the console:
+   
+   ```bash
+   Wrote "Random data for temporary file." to /tmp/tmpdir_2826842138/tmpfile_1485316416
+   ```
+8. `Close` closes the file, releases the file handle, and flushes any data to disk. 
+
+```go
+func main() {
+	tmpdir, err := os.MkdirTemp(os.TempDir(), "tmpdir_*")                   // 1
+	if err != nil {
+		log.Println("Cannot create temp directory: ", tmpdir)
+	}
+	defer os.RemoveAll(tmpdir)                                              // 2
+
+	tmpfile, err := os.CreateTemp(tmpdir, "tmpfile_*")                      // 3
+	if err != nil {
+		log.Println("Cannot create temp file: ", tmpfile)
+	}
+	defer os.Remove(tmpfile.Name())                                         // 4
+
+	data := []byte("Random data for temporary file.")                       // 5
+	_, err = tmpfile.Write(data)                                            // 6
+	if err != nil {
+		log.Println("Cannot write to temp file: ", tmpfile)
+	}
+	fmt.Printf("Wrote \"%s\" to %s\n", string(data), tmpfile.Name())        // 7
+
+	err = tmpfile.Close()                                                   // 8
+	if err != nil {
+		log.Println("Cannot close temp file", err)
+	}
+}
+```
+
+### Temp files vs files
+
+Temporary files and standard files share many of the same methods. The difference between the two files is how and why they are created, and how they are managed:
+
+| Aspect           | `os.CreateTemp`                                                                                  | `os.Create` / `os.Open`                        |
+| ---------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| **Purpose**      | Create a uniquely named temporary file                                                           | Create or open a specific file                 |
+| **Location**     | In the system’s temp directory (`/tmp` or `%TEMP%`) by default, or a custom temp dir you pass in | Anywhere you specify (e.g., working directory) |
+| **Name pattern** | Automatically generates a random name with a prefix pattern (`tmp_*`)                            | You specify the file name manually             |
+| **Cleanup**      | Typically used with `defer os.Remove()` or `RemoveAll()` for auto cleanup                        | File persists until you delete it manually     |
+| **Security**     | Uses atomic creation to avoid race conditions (safe for concurrent temp creation)                | No automatic protection from name collisions   |
+| **Permissions**  | Default 0600 (owner-only access) for security                                                    | You can specify permissions via `os.OpenFile`  |
