@@ -1,19 +1,19 @@
 +++
-title = 'Actions'
+title = 'Characters and actions'
 date = '2025-09-12T08:07:36-04:00'
 weight = 10
 draft = false
 +++
 
-To be able to understand how your readers feel about your writing, you need to know what counts as a well-told story. This means finding the correct subject and verbs---characters and actions. Finding the correct characters and actions means transforming nominalizations into verbs and finding the correct subject. This provides the following results for your sentences:
+To be able to understand how your readers feel about your writing, you need to know what counts as a well-told story. This means finding the correct subject and verbs---characters and actions. A story is an account of real or imagined events with _characters_ that do things---perform _actions_.
+
+Finding the correct characters and actions means transforming nominalizations into verbs and finding the correct subject. This provides the following results for your sentences:
 - They are more concrete.
 - They are more concise because you do not have to use prepositional phrases.
 - They are more logical and clear. You can link clauses with clear subordinating conjunctions, such as _because_, _although_, and _if_.
 - They tell more coherent stories. Nominalizations let you distort the sequence of events.
 
-## Characters and actions
-
-A story is an account of real or imagined events with _characters_ that do things---perform _actions_.
+## Rules 
 
 ### Rule 1: Subjects
 
@@ -169,3 +169,73 @@ I accepted her _decision_.
 Some nominalizations are so familiar you can use them without causing issues:
 
 The software _installation_ process takes about 5 minutes.
+
+## Absent characters
+
+Sentences without characters are difficult to understand.
+
+{{< admonition "\"You\" is the character" tip >}}
+When you are explaining something complicated, imagine that you are sitting across the table from the person. In this circumstance, "you" is the character.
+{{< /admonition >}}
+
+### Abstractions as characters
+
+Inanimate things and abstractions can be the character of the story if you make them the subjects of a series of sentences that tell a story. This is especially true when the abstraction or nominalization is something that the reader is familiar with:
+
+- The _right to bear arms_ is guaranteed by the second amendment. The _right to bear arms_ is a flashpoint in political debates.
+- Software _installations_ are complicated. The _installation_ process can take up to 30 minutes.
+
+If the character is an abstraction or nominalization, make sure to rewrite any additional abstractions or nominalizations so you don't confuse the reader.
+
+## Characters and passive verbs
+
+A passive verb is a form of _be_ followed by the past participle of a verb. (The past participle is the past-tense verb preceded by some form of _have_. For example, He _has walked_ home.) In passive voice:
+- The subject is the goal of the action---the subject is the direct object of the verb.
+- The agent, or doer, of the action is either omitted or after the verb in a _by_ phrase.
+
+Passive verbs can make the sentence feel flat, especially if the characters are abstractions, the actions are nominalizations, or there are no flesh-and-blood characters. However, there are some circumstances in which passive verbs are the right choice.
+
+### Does the doer matter?
+
+In some cases, the doer of the action is not important. For example:
+
+Active
+: The voters reelected the mayor last Tuesday.
+
+Passive
+: The mayor **was reelected** last Tuesday.
+
+In the previous sentences, the action is "reelected", and the doer is the voters. However, the voter is not what is important---it is important that the mayor was reelected. The passive construction keeps the main character in the subject of the sentence, which makes the most sense to the reader.
+
+### Sentence transitions
+
+When explaining complex information, the beginning gives the reader context for what comes next. In other words, a sentence should start with familiar information, and the end should introduce new information. You can use passive voice to move long, unfamiliar, or complex information to the end of the sentence:
+
+Active
+: We must **believe** in one another to win the championship. The hardships that we endure as a team will strengthen our **belief**.
+
+Passive
+: We must **believe** in one another to win the championship. Our **belief** _will be strengthened_ with each hardship that we endure as a team.
+
+
+In the passive construction, "belief" is familiar to the writer. The passive _will be strengthened_ lets us put "belief" in the subject of the sentence, which helps the transition between sentences. 
+
+### Consistent character
+
+To tell a better story, you need to be consistent with your character. That might require that you use passive tense to keep the character in the subject of the sentence and maintain a consistent point of view.
+
+Active
+: The Chicago Bulls defeated the Portland Trailblazers during the NBA Finals. Michael Jordan dominated Clyde Drexler throughout the series, and he led them to another title.
+
+Passive
+: The Portland Trailblazers were defeated by the Chicago Bulls during the NBA Finals. Clyde Drexler was dominated by Michael Jordan throughout the series.
+
+If you are telling the story from the perspective of the Chicago Bulls, the active construction works best. However, if you are telling the story from the perspective of the Portland Trailblazers, passive is appropriate.
+
+## Noun + noun + noun...
+
+When you have a long compound noun phrases, reverse them and connect them with prepositions. If a few words make better sense when they are combined, leave them combined:
+
+- Supply chain risk management framework > "Framework _to_ manage risk _in the_ supply chain"
+- University student housing allocation system > "System _to_ allocate student housing _at the_ university"
+- Customer data privacy protection policy > "Policy _to_ protect _the_ privacy _of_ customer data"
