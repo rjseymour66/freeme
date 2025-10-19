@@ -7,7 +7,7 @@ draft = false
 
 JavaScript Object Notation (JSON) is a lightweight data exchange format that is popular with RESTful web services and configuration. It is human-readable but also easily read by machines. It is described by [RFC 7159](https://datatracker.ietf.org/doc/html/rfc7159) and [ECMA-404](https://ecma-international.org/publications-and-standards/standards/ecma-404/).
 
-## Parsing JSON data byte arrays
+## Parsing JSON byte arrays
 
 This example uses [this endpoint in SWAPI](https://swapi.dev/api/people/1), the Star Wars API.
 
@@ -106,3 +106,8 @@ func main() {
 	fmt.Println(api)
 }
 ```
+
+## Parsing JSON streams
+
+A stream of JSON data is a continuous flow of JSON-encoded bytes. Parsing a stream of data requires different techniques than parsing a JSON file, because file techniques require that you read the entire file into memory before parsing. JSON streams do not arrive as 
+
