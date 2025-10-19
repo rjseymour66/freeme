@@ -11,7 +11,7 @@ Readers feel whether a passage is cohesive and coherent. How are the words arran
 ## Definitions
 
 Coherent
-: How each sentence ends and the next begins. Begin a sentence with familiar information, and end it with new or complex information
+: How each sentence ends and the next begins. Begin a sentence with familiar information, and end it with new or complex information.
 
 Coherent
 : How all sentences cumulatively begin. The subject of each sentence should contain the main characters.
@@ -86,11 +86,15 @@ Before you write a passage, list the topics and characters that you intend to wr
 
 #### Assess
 
-After you underline the passage, answer these questions:
-- Do the underlined words constitute a small set of related ideas? Will your readers understand how they are related? If the answer is _no_, then revise.
-- Do the underlined words name the most important characters (real or abstract)? If _no_, then revise.
-
+{{< admonition "Topics in titles" tip >}}
 If you have trouble identifying the topics, give the passage a title. The words in the title often name important topics.
+{{< /admonition >}}
+
+After you underline the passage, answer these questions:
+- Do the underlined words constitute a small set of related ideas? Will your readers understand how they are related? If not, revise.
+- Do the underlined words name the most important characters (real or abstract)? If not, revise.
+
+
 
 #### Rewrite
 

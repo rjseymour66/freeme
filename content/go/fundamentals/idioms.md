@@ -38,6 +38,8 @@ n, ok := i.(int)    // n = 0, ok = false
 ```
 
 Channel receives to check if a channel is closed:
+- If the channel is open, you receive a value and `ok` returns `true`.
+- If the channel is closed, you receive the zero value for that type, and `ok` is `false`.
 
 ```go
 ch := make(chan int)
