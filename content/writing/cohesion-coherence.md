@@ -73,7 +73,7 @@ Readers judge a passage coherent based on how easily they can identify these two
 - Topics of individual sentences and clauses.
 - How the topics in a passage make up a related set of concepts.
 
-### Revising for topics
+### How to revise topics
 
 {{< admonition "Planning ahead" tip >}}
 Before you write a passage, list the topics and characters that you intend to write about. These can include flesh-and-blood characters and important concepts. These are short, concrete, familiar words that name the main characters of your story. Place these characters and concepts in the subjects of most of your sentences.

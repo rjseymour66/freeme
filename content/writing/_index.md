@@ -9,6 +9,7 @@ draft = false
 
 | Level       | Beginning        | End                     | Notes              |
 | :---------- | :--------------- | :---------------------- | :----------------- |
+| Attention   | Topic            | Stress                  | Fixed positions.   |
 | Information | Familiar info    | Unfamiliar/complex info | Moveable elements. |
-| Grammar     | Subject/verb     |                         | Fixed position.    |
+| Grammar     | Subject/verb     |                         | Fixed positions.   |
 | Story       | Character/action |                         | Moveable elements. |
