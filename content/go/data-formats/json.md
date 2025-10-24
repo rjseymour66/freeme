@@ -253,10 +253,153 @@ func main() {
 
 When you encode json, you create JSON-encoded data from in-memory data, such as a struct.
 
+### Marshaling vs encoding
+
+The method you use to convert application data into raw JSON streams depends on the source. `json.marshal` is best for in-memory data, and an `Encoder` works best when you want to write directly to the stream:
+
+| Feature         | `json.Marshal`                                                            | `json.Encoder.Encode`                                                       |
+| --------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Returns**     | `[]byte` (in memory)                                                      | writes directly to stream                                                   |
+| **Destination** | You choose what to do with the bytes                                      | Goes straight to an `io.Writer`                                             |
+| **Use case**    | You need the JSON data as bytes (e.g. for HTTP response body, file write) | You want to stream JSON directly (e.g. stdout, file, socket)                |
+| **Performance** | Slightly more memory overhead (allocates a byte slice)                    | More efficient for streaming large data                                     |
+| **Formatting**  | You can use `MarshalIndent` for pretty output                             | You can’t directly indent (though you can wrap the writer with an indenter) |
+| **Newline**     | No newline automatically                                                  | Automatically adds newline after each object                                |
+
+
 ### Marshaling byte arrays
+
+Marshaling JSON means taking a Go struct and converting it back into raw JSON bytes. First, the `get` function retrieves a resource and unmarshals the `[]byte` response into a `Person` object:
+
+1. Get the `Person` resource at the given url.
+2. Read the entire response into a byte slice. `data` is raw JSON data in memory.
+3. Create a variable of type `Person`.
+4. Unmarshal the raw bytes into the `person` variable.
+5. Return `person`.
+
+```go
+func get(url string) Person {
+	r, err := http.Get(url)                             // 1
+	if err != nil {
+		log.Println("Cannot get from URL", err)
+	}
+	defer r.Body.Close()                            
+
+	data, err := io.ReadAll(r.Body)                     // 2
+	if err != nil {
+		log.Println("Error reading json data:", err)
+	}
+
+	var person Person                                   // 3
+	json.Unmarshal(data, &person)                       // 4
+	return person                                       // 5
+}
+```
+
+In `main`, we use `get` to populate the `person` variable, then we convert the struct back into raw JSON data:
+1. Retrieve the raw JSON data and store it in memory.
+2. Marshal the data stored in `person` into raw JSON bytes. `MarshalIndent` is like a helper function for `Marshal`---in addition to the `person` struct, it accepts as variables a prefix and a level of indent. Here, we do not add a prefix and add an indent of one space.
+3. `WriteFile` writes writes the data to `han.json`. For more information, see [Writing files](./fundamentals/input-output/#writefile).
+
+```go
+func main() {
+	person := get("https://swapi.dev/api/people/14")        // 1
+
+	data, err := json.MarshalIndent(&person, "", " ")       // 2
+	if err != nil {
+		log.Println("Cannot marshal person:", err)
+	}
+	err = os.WriteFile("han.json", data, 0644)              // 3
+	if err != nil {
+		log.Println("Cannot write to file", err)
+	}
+}
+```
 
 
 ### Encoding streams
 
+If you output a continual stream of data, you can stream a series of structs as raw JSON directly to to a Writer:
+1. Build the URL with the `n` parameter. This function fetches the resource with an ID of `n`.
+2. Read the response body with `ReadAll`, and store it in `data`. `ReadAll` accepts a Reader.
+3. Create a variable of type `Person`.
+4. Unmarshal the raw bytes into the `person` variable.
+5. Return `person`.
 
+```go
+func get(n int) Person {
+	r, err := http.Get("https://swapi.dev/api/people/" + strconv.Itoa(n))   // 1
+	if err != nil {
+		log.Println("Cannot get from URL", err)
+	}
+	defer r.Body.Close()
+
+	data, err := io.ReadAll(r.Body)                     // 2
+	if err != nil {
+		log.Println("Error reading json data", err)
+	}
+
+	var person Person                                   // 3
+	json.Unmarshal(data, &person)                       // 4
+	return person                                       // 5
+}
+```
+
+Next, create the stream of raw JSON data:
+1. Create a new Encoder. An Encoder is a wrapper around a Writer. Here, the Writer is `stdout`.
+2. Create a loop that increments a variable from 1 to 4.
+3. Pass the variable to the `get` function during each iteration.
+4. `Encode` immediately streams the raw JSON to `stdout` rather than writing it to memory first. This is different from [Encoding JSON](#encoding-json), where the JSON data was marshaled into a variable and then written to a file. An `Encoder` can stream directly to the underlying Writer.
+
+
+```go
+func main() {
+	encoder := json.NewEncoder(os.Stdout)   // 1
+	for i := 1; i < 4; i++ {                // 2
+		person := get(i)                    // 3
+		encoder.Encode(person)              // 4
+	}
+}
+```
 ## Omitting fields
+
+In some cases, not all fields of the JSON object are populated for each resource. You can omit fields that don't have data with the `omitempty` tag:
+
+```go
+type Person struct {
+	Name      string    `json:"name"`
+	Height    string    `json:"height"`
+	...
+	Species   []string  `json:"species,omitempty"`
+	Vehicles  []string  `json:"vehicles,omitempty"`
+	Starships []string  `json:"starships,omitempty"`
+	...
+}
+```
+Now, if fields with `omitempty` do not have data, you will not see them in the output:
+
+```json
+{
+ "name": "Han Solo",
+ "height": "180",
+ "mass": "80",
+ "hair_color": "brown",
+ "skin_color": "fair",
+ "eye_color": "brown",
+ "birth_year": "29BBY",
+ "gender": "male",
+ "homeworld": "https://swapi.dev/api/planets/22/",
+ "films": [
+  "https://swapi.dev/api/films/1/",
+  "https://swapi.dev/api/films/2/",
+  "https://swapi.dev/api/films/3/"
+ ],
+ "starships": [
+  "https://swapi.dev/api/starships/10/",
+  "https://swapi.dev/api/starships/22/"
+ ],
+ "created": "2014-12-10T16:49:14.582Z",
+ "edited": "2014-12-20T21:17:50.334Z",
+ "url": "https://swapi.dev/api/people/14/"
+}
+```
