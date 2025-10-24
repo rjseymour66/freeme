@@ -9,7 +9,7 @@ draft = false
 ## Simplicity to complexity
 
 {{< admonition "" note >}}
-The sentence should open with a short segment that they can easily grasp and that frames the more complex information that follows.
+The sentence should open with a short segment that readers can easily grasp and that frames the more complex information that follows.
 {{< /admonition >}}
 
 Placing your subject/character and verb/action at the beginning of the sentence makes it easier for the reader to understand complex information at the end of the sentence. If the reader gets through the character and action in a few words, they have enough momentum to carry them through the remainder of the sentence.
