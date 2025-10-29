@@ -146,7 +146,7 @@ Verbs
   - suggest
   - indicate
 
-### Intensifiers
+## Intensifiers
 
 _Intensifiers_ increase your certainty. Don't use intensifiers excessively---state your claims moderately.
 
