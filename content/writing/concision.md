@@ -5,36 +5,186 @@ weight = 50
 draft = false
 +++
 
+Writing concisely means using just enough words to say what you mean.
 
-## Review and update networks
+## How to revise
 
-As your inventory of interfaces evolves, you need to make changes to the endpoints targeted by your profile scans. Control which endpoints your scans target with networks. A network is a configuration object that contains a list of IP addresses. Profiles use networks to determine which endpoints to include or exclude in their scans.
+There are six principles to write concisely.
 
-### Add a network
+### Delete meaningless words
 
-You can add a network when you configure a profile, or you can add a network on the Networks page:
-1. Go to the Discover menu > Network and click Add Network.
-2. Give the network a name, IP address format, and XXXXXXXXXXX.
-3. Click Save. 
+Some examples:
+- kind of
+- actually
+- particular
+- really
+- certain
+- various
+- virtually
+- individual
+- basically
+- generally
+- given
+- practically
+
+### Delete doubled words
+
+Doubled words began when writers paired a French or Latin word with an English word to sound smarter. Just pick one:
+- hope and desire -> hope
+- each and every -> each
+- any and all -> all
+
+### Delete what readers can infer
+
+#### Redundant modifiers
+
+When the meaning of the word is implied by its modifier:
+- _future_ plans
+- _free_ gift
+- _basic_ fundamentals
+
+#### Redundant categories
+
+When the word implies its general category:
+- period of time -> period
+- blue in color -> blue
+- rough in appearance -> rough
+- large in size -> large
+- in a confused state -> confused
+
+You might have to change an adjective into an adverb:
+- He gave a quick answer. -> He answered _quickly_.
+
+Or change an adjective into a noun:
+- He began another vocational endeavor. -> Be began another _vocation_.
 
 
-### Edit a network
+### Replace a phrase with a word
 
-Edit a network to update its IP addresses:
-1. To edit a network, go to the Discover menu and click Network.
-2. Locate the network you want to edit in the network list and click the edit icon.
-3. Make your changes.
-4. Click Preview Changes. If your changes do not affect a profile's state, click save.  
-   If your changes make an associated profile not valid, you receive a warning message with the following options:
-   - "Attach the affected scan profiles to a new network that is a copy of the initial network definition."": Creates a copy of the initial network named "network-name - Copy" and applies that copy to the profiles, maintaining the valid state of all associated profiles. The updated network is no longer associated with any profiles.
-   - "Save edits and change affected profiles to invalid.": Saves your changes and makes any associated profiles not valid. Profiles that are not valid do not perform scans, so you must address their state at later time.
+Examples:
+- the reason for -> why
+- concerning the manner -> about
 
-### Delete a network
+### Change negatives with affirmatives
 
-Delete a network if it is no longer useful:
-1. To edit a network, go to the Discover menu and click Network.
-2. Locate the network you want to delete in the network list and click the delete icon.
-3. If the delete action does not make a profile not valid, confirm the changes to delete the network.
-   If the delete action makes a profile not valid, you receive a warning message with the following options:
-   - "Keep network and only remove it from profiles it does not invalidate.": Does not delete the network but removes it from profiles that are valid without the network.
-   - "Delete anyway (this will put the [X] profile into an invalid state).": Deletes the network and makes its associated profiles not valid. [X] is the number of profiles made not valid by the delete action.
+Some words are implicitly negative. Do not pair these with _not_:
+
+Verbs
+: - preclude
+  - prevent
+  - lack
+  - fail
+  - doubt
+  - reject
+  - avoid
+  - deny
+  - refuse
+  - exclude
+  - contradict
+  - prohibit
+  - bar
+
+Prepositions
+: - without
+  - against
+  - lacking
+  - but for
+  - except
+
+Conjunctions
+: - unless
+  - except when
+
+Negatives require more words and more mental work:
+- not the same -> different
+- not include -> omit
+- not often -> rarely
+
+Do not combine negative words with passive verbs and nominalizations:
+- There should be no confusion for the user without extra steps, unless the time does not exceed five minutes.
+- Do not confuse the user with extra steps, unless it takes longer than five minutes.
+
+### Delete adjectives and adverbs
+
+Always try to delete every adverb and adjective before a noun, then restore only those that the readers need to understand the passage.
+
+
+## Hedges
+
+_Hedges_ qualify your certainty. Don't hedge too much. Some common hedges:
+
+Adverbs
+: - usually
+  - often
+  - sometimes
+  - almost
+  - virtually
+  - possibly
+  - allegedly
+  - arguably
+  - perhaps
+  - apparently
+  - in some ways
+  - to a certain extent
+  - somewhat
+  - in some/certain respects
+
+Adjectives
+: - most 
+  - many
+  - some
+  - a certain number of
+
+Verbs
+: - may
+  - might
+  - can
+  - could
+  - seem
+  - tend
+  - appear
+  - suggest
+  - indicate
+
+### Intensifiers
+
+_Intensifiers_ increase your certainty. Don't use intensifiers excessively---state your claims moderately.
+
+Some examples of intensifiers:
+
+Adverbs
+: - very
+  - pretty
+  - quite
+  - rather
+  - clearly
+  - obviously
+  - undoubtedly
+  - certainly
+  - of course
+  - indeed
+  - inevitably
+  - invariably
+  - always
+  - literally
+
+Adjectives
+: - key 
+  - central
+  - crucial
+  - basic
+  - fundamental
+  - major
+  - principal
+  - essential
+
+Verbs
+: - show
+  - prove
+  - establish
+  - as you can see
+  - it is clear that
+
+1. There may always be TV programming to appeal to lowest interests.
+2. We might need to dispense with the standard approach to plea bargaining because hardened criminals might avoid their just punishment and plea bargaining encourages disrespect to the judicial system.
+3. Depending on one's position, education might be a more important source of social values than the family.

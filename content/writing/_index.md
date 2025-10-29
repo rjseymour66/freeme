@@ -5,6 +5,14 @@ weight = 10
 draft = false
 +++
 
+You write more clearly when you do the following:
+- Match characters and actions to subjects and verbs
+- Get the right cahracters into topics
+- Stress the right words
+- Motivate readers with well-crafted introductions
+- Frame your paragraphs, sections, and documents to help readers grasp global coherence
+- Be concise
+
 ## Levels of sentence structure
 
 | Level       | Beginning        | End                     | Notes              |
