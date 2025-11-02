@@ -257,3 +257,85 @@ func main() {
 	fmt.Println("difference: ", t2.Sub(t1))     // difference:  1.000060435s
 }
 ```
+
+## Formatting time
+
+The `time` package uses pattern-based layouts to format time. You provide an example of the time format, and Go uses that as a reference to format the `Time` instance. Create custom time formats with the `time.Format` method. `Format` converts a time struct into its string representation:
+
+```go
+func main() {
+	t := time.Now()
+	fmt.Println(t.Format("3:05AM"))                 // 07:47AM
+	fmt.Println(t.Format("January 02, 2006"))       // November 02, 2025
+    fmt.Println(t.Format(time.Kitchen))             // 7:48AM
+}
+```
+
+### Layout string
+
+Go uses an actual date and time as the pattern template. When you provide your example time format, you need to use the following date:
+
+```
+Mon Jan 2 15:04:05 MST 2006
+```
+This is Go's layout string. It describes how a date/time should look. translates to:
+
+```
+01/02 15:04:05PM '06 -0700
+01/02 03:04:05PM '06 -0700
+```
+
+When you create a format, you have to use these layout placeholder values, or Go views them as a label and returns an incorrect time:
+
+```sql
+01    → Month
+02    → Day
+15    → Hour (24h)
+03    → Hour (12h)
+04    → Minute
+05    → Second
+2006  → Year
+MST   → Time zone name
+-0700 → Time zone offset
+```
+
+So, to create a simple format for the current date, you must use these placeholder values in your reference to return an accurate time. `Format` is a method, so create a `Time` instance first:
+
+```go
+func main() {
+	t := time.Now()
+	fmt.Println(t.Format("3:05AM"))                 // 07:47AM
+	fmt.Println(t.Format("January 02, 2006"))       // November 02, 2025
+    fmt.Println(t.Format(time.Kitchen))             // 7:48AM
+}
+```
+
+### Parsing into structs
+
+`Parse` converts a string into a `Time` struct. If you do not provide a time zone, `Parse` assumes UTC:
+
+
+
+
+
+### Pattern layout constants
+
+Here is a table of Go's time pattern formats:
+
+| Constant           | Layout String                           | Example Output                        |
+| ------------------ | --------------------------------------- | ------------------------------------- |
+| `time.Kitchen`     | `"3:04PM"`                              | `11:20PM`                             |
+| `time.ANSIC`       | `"Mon Jan _2 15:04:05 2006"`            | `Thu Oct 30 23:20:49 2025`            |
+| `time.UnixDate`    | `"Mon Jan _2 15:04:05 MST 2006"`        | `Thu Oct 30 23:20:49 EDT 2025`        |
+| `time.RubyDate`    | `"Mon Jan 02 15:04:05 -0700 2006"`      | `Thu Oct 30 23:20:49 -0400 2025`      |
+| `time.RFC822`      | `"02 Jan 06 15:04 MST"`                 | `30 Oct 25 23:20 EDT`                 |
+| `time.RFC822Z`     | `"02 Jan 06 15:04 -0700"`               | `30 Oct 25 23:20 -0400`               |
+| `time.RFC850`      | `"Monday, 02-Jan-06 15:04:05 MST"`      | `Thursday, 30-Oct-25 23:20:49 EDT`    |
+| `time.RFC1123`     | `"Mon, 02 Jan 2006 15:04:05 MST"`       | `Thu, 30 Oct 2025 23:20:49 EDT`       |
+| `time.RFC1123Z`    | `"Mon, 02 Jan 2006 15:04:05 -0700"`     | `Thu, 30 Oct 2025 23:20:49 -0400`     |
+| `time.RFC3339`     | `"2006-01-02T15:04:05Z07:00"`           | `2025-10-30T23:20:49-04:00`           |
+| `time.RFC3339Nano` | `"2006-01-02T15:04:05.999999999Z07:00"` | `2025-10-30T23:20:49.197299338-04:00` |
+| `time.Stamp`       | `"Jan _2 15:04:05"`                     | `Oct 30 23:20:49`                     |
+| `time.StampMilli`  | `"Jan _2 15:04:05.000"`                 | `Oct 30 23:20:49.197`                 |
+| `time.StampMicro`  | `"Jan _2 15:04:05.000000"`              | `Oct 30 23:20:49.197299`              |
+| `time.StampNano`   | `"Jan _2 15:04:05.000000000"`           | `Oct 30 23:20:49.197299338`           |
