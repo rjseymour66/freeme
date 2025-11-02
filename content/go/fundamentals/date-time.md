@@ -313,9 +313,25 @@ func main() {
 ### Parsing into structs
 
 `Parse` converts a string into a `Time` struct. If you do not provide a time zone, `Parse` assumes UTC:
+1. Define a specific time as a string.
+2. Define the layout string format.
+3. Parse the string into a struct using the layout format string.
+4. Print the result with in RCF3339 format.
+5. Print the result with in kitchen time.
 
 
-
+```go
+func main() {
+	str := "4:31am +0800 on Oct 1, 2021"
+	layout := "3:04pm -0700 on Jan 2, 2006"
+	t, err := time.Parse(layout, str)
+	if err != nil {
+		log.Println("Cannot parse: ", err)
+	}
+	fmt.Println(t.Format(time.RFC3339))         // 2021-10-01T04:31:00+08:00
+	fmt.Println(t.Format(time.Kitchen))         // 4:31AM
+}
+```
 
 
 ### Pattern layout constants
