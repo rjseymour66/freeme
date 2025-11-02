@@ -86,3 +86,69 @@ Short prepositional phrases
 
 
 ## How to revise: endings
+
+If your sentence has endings with multiple relative clauses, try these methods.
+
+
+Cut
+: Delete "who/that/which" + "is/was", etc, to reduce the number of relative clauses. This sometimes requires that you turn verbs into the present participle by adding "-ing":
+
+Turn subordinate clauses into independent sentences
+: Just cut the long sentence into multiple sentences.
+
+Change clauses to modifying phrases
+: There are three kinds of modifiers:
+  - Resumptive: A grammatical construction that repeats a key word at the end of a clause and then uses that repetition to introduce a new, elaborating phrase or clause.
+    
+    To create resumptive modifier:
+    1. Find the noun that the tacked-on clause modifies
+    2. Pause with a comma
+    3. Repeat the noun
+    4. Continue with a restrictive relative clause beginning with _that_.
+    
+    He should have apologized after his last mistake, a mistake that made everyone leave the dinner early.
+
+  - Summative: A construction that adds a term that sums up the sentence to that point.
+
+    To create a summative modifier:
+    1. End a grammatically complete segment of a sentence with a comma
+    2. Add a term that sums up the substance of the sentence so far.
+    3. Continue with a restrictive relative clause beginning with _that_.
+
+    He should have apologized after his last mistake, a missed opportunity that he will regret for some time.
+    
+  - Free: This comments on the subject of the closest verb. It is "free" because it can begin or end a sentence.
+    
+    To create a free modifier:
+    1. End a grammatically complete segment of a sentence with a comma
+    2. Add a present or past participle, or an adjective.
+    3. Continue with a restrictive relative clause.
+
+    He should have apologized after his last mistake, begging for forgiveness from his wife.
+
+
+## Dangling modifiers
+
+A dangling modifier occurs when a modifier's implied subject is different from the subject in the main clause. Fix it with one of these methods:
+- If the modifier has an implied subject, name the subject to make it explicit.
+- Make the implict subject of the modifier the explicit subject of the clause.
+
+### Common patterns
+
+
+“After…” phrases
+: After reading the book, the movie was disappointing. → After reading the book, I found the movie disappointing.
+
+“Having…” phrases
+: Having finished dinner, the dishes were washed. → Having finished dinner, we washed the dishes.
+
+“To…” infinitive phrases
+: To improve performance, the code was rewritten. → To improve performance, the developer rewrote the code.
+
+### Revising
+
+| Step | What to check                                                    | Example                                                  | Fix                                                               |
+| ---- | ---------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1    | Does the opening phrase describe the subject of the main clause? | *Running down the street, the backpack fell off.*        | Add subject: *Running down the street, I dropped my backpack.*    |
+| 2    | Is the modifier too far from the word it describes?              | *She served sandwiches to the children on paper plates.* | Move words: *She served the children sandwiches on paper plates.* |
+| 3    | Can you rewrite the phrase as a clause?                          | *While walking to the store, a dog barked loudly.*       | *While I was walking to the store, a dog barked loudly.*          |

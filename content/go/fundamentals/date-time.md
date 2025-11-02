@@ -246,12 +246,6 @@ Compare the monotonic portions of the `time` instances. The implemenation with `
 
 `Sub` returns the duration of the caller minus the given `Time` instance. For example, the following code creates two `Time` instances with a 1 second pause between the two. Call `Sub` with the second instance, `t2` and pass it the first instance, `t1`:
 
-
-
-
-
-
-
 ```go
 func main() {
 	t1 := time.Now()
