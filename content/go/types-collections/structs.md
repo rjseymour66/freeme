@@ -5,19 +5,24 @@ weight = 20
 draft = false
 +++
 
-A struct is a user-defined type, and the most common way we represent data in Go. It is similar to an object in object-oriented languages like Java.
+A struct is a user-defined type, and the most common way we represent data in Go. A struct is similar to a class in object-oriented languages, but there is no inheritance, and a struct is not an object. However, an instance of a struct is sometimes referred to as an object.
 
 ## Define a type
 
 Define a custom type with the keyword `struct`:
 
 ```go
-type user struct {
-    name    string
-    age     int64
-    email   string
+type Person struct {
+	Id        int
+	Name      string
+	email     string
+	BirthDate time.Time
 }
 ```
+
+Capitalized names are exported outside of the package. For example, the `Person` type and its `Id`, `Name`, and `BirthDate` fields are exported.
+
+`email` is not directly accessible outside the package, similar to a private property. Use this pattern when you want to restrict access to fields. You might provide methods to mutate private field values.
 
 ### Zero-value (idiomatic)
 
@@ -63,6 +68,57 @@ You can also use an existing type as the specification of a new type:
 type Distance int64
 
 type List []string
+```
+
+### Function fields
+
+Assigning a function to a struct field lets you assign a value to a struct field at runtime. This lets you change the behavior of an object without changing its type. This is called the Strategy Pattern. Some practical uses for this pattern include the following:
+- A logger could switch its output stream. For example, from a file to stdout.
+- A formatter could switch its schema from JSON to YAML.
+
+To demonstrate, we define a `Person` struct that uses the `NameFormatter` function type for its `Name` field:
+
+```go
+type NameFormatter func(string, string) string
+
+type Person struct {
+	Id         int
+	GivenName  string
+	FamilyName string
+	Name       NameFormatter
+}
+```
+
+`NameFormatter` is a `func` type that only defines the signature. This gives the developer the freedom to format `Name` any way they want.
+
+In the main method, we assign some anonymous functions to variables and assign them to a `Person` instance:
+1. Create anonymous functions that use the `NameFormatter` signature.
+2. Create a `Person`, and assign its `Name` field the `asian` function.
+3. Call the function field. Even though `Name` is a field, you have to call it like a function because its type _is a function_.
+4. Reassign the function.
+5. Call the function field again.
+
+```go
+func main() {
+	asian := func(givenName, familyName string) string {                            // 1
+		return familyName + " " + givenName
+	}
+
+	western := func(givenName, familyName string) string {                          // 1
+		return givenName + " " + familyName
+	}
+
+	asianPerson := Person{                                                          // 2
+		Id:         1,
+		GivenName:  "Jackie",
+		FamilyName: "Chan",
+		Name:       asian,
+	}
+
+	fmt.Println(asianPerson.Name(asianPerson.GivenName, asianPerson.FamilyName))    // 3
+	asianPerson.Name = western                                                      // 4
+	fmt.Println(asianPerson.Name(asianPerson.GivenName, asianPerson.FamilyName))    // 5
+}
 ```
 
 ## Methods
