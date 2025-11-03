@@ -5,7 +5,7 @@ weight = 40
 draft = false
 +++
 
-Interfaces are types that declare behavior. To implement an interface in Go, a user-defined type must a method set with signatures that exactly match the methods declared in the interface. If a type implements an interface, then a value of that type can be assigned to values of the interface type.
+Interfaces are types that declare behavior with a set of methods. To implement an interface in Go, a user-defined type must a method set with signatures that exactly match the methods declared in the interface. If a type implements an interface, then a value of that type can be assigned to values of the interface type.
 
 {{< admonition "" note >}}
 If a type implements an interface, then it can be referred to as an _interface_-er. For example, if a type implements the `Reader` method, you might see it called a "Reader". If it implements the `Writer` method, it is called a "Writer".
@@ -25,7 +25,7 @@ type Stringer interface {
 
 A type implements the `io.Reader` interface if the following conditions are met:
 - It has a method named `Read`
-- This `Read` method accepts a slice of bytes ([]byte is a nil slice)
+- This `Read` method accepts a slice of bytes (`[]byte` is a nil slice)
 - The function returns an `integer` and an `error`
 
 A type implements the `Stringer` interface if the following conditions are met:
@@ -46,7 +46,48 @@ func (u user) String() string {
 }
 ```
 
-## Interface internals
+## Implementing an interface
+
+To implement an interface, you only need to add a method with the same signature as the interface. For example, define a `Worker` interface with a single `Work` method:
+
+```go
+type Worker interface {
+	Work()
+}
+```
+
+Any type that implements this interface is called a "Worker". The `Pay` function takes a `Worker`, calls the Worker's `Work` method, and prints a message:
+
+```go
+func Pay(w Worker) {
+	w.Work()
+	fmt.Println("and getting paid!")
+}
+```
+
+If you want to call the `Pay` method on a custom type, you need to implement the `Worker` interface. Here, the `Person` type has a `Work` method, which means that `Person` implements the `Worker` interface---`Person` is a `Worker`:
+
+```go
+type Person struct {
+	Id    int
+	Email string
+}
+
+func (person Person) Work() {
+	fmt.Println("Working hard...")
+}
+```
+
+Now, you can pass a `Person` to the `Pay` function:
+
+```go
+func main() {
+	person := Person{1, "example@email.com"}
+	Pay(person)
+}
+```
+
+## Internals
 
 Interface values are two-word data structures:
 1. A pointer to an internal table called iTable. iTable contains information about the user-defined stored value that implements the interface---the value's type and its list of methods.

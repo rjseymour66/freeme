@@ -24,6 +24,8 @@ Capitalized names are exported outside of the package. For example, the `Person`
 
 `email` is not directly accessible outside the package, similar to a private property. Use this pattern when you want to restrict access to fields. You might provide methods to mutate private field values.
 
+## Instantiate structs
+
 ### Zero-value (idiomatic)
 
 The idiomatic way to declare a variable of a custom type is called the zero-value declaration:
@@ -32,9 +34,9 @@ The idiomatic way to declare a variable of a custom type is called the zero-valu
 var bill user
 ```
 
-### Anonymous
+### One-time structs (anonymous)
 
-You can also declare an anonymous struct, which is is common in testing. The anonymous struct defines the type directly followed by its values, and assigns the values to a variable in one expression:
+You can also declare a struct for one-time use. This is also called an anonymous struct, which is is common in testing. The anonymous struct defines the type directly followed by its values, and assigns the values to a variable in one expression:
 
 ```go
 sally := struct {
@@ -70,7 +72,11 @@ type Distance int64
 type List []string
 ```
 
-### Function fields
+## Composition
+
+
+
+## Function fields
 
 Assigning a function to a struct field lets you assign a value to a struct field at runtime. This lets you change the behavior of an object without changing its type. This is called the Strategy Pattern. Some practical uses for this pattern include the following:
 - A logger could switch its output stream. For example, from a file to stdout.
@@ -135,29 +141,46 @@ Here, we try to increase the age of the user. Because `Birthday` uses a value re
 
 ```go
 type user struct {
-	name  string
-	age   int64
-	email string
+	name string
+	age  int
 }
 
 func (u user) Birthday() {
-	u.age = u.age + 1
+	u.age += 1
 }
 
-fmt.Println("age: ", sally.age)     // 25
-sally.Birthday()
-fmt.Println("age: ", sally.age)     // 25
+func main() {
+	sally := user{
+		name: "sally",
+		age:  25,
+	}
+
+	fmt.Println(sally.age)  // 25
+	sally.Birthday()
+	fmt.Println(sally.age)  // 25
+}
 ```
 
 ### Pointer receivers
 
-Pointer receivers share the caller values with the method values. They operate on the actual value, and any changes are reflected in the caller after the method invocation. Use method receivers when you need to mutate a value.
+Pointer receivers point to the caller's address space, so they operate on the actual value. Any changes are reflected in the caller after the method invocation. Use method receivers when you need to mutate a value.
 
 To declare a pointer receiver, add an asterisk (`*`) in front of the type in the receiver definition:
 
 ```go
-func (u *user) Birthday() {
-	u.age = u.age + 1
+func (u *user) Birthday() {     // pointer receiver
+	u.age += 1
+}
+
+func main() {
+	sally := user{
+		name: "sally",
+		age:  25,
+	}
+
+	fmt.Println(sally.age)  // 25
+	sally.Birthday()
+	fmt.Println(sally.age)  // 26
 }
 ```
 Now, when you call `Birthday`, the `age` field increases by one.
