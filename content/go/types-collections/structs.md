@@ -74,6 +74,152 @@ type List []string
 
 ## Composition
 
+Go implements composition by embedding an unnamed struct within another struct.
+
+Structs can have named data fields, including structs. When a struct has an unnamed field that is a struct, the data fields within the inner struct are promoted to the outer struct.
+
+For example, here is a `Person` struct, and a `Musician` struct that embeds `Person`:
+
+```go
+type Person struct {
+	Name string
+	Age  uint
+}
+
+type Musician struct {
+	Person
+	// Instrument string
+}
+```
+
+You can initialize a `Musician` struct in one of two ways:
+1. Create an empty instance, then directly access the fields in `Person`.
+2. Assign field values when during initialization.
+
+```go
+func main() {
+	jimi := Musician{}              // 1
+	jimi.Name = "Jimi Hendrix"
+	jimi.Age = 27
+
+	eric := Musician{               // 2
+		Person{
+			Name: "Eric Clapton",
+			Age:  80,
+		},
+	}
+
+	fmt.Println(jimi)               // {{Jimi Hendrix 27}}
+	fmt.Println(eric)               // {{Eric Clapton 80}}
+}
+```
+
+You can also add fields to the outer struct, on the same level as the embedded struct:
+
+```go
+type Musician struct {
+	Person
+	Instrument string
+}
+```
+
+Initialization for the directly accessed fields is the same, but it changes how you can assign values during initialization. You have to use a name field with the same name as the embedded struct:
+
+```go
+func main() {
+	jimi := Musician{}
+	jimi.Name = "Jimi Hendrix"
+	jimi.Age = 27
+	jimi.Instrument = "guitar"
+
+	eric := Musician{
+		Person: Person{                 // named field for embedded
+			Name: "Eric Clapton",
+			Age:  80,
+		},
+		Instrument: "guitar",
+	}
+
+	fmt.Println(jimi)                   // {{Jimi Hendrix 27} guitar}
+	fmt.Println(eric)                   // {{Eric Clapton 80} guitar}
+}
+```
+
+### Promoted methods
+
+Methods for the embedded struct are also promoted to the outer struct. For example, if the `Person` type satisfies an interface, then so does `Musician`:
+1. The `Player` interface has a single method, `Play`.
+2. The function `PlaySong` takes a `Player`.
+3. `Person` implements the `Player` interface. The implementation must use a value receiver, not a pointer.
+4. `Musician` embeds a `Person` type.
+5. You can pass `eric`, a `Musician`, to `PlaySong` because `Musician` embeds `Person`, which implements the `Player` interface.
+
+```go
+type Player interface {                 // 1
+	Play()
+}
+
+func PlaySong(p Player) {               // 2
+	p.Play()
+}
+
+...
+
+func (p Person) Play() {                // 3
+	fmt.Println("Playing a song!")
+}
+
+type Musician struct {                  // 4
+	Person
+	Instrument string
+}
+
+func main() {
+	eric := Musician{
+		Person: Person{
+			Name: "Eric Clapton",
+			Age:  80,
+		},
+		Instrument: "guitar",
+	}
+	PlaySong(eric)                      // 5
+}
+```
+
+
+## Metadata
+
+Struct tags are string literals added after each field in a struct. These tags let you add more information to the struct, which you can retrieve with the `reflect` package.
+
+For example, the following struct uses struct tags to map struct fields to JSON elements:
+
+```go
+type Person struct {
+	Name string `json:"name"`
+	Age  uint   `json:"age"`
+}
+```
+Next, use the `reflect` package to get metadata for each field:
+1. Create a `Person` type.
+2. `TypeOf` returns the type of `person`, which is a struct.
+3. Loop over the struct fields. `NumField` returns the number of fields in the struct.
+4. `Field` retrieves metadata for the struct tag string.
+5. `field.Tag.Get` extracts from the struct tag string the value for the given key. Here, we pass `json`, so it gets metadata with a `json` key.
+
+```go
+func main() {
+	person := Person{                           // 1
+		Name: "Steve",
+		Age:  20,
+	}
+	p := reflect.TypeOf(person)                 // 2
+
+	for i := 0; i < p.NumField(); i++ {         // 3
+		field := p.Field(i)                     // 4
+		fmt.Println(field.Tag.Get("json"))      // 5
+	}
+}
+```
 
 
 ## Function fields
