@@ -6,12 +6,17 @@ draft = false
 +++
 
 
-A map provides you with an unordered collection of key/value pairs. maps are unordered collections, and there’s no way to predict the order in which the key/value pairs will be returned because a map is implemented using a hash table
-The map’s hash table contains a collection of buckets. When you’re storing, removing, or looking up a key/value pair, everything starts with selecting a bucket. This is performed by passing the key—specified in your map operation—to the map’s hash function. The purpose of the hash function is to generate an index that evenly distributes key/value pairs across all available buckets.
+A map is an unordered collection of key/value pairs. Because maps are unordered, there’s no way to predict the order in which the key/value pairs will be returned. 
 
-The strength of a map is its ability to retrieve data quickly based on the key. They do not have a capacity or a restriction on growth.
-Use len() to get the length of the map
-The map key can be a value from any built-in or struct type as long as the value can be used in an expression with the == operator. You CANNOT use:
+Internally, a map is a pointer to the `runtime.hmap` structure. This hash table contains a collection of buckets. When you’re storing, removing, or looking up a key/value pair, everything starts with selecting a bucket. This is performed by passing the key to the map’s hash function. The hash function generates an index that evenly distributes key/value pairs across all available buckets.
+
+The strength of a map is its ability to retrieve data quickly based on the key. They do not have a capacity or a restriction on growth. 
+
+Use len() to get the length of the map.
+
+## Keys
+
+A map key can be a value from any built-in or struct type as long as the value can be used in an expression with the == operator. You cannot use:
 - slices
 - functions
 - struct types that contain slices

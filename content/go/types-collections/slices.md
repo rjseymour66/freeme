@@ -5,29 +5,94 @@ weight = 20
 draft = false
 +++
 
-The slice type is a dynamic array that can grow and shrink as you see fit. 
-
-> **Slice vs. Array**
-> If you specify a value inside the [] operator ([4]varName), then you are creating an array. If you do not specify a value, you create a slice.
-> `array := [3]int{10, 20, 30}`
-> `slice := []int{10, 20, 30}`
-> 
-> An _array_ is a value. They are of a fixed size, and the elements in the array are initialized to their zero value.
-> 
-> A _slice_ is a pointer to an array. It has no specified length, and its zero value is `nil`.
-> 'Slicing' does not copy the slice's data, it creates a new slice value that points to the original array. So `s = slice[2:]` creates slice `s` that begins with second element of `slice`, and they both point to the same underlying data structure. So, modifying elements of a slice changes the  
-
-
-### Internals
-
-The slice has three fields:
-- Pointer to the underlying array
-- Length. Number of elements the slice can access from the array.
-- Capacity. Size of the underlying array, or number of elements that the slice has available for growth. It is the 
+The slice type is a dynamic array with no fixed size. A slice has three fields:
+- Pointer: Points to the underlying array.
+- Length: Number of elements the slice can access from the array.
+- Capacity: Size of the underlying array, or number of elements that the slice has available for growth.
 
 You cannot create a slice with a capacity that's smaller than the length.
 
-### Create slices 
+{{< admonition "slice vs array" note >}}
+If you specify a value inside the `[]` operator (`[4]varName`), then you are creating an array. If you do not specify a value, you create a slice:
+
+```go
+array := [3]int{10, 20, 30}
+slice := []int{10, 20, 30}
+```
+
+An _array_ is a value. They are of a fixed size, and the elements in the array are initialized to their zero value.
+
+A _slice_ is a pointer to an array. It has no specified length, and its zero value is `nil`.
+'Slicing' does not copy the slice's data, it creates a new slice value that points to the original array. So `s = slice[2:]` creates slice `s` that begins with second element of `slice`, and they both point to the same underlying data structure. So, modifying elements of a slice changes the  
+{{< /admonition >}}
+
+
+## Creating slices
+
+Declare a slice with curly brackets, followed by the data type: `[]<type>`. Slices can contain elements of the same type only:
+1. Standard "nil slice" declaration. Unlike an array that has elements of the type's default value, a slice can have a length of zero. A nil slice is the most common way to create slices, and can be used with many of the standard library and built-in functions that work with slices.
+2. Slice literal. This is the idiomatic way to create slices. It requires that you define the contents when you create the slice.
+
+```go
+func main() {
+	var integers []int 												// 1
+	var stones = []string{"jagger", "richards", "wyman", "watts"} 	// 2
+}
+```
+### make
+
+You can also create a slice with the `make` function. `make` requires that you pass the type and length. You can optionally pass a capacity. If the capacity is omitted, it defaults to the given length.
+
+`make` initializes the slice to its default values:
+1. No capacity
+2. Capacity
+
+```go
+func main() {
+	eight := make([]int, 8) 		// 1
+	tenCap := make([]int, 8, 10)  	// 2
+}
+```
+
+### new
+
+The `new` method returns a pointer to a slice. It does not initialize the slice, it zeroes it:
+
+```go
+func main() {
+	var zeroes *[]int = new([]int)
+	fmt.Println(zeroes) 			// &[]
+}
+```
+
+## Functions
+
+### len
+_len(slice)_
+
+Returns the number of elements in the given slice:
+
+```go
+func main() {
+	var stones = []string{"jagger", "richards", "wyman", "watts"}
+	fmt.Println(len(stones)) 	// 4
+}
+```
+
+### cap
+
+_cap(slice)_
+
+Returns the length of the slice's underlying array. When you expand a slice beyond its original capacity, the capacity is always doubled when the existing capacity of the slice is under 1,000 elements.
+
+```go
+func main() {
+	tenCap := make([]int, 8, 10)
+	fmt.Println(cap(tenCap)) 		// 10
+}
+```
+
+## Accessing elements
 
 Name slices with plural words. Create slices using the following methods:
 - `new()` function.
@@ -63,11 +128,9 @@ _append(slice, value)_
 : Appends `value` to the end of `slice`.
 : When there’s no available capacity in the underlying array for a slice, the `append` function creates a new underlying array, copies the existing values that are being referenced, and assigns the new value. So, if you append to the 3rd index of a slice with length 2, you get a new underlying array of length 3 with a capacity doubled the original array.
 
-_len(slice)_
-: Returns the length of `slice`.
 
-_cap(slice)_
-: Returns the capacity of `slice`. When you expand a slice beyond its original capacity, the capacity is always doubled when the existing capacity of the slice is under 1,000 elements. 
+
+ 
 
 
 

@@ -5,27 +5,51 @@ weight = 20
 draft = false
 +++
 
-An array in Go is a fixed-length data type that contains a contiguous block of elements of the same type
+An array in Go is a fixed-length data type that contains a contiguous block of elements of the same type. Arrays are static: after an array is declared, neither the type of data being stored nor its length can be changed. 
 
-Having memory in a contiguous form can help to keep the memory you use stay loaded within CPU caches longer
-Since each element is of the same type and follows each other sequentially, moving through the array is consistent and fast
+Having memory in a contiguous form can help to keep the memory you use stay loaded within CPU caches longer. Since each element is of the same type and follows each other sequentially, moving through the array is consistent and fast.
 
-An array is declared by specifying the type of data to be stored and the total number of elements required, also known as the array’s length.
-The type of an array variable includes both the length and the type of data that can be stored in each element
+Arrays are values, not a pointer to the first item in an array. When you pass an array to a function, the entire array is copied and passed to the function, regardless of its size. It also means that you can use it in an assignment operation:
 
-When you pass variables between functions, they’re always passed by value. When your variable is an array, this means the entire array, regardless of its size, is copied and passed to the function.
-You can pass a pointer to the array and only copy eight bytes, instead of eight megabytes of memory on the stack
-You just need to be aware that because you’re now using a pointer, changing the value that the pointer points to will change the memory being shared
-
-Once an array is declared, neither the type of data being stored nor its length can be changed
-they’re always initialized to their zero value for their respective type
-
-An array is a value in Go. This means you can use it in an assignment operation
 ```go
 var array1 [5]string
 array2 := [5]string{"Red", "Blue", "Green", "Yellow", "Pink"}
 array1 = array2
 ```
+
+## Creating an array
+
+Declare the size of the array in curly brackets, followed by the data type:`[N]<type>`. Arrays can contain elements of the same type only, and you cannot change their size after its created.
+
+1. Standard declaration. These arrays are always initialized to the zero value for their respective type.
+2. Array literal. This is the idiomatic way to create a slice.
+```go
+func main() {
+	var numbers [10]int                                         // 1
+	beatles := [4]string{"john", "paul", "george", "ringo"}     // 2
+}
+```
+
+### new
+
+The `new` method returns a pointer to an arry. It does not initialize the array, it zeroes it:
+
+```go
+func main() {
+	var zeroes *[]int = new([]int)
+	fmt.Println(zeroes) 			// &[0 0 0 0 0 0 0 0 0 0]
+}
+```
+
+## Accessing elements
+
+
+You can pass a pointer to the array and only copy eight bytes, instead of eight megabytes of memory on the stack
+You just need to be aware that because you’re now using a pointer, changing the value that the pointer points to will change the memory being shared.
+
+
+
+
 
 ```go
 var array [5]int                        // standard declaration
