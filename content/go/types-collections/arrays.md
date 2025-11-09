@@ -49,6 +49,27 @@ You just need to be aware that because you’re now using a pointer, changing th
 
 
 
+### Convert to slice
+
+Omit both the start and end indices to convert an array into a slice:
+
+```go
+func main() {
+	array := [5]int{1, 2, 3, 4, 5}
+	slice := array[:]
+}
+```
+
+## Modifying an array
+
+Arrays cannot change their size, but they are mutable. You can modify an element at a given index:
+
+```go
+func main() {
+	numbers := [7]int{0, 1, 2, 3, 4, 5, 6}
+	numbers[4] = 7                          // [0 1 2 3 7 5 6]
+}
+```
 
 
 ```go
