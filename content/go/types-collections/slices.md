@@ -308,7 +308,7 @@ func main() {
 To remove elements from a slice, append the head of the slice to the tail, removing elements in between:
 1. The head of the slice takes the slice up to but not including the element at index 2, so the head is indices 0 and 1. The tail uses slice unpacking notation to append from index 3 to the end of the slice, so the head is indices 3, 4, and so on. This removes element two.
 
-{{< admonition "" important >}}
+{{< admonition "" warning >}}
 The following example is demonstration purposes only. If you were to run this example, you receive the following:
 
 ```go
@@ -328,6 +328,167 @@ func main() {
 ```
 
 ## Concurrency safety
+
+Slices are not safe for concurrent use. If more than one goroutine makes changes to a slice, you should use a mutex to lock the slice, make modifications, and unlock when work is complete.
+
+This 
+1. Create the mutex.
+2. At the start of the function, start the lock.
+3. Do some work.
+4. Unlock the mutex.
+
+```go
+var shared []int = []int{1, 2, 3, 4, 5, 6}
+var mutex sync.Mutex 								// 1
+
+func increase(num int) {
+	mutex.Lock() 									// 2
+	fmt.Printf("[+%d a] : %v\n", num, shared) 		// 3
+	for i := 0; i < len(shared); i++ {
+		time.Sleep(20 * time.Microsecond)
+		shared[i] = shared[i] + 1
+	}
+	fmt.Printf("[+%d b] : %v\n", num, shared)
+	mutex.Unlock() 									// 4
+}
+```
+
+When you call the function in a goroutine, only one goroutine can access the slice at a time:
+
+```go
+func main() {
+	for i := 0; i < 5; i++ {
+		go increase(i)
+	}
+
+	time.Sleep(2 * time.Second)
+}
+```
+
+## Sorting
+
+The `sort` package provides methods to sort elements in a slice.
+
+### int, float64, string
+
+Sort these types with the `Ints`, `Float64s`, and `Strings` methods in the `sort` package:
+
+```go
+func main() {
+	integers := []int{2, 4, 1, 8, 3, 4}
+	floats := []float64{3.14, 6.54, 33.4, 9.1}
+	strings := []string{"zebra", "elephant", "giraffe", "cat", "apple"}
+
+	sort.Ints(integers) 		// [1 2 3 4 4 8]
+	sort.Float64s(floats) 		// [3.14 6.54 9.1 33.4]
+	sort.Strings(strings) 		// [apple cat elephant giraffe zebra]
+}
+```
+
+
+### Reverse sort
+
+You can reverse sort a sorted slice with a `for` loop:
+1. Create the slice.
+2. Sort the slice with the `sort` package method.
+3. Reverse the slice with a `for` loop. This loop starts work from the middle of the slice and swaps the left side with the right side:
+   1. `len(integers) / 2` determines how many swaps you have to do. Subtract 1 from this value because we are working with indices, and slices are 0-indexed. This makes sure it starts at the last valid index in the first half.
+   2. `len(integers) - 1 - i` finds the correct element from the opposite side to swap with. If you are swapping the second element (index 1), you need to find its opposite: 6 - 1 - 1 = 4.
+      ```bash
+	    0 [1] 2 3 [4] 5
+	  { 1 [2] 3 4 [6]  8 } 
+	  ```
+   3. This line uses parallel assignment to swap the elements. 
+     
+
+```go
+func main() {
+	integers := []int{2, 4, 1, 8, 3, 6} 							// 1
+
+	sort.Ints(integers) 											// 2
+
+	for i := len(integers)/2 - 1; i >= 0; i-- { 					// 3, 3.1
+		opp := len(integers) - 1 - i 								// 3.2
+		integers[i], integers[opp] = integers[opp], integers[i] 	// 3.3
+	}
+}
+```
+
+### Slice method
+
+`sort` also has a `Slice` method, which sorts the given slice using second argument, a `less` function that returns a boolean. The `sort` package repeatedly calls the `less` function to compare two consecutive elements to see whether they should be swapped:
+1. `Slice` is called on all consecutive elements in the slice, which is represented by indices `i` and `j`. If it returns `true`, it swaps the elements.
+2. For ascending order, use greater than (`>`). In plain English, if `i` is greater than `j`, swap the elements. For descending order, use less than `<`.
+
+```go
+func main() {
+	floats := []float64{3.14, 6.54, 33.4, 9.1}
+
+	sort.Slice(floats, func(i, j int) bool { 		// 1
+		return floats[i] > floats[j] 				// 2
+	})
+}
+```
+
+### Sort interface
+
+The `Sort` interface is three methods that you must implement for a slice type. This is usually more performant than `sort.Slice`:
+
+```go
+Len() int
+Less(i, j int) bool
+Swap(i, j int)
+```
+
+To implement this, you need to implement this on a slice type because you are sorting a slice. So, create a type alias of a slice of custom type:
+1. Create a custom type.
+2. Create a type alias on a slice. This lets you attach methods to your custom time to satisfy the `Sort` interface. This is named `ByAge` because we are sorting by the `Age` field.
+
+```go
+type Person struct { 		// 1
+	Name string
+	Age  int
+}
+
+type ByAge []Person 		// 2
+```
+
+Next, implement the interface with the `ByAge` type:
+
+```go
+func (a ByAge) Len() int {
+	return len(a)
+}
+
+func (a ByAge) Less(i, j int) bool {
+	return a[i].Age < a[j].Age
+}
+
+func (a ByAge) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+```
+
+Finally, you can call the `Sort` method on a slice of `Person` structs. First, you have to cast the `[]Person` slice to `[]ByAge`:
+
+```go
+func main() {
+	people := []Person{
+		{"Sally", 21},
+		{"Billy", 35},
+		{"Rick", 10},
+		{"Mufasa", 68},
+		{"Luke", 44},
+	}
+
+	sort.Sort(ByAge(people)) 				// [{Rick 10} {Sally 21} {Billy 35} {Luke 44} {Mufasa 68}]
+	sorted := sort.IsSorted(ByAge(people)) 	// true
+
+	sort.Sort(sort.Reverse(ByAge(people))) 	// [{Mufasa 68} {Luke 44} {Billy 35} {Sally 21} {Rick 10}]
+	sorted = sort.IsSorted(ByAge(people)) 	// false
+}
+```
+
 
 ---
 
