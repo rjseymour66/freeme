@@ -27,7 +27,7 @@ A _slice_ is a pointer to an array. It has no specified length, and its zero val
 {{< /admonition >}}
 
 
-## Creating slices
+## Creating a slice
 
 Declare a slice with curly brackets, followed by the data type: `[]<type>`. Slices can contain elements of the same type only:
 1. Standard "nil slice" declaration. Unlike an array that has elements of the type's default value, a slice can have a length of zero. A nil slice is the most common way to create slices, and can be used with many of the standard library and built-in functions that work with slices.
@@ -66,6 +66,41 @@ func main() {
 	fmt.Println(zeroes) 			// &[]
 }
 ```
+## As function arguments
+
+Pass slices by value, because slices only contain a pointer to the underlying array, its length, and capacity. This is why slices are great--no need for passing pointers.
+
+On 64-bit machines, each component of the slice requires 8 bytes (24 total).
+
+```go
+bigSlice := make([]int, 1e9)
+
+slice = fName(slice)
+
+func fName(slice []int) []int {
+    return slice
+}
+```
+
+
+## Variadic slices
+
+The `...` operator creates a variadic slice, and is also called _slice unpacking notation_. The `...` operator represents the elements of the slice when used as a function parameter or argument:
+1. As a parameter, expand a slice to a list of values.
+2. As an argument, pass each element of a slice to a function as a list of values.
+3. Append the two slices together and display the results.
+
+```go
+func someFunc(r io.Reader, args ...string) {} 	// 1
+
+func main() {
+	someFunc(os.Stdin, flag.Args()...) 			// 2
+
+	s1 := []int{1, 2}
+	s2 := []int{3, 4}
+	combined := append(s1, s2...) 				// 3 [1 2 3 4]
+}
+```
 
 ## Functions
 
@@ -93,6 +128,23 @@ func main() {
 	fmt.Println(cap(tenCap)) 		// 10
 }
 ```
+
+### copy
+
+_copy(dest, src)_
+
+Copies the contents of the `src` slice into the `dest` slice. The `dest` and `src` slices must share the same underlying array. This is commonly used to increase the capacity of an existing slice.
+
+If `dest` and `src` are different lengths, it copies up to the smaller number of elements. 
+
+
+### append
+
+_append(slice, value)_
+
+Appends `value` to the end of `slice`.
+
+When there’s no available capacity in the underlying array for a slice, the `append` function creates a new underlying array, copies the existing values that are being referenced, and assigns the new value. So, if you append to the 3rd index of a slice with length 2, you get a new underlying array of length 3 with a capacity doubled the original array.
 
 ## Accessing elements
 
@@ -486,156 +538,5 @@ func main() {
 
 	sort.Sort(sort.Reverse(ByAge(people))) 	// [{Mufasa 68} {Luke 44} {Billy 35} {Sally 21} {Rick 10}]
 	sorted = sort.IsSorted(ByAge(people)) 	// false
-}
-```
-
-
----
-
-
-
-
-
-### xFunctions
-
-_copy(dest, src)_ 
-: Copies the contents of the `src` slice into the `dest` slice. The `dest` and `src` slices must share the same underlying array. This is commonly used to increase the capacity of an existing slice.
-: If `dest` and `src` are different lengths, it copies up to the smaller number of elements. 
-
-_append(slice, value)_
-: Appends `value` to the end of `slice`.
-: When there’s no available capacity in the underlying array for a slice, the `append` function creates a new underlying array, copies the existing values that are being referenced, and assigns the new value. So, if you append to the 3rd index of a slice with length 2, you get a new underlying array of length 3 with a capacity doubled the original array.
-
-
-
- 
-
-
-
-```go
-slice := []string{"Apple", "Orange", "Plum", "Banana", "Grape"}
-
-capacity := cap(slice)              // 5
-length := len(slice)                // 5
-
-
-slice = append(slice, "Kiwi")
-capacity = cap(slice)               // 10
-length = len(slice)                 // 6
-
-```
-
-
-### Variadic slices:
-
-The built-in function append is also a variadic function. Use the ... operator to append all the elements of one slice into another.
-
-```go
-s1 := []int{1, 2}
-s2 := []int{3, 4}
-
-// Append the two slices together and display the results.
-fmt.Printf("%v\n", append(s1, s2...))
-
-Output:
-[1 2 3 4]
-```
-
-Use the `...` operator to expand a slice into a list of values:
-
-```go
-// accepts any variable number of string args
-func getFile(r io.Reader, args ...string) {}
-..
-// the ... operator expands a slice into a list of values
-t, err := getFile(os.Stdin, flag.Args()...) {}
-```
-
-### Iterating over slices
-
-Use `for` with `range` to iterate over slices from the beginning.
-
-> **IMPORTANT**
-> Do not use pointers (`&value`) when you iterate with `range` because it returns the index and a copy of the value for each iteration, not a reference. A pointer is an address that contains the copy of the `value` that is being copied.
-
-```go
-for index, value := range <slice-name> {
-    fmt.Printf("index: %d, value: %d", index, value)
-}
-
-// discard the index with a '_'
-for -, value := range <slice-name> {
-    fmt.Printf("value: %d", value)
-}
-```
-
-To iterate over a slice from an index other than 0, use a traditional `for` loop:
-
-```go 
-for i := 2; i < len(slice); i++ {
-    fmt.Printf("index: %d, value: %d", index, slice[i])
-}
-```
-
-Here, we use `append` so we don't have to deal with capacity. In the first function, we create a slice with the capacity equal to the number of variadic arguments passed to the function. Then, we use a `for...range` loop to iterate over the arguments, assigning the sum of each argument to an index in the return slice.
-
-If we use `append`, we can just declare a slice, then range over arguments and append the sum of each argument to the slice:
-
-```go
-// before refactor
-func SumAll(numbersToSum ...[]int) []int {
-	lengthOfNumbers := len(numbersToSum)
-	sums := make([]int, lengthOfNumbers)
-
-	for i, numbers := range numbersToSum {
-		sums[i] += Sum(numbers)
-	}
-	return sums
-}
-
-// after
-func SumAll(numbersToSum ...[]int) []int {
-	var sums []int
-
-	for _, numbers := range numbersToSum {
-		sums = append(sums, Sum(numbers))
-	}
-
-	return sums
-}
-```
-
-
-### Sorting slices 
-
-The Go `sort` package has a [`Slice` method](https://pkg.go.dev/sort#Slice) to sort the values in a slice. It compares items a two indices, and returns whether the item at the first index should be placed before the item at the second index.
-
-For example, the following function sorts a slice of type `Book {Author, Title}` first by `Author`, then by `Title`:
-
-```go
-func sortBooks(books []Book) []Book {
-	sort.Slice(books, func(i, j int) bool {
-		if books[i].Author != books[j].Author {
-			return books[i].Author < books[j].Author
-		}
-		return books[i].Title < books[j].Title
-	})
-	return books
-}
-```
-
-### Passing slices between functions
-
-Pass slices by value, because slices only contain a pointer to the underlying array, its length, and capacity. This is why slices are great--no need for passing pointers.
-
-On 64-bit machines, each component of the slice requires 8 bytes (24 total).
-
-```go
-bigSlice := make([]int, 1e9)
-
-slice = fName(slice)
-
-func fName(slice []int) []int {
-    return slice
 }
 ```
