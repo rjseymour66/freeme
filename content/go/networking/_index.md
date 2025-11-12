@@ -5,6 +5,16 @@ weight = 90
 draft = false
 +++
 
+Computer networks communicate with each other with protocols. The OSI model has 7 layers, the TCP/IP model has 4. This table summarizes the layers and the protocols of the TCP/IP model:
+
+| Layer       | Function                                                                    | Example Protocols    |
+| ----------- | --------------------------------------------------------------------------- | -------------------- |
+| Application | User services & data formats, how apps communicate with each other          | HTTP, FTP, DNS, SMTP |
+| Transport   | Host-to-host communication, how datagrams are received (socket programming) | TCP, UDP             |
+| Internet    | Routing and addressing, how bits and bytes are organized into datagrams     | IP, ICMP, IGMP       |
+| Link        | Physical network access                                                     | Ethernet, Wi-Fi, ARP |
+
+
 ## Terminology
 
 backpressure
