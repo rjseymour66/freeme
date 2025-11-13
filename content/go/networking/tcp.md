@@ -7,22 +7,27 @@ draft = false
 
 TCP provides built-in handshaking, error detection, and reconnection features.
 
-## Netcat TCP server
-
-To test TCP programs, you need a TCP server. Netcat is a simple command line utility that accepts simple test messages on the specified port and writes them to the console.
-
-Run this command in a terminal to start a TCP server that listens (`-l`) continuously (`-k`) on port 1902:
-
-```bash
-nc -lk 1902
-```
-
 ## TCP server
 
 TCP ensures a reliable and ordered delivery of birectional data with messag acknowledgements and sequences of data packets. A simple TCP server has the following parts:
 - Listen for incoming connections.
 - Accept the connection.
 - Read and optionally write data to the connection.
+
+### Netcat TCP server
+
+To test TCP programs, you need a TCP server. Netcat is a simple command line utility that accepts simple test messages on the specified port and writes them to the console.
+
+Run this command in a terminal to start a TCP server that listens continuously on port 1902:
+- `-6`: Listen to IPv6
+- `-l`: Listen
+- `-k`: Keep listening
+- `-u`: UDP protocol
+
+
+```bash
+nc -lk 1902
+```
 
 ### Simple server
 
@@ -74,73 +79,142 @@ func main() {
 
 ### Production server
 
-Here is a more complicated TCP server:
+Here is a more complicated TCP server that uses channels to handle connections. The code is explained in detail by [Matthew Slipper in a blog post](https://www.matthewslipper.com/2019/12/21/production-tcp-servers-in-go.html). Here are some more examples:
+- [Linode TCP and UDP Client and Server in Go](https://www.linode.com/docs/guides/developing-udp-and-tcp-clients-and-servers-in-go/)
+- [go-tcp-proxy](https://github.com/jpillora/go-tcp-proxy/blob/master/proxy.go)
+- [Build a Blazing-Fast TCP Server in Go: A Practical Guide](https://dev.to/jones_charles_ad50858dbc0/build-a-blazing-fast-tcp-server-in-go-a-practical-guide-29d)
 
 ```go
-
-func handleConn(c net.Conn) {
-	defer c.Close()
-
-	// Optional: set a read deadline
-	_ = c.SetReadDeadline(time.Now().Add(30 * time.Second))
-
-	// Use a buffered reader and read a line (or change to protocol you need)
-	r := bufio.NewReader(c)
-	line, err := r.ReadString('\n')
-	if err != nil {
-		if err != io.EOF {
-			log.Printf("read error: %v", err)
-		}
-		return
-	}
-
-	log.Printf("received: %q", line)
-
-	// Write a response and check error
-	if _, err := c.Write([]byte("Hello from TCP server\n")); err != nil {
-		log.Printf("write error: %v", err)
-	}
-}
+const MaxLineLenBytes = 1024
+const ReadWriteTimeout = time.Minute
 
 func main() {
-	listener, err := net.Listen("tcp", ":9000") // listen on all interfaces
+	lis, err := net.Listen("tcp", ":1234")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to start listener: %v", err)
 	}
-	defer listener.Close()
-
-	// graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	var wg sync.WaitGroup
-	go func() {
-		<-quit
-		log.Println("shutting down listener")
-		listener.Close() // will break Accept loop
-	}()
 
 	for {
-		conn, err := listener.Accept()
+		conn, err := lis.Accept()
 		if err != nil {
-			// Accept returns error when listener closed; exit gracefully
-			if opErr, ok := err.(*net.OpError); ok && opErr.Op == "accept" {
-				break
-			}
-			log.Printf("accept error: %v", err)
+			log.Printf("failed to accept conn: %v", err)
 			continue
 		}
 
-		wg.Add(1)
-		go func(c net.Conn) {
-			defer wg.Done()
-			handleConn(c)
-		}(conn)
+		go handleConn(conn)
 	}
+}
 
-	// wait for active handlers to finish
-	wg.Wait()
-	log.Println("server stopped")
+func handleConn(conn net.Conn) {
+	log.Printf("accepted connection from %s", conn.RemoteAddr())
+
+	defer func() {
+		_ = conn.Close()
+		log.Printf("closed connection from %s", conn.RemoteAddr())
+	}()
+	done := make(chan struct{})
+
+	// time out one minute from now if no
+	// data is received
+	_ = conn.SetReadDeadline(time.Now().Add(ReadWriteTimeout))
+
+	go func() {
+		// limit the maximum line length (in bytes)
+		lim := &io.LimitedReader{
+			R: conn,
+			N: MaxLineLenBytes,
+		}
+		scan := bufio.NewScanner(lim)
+		for scan.Scan() {
+			input := scan.Text()
+			output := strings.ToUpper(input)
+			if _, err := conn.Write([]byte(output + "\n")); err != nil {
+				log.Printf("failed to write output: %v", err)
+				return
+			}
+			log.Printf("wrote response: %s", output)
+			// reset the number of bytes remaining in the LimitReader
+			lim.N = MaxLineLenBytes
+			// reset the read deadline
+			_ = conn.SetReadDeadline(time.Now().Add(ReadWriteTimeout))
+		}
+
+		done <- struct{}{}
+	}()
+
+	<-done
+}
+```
+
+## TCP client
+
+A TCP client is much simpler than a TCP server. All you have to do is `Dial` the server, write to the connection, and close the connection:
+1. Open the connection to the server with the `Dial` function. `Dial` returns a generic `net.Conn` interface for packet-oriented connections. It is a Reader and a Writer.
+2. Handle any errors.
+3. Close the connection.
+4. Write to the connection with `Write`.
+
+```go
+func main() {
+	conn, err := net.Dial("tcp", ":9000") 		// 1
+	if err != nil { 							// 2
+		log.Fatal(err)
+	}
+	defer conn.Close() 							// 3
+	conn.Write([]byte("Hello TCP client")) 		// 4
+}
+```
+
+### UDP server
+
+UDP is connectionless---the client sends data packets to the server, and the server sends data packets to the client. There is no acknowledgement that the packets are received on either end. The following example is a simple UDP server:
+1. Listen for UDP connections on port 9001. `ListenPacket` returns a `net.PacketConn` interface for packet-oriented connections. This is not a Reader or a Writer. Rather, it has `ReadFrom` and `WriteTo` methods to read and write to the connection
+2. Handle any errors.
+3. Close the connection when `main` finishes.
+4. Create a 1KB buffer for data you read from the connection.
+5. Create an infinite loop that listens for packets on the connection.
+6. `ReadFrom` blocks until it reads a packet from the connection. It returns the number of bytes read, the return IP address on the packet, and any error. 
+7. Handle any errors.
+8. (Optional) Log a message to the console. Make sure you cast the buffer to a `string`.
+9. Write a response on the connection back to the address returned by `ReadFrom`.
+
+
+```go
+func main() {
+	conn, err := net.ListenPacket("udp", ":9001") 						// 1
+	if err != nil { 													// 2
+		log.Fatal(err)
+	}
+	defer conn.Close() 													// 3
+	buf := make([]byte, 1024)											// 4
+
+	for { 																// 5
+		_, addr, err := conn.ReadFrom(buf) 								// 6
+		if err != nil { 												// 7
+			log.Fatal(err)
+		}
+		log.Printf("Received %s from %s", string(buf), addr) 			// 8
+		conn.WriteTo([]byte("Hello from the UDP server"), addr) 		// 9
+	}
+}
+```
+
+## UDP client
+
+A UDP client is almost identical to the TCP client, but you pass the `"udp"` protocol to the `Dial` function. A simple UDP client connects to the server with `Dial`, writes to the connection, and closes the connection:
+1. Open the connection to the server with the `Dial` function. `Dial` returns a generic `net.Conn` interface for packet-oriented connections. It is a Reader and a Writer.
+2. Handle any errors.
+3. Close the connection.
+4. Write to the connection with `Write`.
+
+```go
+func main() {
+	conn, err := net.Dial("udp", ":9001") 			// 1
+	if err != nil { 								// 2
+		log.Fatal(err)
+	}
+	defer conn.Close() 								// 3
+	conn.Write([]byte("Hello from UDP client")) 	// 4
 }
 ```
 
