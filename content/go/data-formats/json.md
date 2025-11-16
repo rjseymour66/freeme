@@ -7,6 +7,14 @@ draft = false
 
 JavaScript Object Notation (JSON) is a lightweight data exchange format that is popular with RESTful web services and configuration. It is human-readable but also easily read by machines. It is described by [RFC 7159](https://datatracker.ietf.org/doc/html/rfc7159) and [ECMA-404](https://ecma-international.org/publications-and-standards/standards/ecma-404/).
 
+## Marshal vs Unmarshal
+
+| Action    | Meaning                         | Direction |
+| --------- | ------------------------------- | --------- |
+| Marshal   | Make (marshall) data to send    | Go → JSON |
+| Unmarshal | Undo marshaling (read raw data) | JSON → Go |
+
+
 ## Decoding JSON
 
 Decoding is another way to say "parsing". When you decode data, you convert it from an encoded format to the format you use in your program. You are parsing the data, byte by byte, into your program's memory.

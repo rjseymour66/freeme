@@ -5,6 +5,14 @@ weight = 20
 draft = false
 +++
 
+## Web server vs web service
+
+A _web application_ is a computer program that responds to an HTTP request by a client and sends back HTML to the client over HTTP. The web application is also called a _web server_, and the client is usually a browser. A web application generally consists of these three parts:
+- Multiplexer: A router that matches the request URI to a handler function according to a URL route.
+- Handlers: Functions that takes in a request, processes data from the request, and returns a response.
+- Template engine: Engine that combines one or more templates with data and renders a response. This can be HTML, XML, plain text, or binary data like PDFs or images.
+
+A _web service_ is a computer program that responds to an HTTP request by a client that is not a browser or human, but another computer program. Web services usually respond in JSON, but they also respond in binary formats.
 
 ## Custom server
 
@@ -406,119 +414,33 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 }
 ```
 
-## Writing to a writer
+## Handling HTTP requests
 
-There are multiple ways to write to a Writer, depending on the data that your handler returns.
+Extract information from a request with `http.Request`, and send responses with the `http.ResponseWriter`.
 
-### Raw bytes
+## Reading requests
 
-Writing raw bytes to a handler is the lowest-level data you can write to a Writer. You might write bytes in the following scenarios:
-- Sending a PDF or zip file
-- Implementing streaming APIs
-- Serving an image
-
-```go
-func rawWriteHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Raw write: Hello, world!"))
-}
-```
-
-### Formatted text
-
-Write formatted text when you need to send plain text or HTML responses. Use an `Fprint[f|ln]` function to write a formatted string:
-
-```go
-func fmtWriteHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Formatted write: Hello, %s!\n", "Ryan")
-}
-```
-
-### JSON
-
-Many APIs communicate with JSON messages:
-
-```go
-func jsonHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	data := map[string]any{
-		"message": "Hello, JSON world!",
-		"status":  "success",
-	}
-	json.NewEncoder(w).Encode(data)
-}
-```
-
-### File server
-
-```go
-func fileHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "example.txt") // put a file named example.txt in the same directory
-}
-
-```
-
-### Stream with io.Copy
+An `http.Request` is a Reader with many methods to help you extract information from the HTTP request. Some useful properties include the following:
+- `URL`
+- `Header`
+- `Host`
+- `Method`
+- `Body`
+- `Form`, `PostForm`, `MultiPartForm`
 
 
 ```go
-func streamHandler(w http.ResponseWriter, r *http.Request) {
-	file, err := os.Open("example.txt")
-	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
-		return
-	}
-	defer file.Close()
-	io.Copy(w, file)
+// Method : GET, Host : localhost:8000Path : /hello/world, Query : map[name:[ricky]]
+func hello(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Method : %s, Host : %s", r.Method, r.Host)
+	fmt.Fprintf(w, "Path : %s, Query : %s\n", r.URL.Path, r.URL.Query())
+}
+
+func main() {
+	http.HandleFunc("/hello/world", hello)
+	http.ListenAndServe(":800", nil)
 }
 ```
-
-### Set a status code
-
-```go
-func statusHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusCreated) // 201 Created
-	fmt.Fprintln(w, "Resource created successfully!")
-}
-```
-
-### Cookies
-
-Because HTTP is a stateless protocol, we use cookies to maintain state across requests. Cookies are ephemeral and easily re-created.
-
-This handler reads comments from a form and sets a `username` cookie if it is not present in the request:
-1. Parse the form.
-2. Get the username value from the form.
-3. Check if there is a `username` cookie.
-4. If the cookie is present, override the form value with the value stored in the cookie.
-5. Get the comment data from the form and create a comment object.
-6. Set a cookie named `username` with the value either parsed from the form or stored in the active cookie. Set it to expire in 24 hours.
-
-```go
-func cookiePostHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm() 											// 1
-
-	username := r.Form.Get("username") 						// 2
-	usernameCookie, err := r.Cookie("username") 			// 3
-	if err == nil { 										// 4
-		username = usernameCookie.Value
-	}
-
-	commentText := r.Form.Get("comment") 					// 5
-	comments = append(comments, comment{
-		username:   username,
-		text:       commentText,
-		dateString: time.Now().Format(time.RFC3339)},
-	)
-
-	http.SetCookie(w, &http.Cookie{ 						// 6
-		Name:    "username",
-		Value:   username,
-		Expires: time.Now().Add(24 * time.Hour)},
-	)
-}
-```
-
-## Reading from a Reader
 
 ### Query string parameters
 
@@ -587,6 +509,20 @@ Go normally routes to the longest matching path. However, it matches the most sp
 {{< /admonition >}}
 
 ### Headers
+
+The `Header` field of an `http.Request` is a map of all HTTP headers sent in the request. The keys are the header names, and the values are slices of strings in case the header appears more than once.
+
+To get all `Headers`, use a `for...range` loop:
+
+```go
+func headers(w http.ResponseWriter, r *http.Request) {
+	for k, v := range r.Header {
+		fmt.Fprintf(w, "%s: %s\n", k, v)
+	}
+}
+```
+
+You can also use the `Get` method to retrieve a header by name:
 
 ```go
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -726,6 +662,10 @@ func fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 ### Body (raw bytes)
 
+The `Body` field is an `io.ReaderCloser` that contains the requet body. A request body is available only if it is a request that includes one, such as a POST request.
+
+You can read the entire body with `io.ReadAll`. This reads data until an EOF or an error. Make sure you cast the response as a string, or you receive the UTF-8 bytes:
+
 ```go
 func rawBytes(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -782,7 +722,165 @@ func commentHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## 404 errors
+## Writing a response
+
+There are multiple ways to write to a ResponseWriter, depending on the data that your handler returns.
+
+### Raw bytes
+
+Writing raw bytes to a handler is the lowest-level data you can write to a Writer. You might write bytes in the following scenarios:
+- Sending a PDF or zip file
+- Implementing streaming APIs
+- Serving an image
+
+```go
+func rawWriteHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Raw write: Hello, world!"))
+}
+```
+
+### Formatted text
+
+Write formatted text when you need to send plain text or HTML responses. Use an `Fprint[f|ln]` function to write a formatted string:
+
+```go
+func fmtWriteHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Formatted write: Hello, %s!\n", "Ryan")
+}
+```
+
+### JSON services
+
+Many APIs communicate with JSON messages:
+
+```go
+func jsonHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string]any{
+		"message": "Hello, JSON world!",
+		"status":  "success",
+	}
+	json.NewEncoder(w).Encode(data)
+}
+```
+#### URL parameters
+
+When you need to respond with a specific resource, you can retrieve it with a URL parameter:
+
+1. `init` reads raw JSON from a file and unmarshals it into memory.
+2. `main` creates a router with the [Chi framework](https://github.com/go-chi/chi).
+3. This registers a GET route with the `{id}` URL parameter, where `id` specifies the resource to return.
+
+```go
+func init() { 								// 1
+	file, _ := os.Open("people.json")
+	defer file.Close()
+	data, _ := io.ReadAll(file)
+	json.Unmarshal(data, &list)
+}
+
+func main() { 								// 2
+	mux := chi.NewRouter()
+	mux.Get("/people/{id}", people) 		// 3
+	http.ListenAndServe(":8000", mux)
+}
+```
+
+The `people` handler extracts the resource ID from the request URL, retrieves the resource, then sends a JSON response:
+1. Set the Content-Type to JSON so the client knows what to expect.
+2. Get the `id` from the URL path parameter.
+3. If `id` is not a number, return an error.
+4. Check if `id` is out of range. If it is less than 0 or greater than or equal to the length of the list, return an error.
+5. Encode the list as JSON in the response. `NewEncoder` is a wrapper around a Writer, so pass it `ResponseWriter`. Encoder's have an `Encode` method that writes the JSON format of the given value to the stream (Writer) that `NewEncoder` wraps.
+
+```go
+func people(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json") 		// 1
+	idstr := chi.URLParam(r, "id") 							// 2
+	id, err := strconv.Atoi(idstr) 							// 3
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if id < 0 || id >= len(list) { 							// 4
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(list[id]) 					// 5
+}
+```
+
+### File server
+
+```go
+func fileHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "example.txt") // put a file named example.txt in the same directory
+}
+
+```
+
+### Stream with io.Copy
+
+
+```go
+func streamHandler(w http.ResponseWriter, r *http.Request) {
+	file, err := os.Open("example.txt")
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	defer file.Close()
+	io.Copy(w, file)
+}
+```
+
+### Set a status code
+
+```go
+func statusHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusCreated) // 201 Created
+	fmt.Fprintln(w, "Resource created successfully!")
+}
+```
+
+### Cookies
+
+Because HTTP is a stateless protocol, we use cookies to maintain state across requests. Cookies are ephemeral and easily re-created.
+
+This handler reads comments from a form and sets a `username` cookie if it is not present in the request:
+1. Parse the form.
+2. Get the username value from the form.
+3. Check if there is a `username` cookie.
+4. If the cookie is present, override the form value with the value stored in the cookie.
+5. Get the comment data from the form and create a comment object.
+6. Set a cookie named `username` with the value either parsed from the form or stored in the active cookie. Set it to expire in 24 hours.
+
+```go
+func cookiePostHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm() 											// 1
+
+	username := r.Form.Get("username") 						// 2
+	usernameCookie, err := r.Cookie("username") 			// 3
+	if err == nil { 										// 4
+		username = usernameCookie.Value
+	}
+
+	commentText := r.Form.Get("comment") 					// 5
+	comments = append(comments, comment{
+		username:   username,
+		text:       commentText,
+		dateString: time.Now().Format(time.RFC3339)},
+	)
+
+	http.SetCookie(w, &http.Cookie{ 						// 6
+		Name:    "username",
+		Value:   username,
+		Expires: time.Now().Add(24 * time.Hour)},
+	)
+}
+```
+
+### 404 errors
 
 The `http` package provides a basic method for handling HTTP 404 errors. It returns `404 page not found` if the request does not match a path registered with the server:
 

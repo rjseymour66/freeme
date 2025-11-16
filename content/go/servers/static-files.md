@@ -26,10 +26,10 @@ func main() {
 }
 ```
 
-### Specific file with handler
+### Single file
 
 You can use `ServeFile` to serve a specific file with a handler. This example registers a handler with the `DefaultMux` server. The handler uses `ServeFile` to serve a file named `hello.html` at the web root path (`/`):
-1. ``ServeFile` takes the response, request, and a file or directory string as its arguments.
+1. `ServeFile` takes the response, request, and a file or directory string as its arguments.
 
 ```go
 func main() {
@@ -52,7 +52,16 @@ func hello(w http.ResponseWriter, r *http.Request) {
    - `http.FileServer` returns a handler that serves files from the given directory (`./files/`).
    - `StripPrefix` returns a handler that removes the given string from the path before it serves HTTP requests. Here, it removes `/static/` from the path. It also accepts a handler, which is the `FileServer(dir)` handler.
       
-      For example, if you are serving CSS from `/static/style.css`, `StripPrefix` changes the path from `/static/style.css` to `/style.css`, and then `FileServer` looks for the file in `./files/style.css`. So, if you go to `http://localhost:8080/static/style.css`, the server serves `./files/style.css` but still displays `http://localhost:8080/static/style.css` in the address bar.
+     For example, if you are serving CSS from `/static/style.css`, `StripPrefix` changes the path from `/static/style.css` to `/style.css`, and then `FileServer` looks for the file in `./files/style.css`. So, if you go to `http://localhost:8080/static/style.css`, the server serves `./files/style.css` but still displays `http://localhost:8080/static/style.css` in the address bar.
+
+	 This line could be rewritten with the following ways:
+	 ```go
+	 dir := http.Dir("./files/")
+	 fs := http.FileServer(dir)
+	 fs = http.StripPrefix("/files/", fs)
+	 http.Handle("/files/", handler)
+	 http.ListenAndServe(":8080", nil)
+	 ```
 3. Register the `/static/` path with the handler that serves the static files.
 ```go
 func main() {

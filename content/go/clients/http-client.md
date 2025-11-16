@@ -5,12 +5,17 @@ weight = 10
 draft = false
 +++
 
+{{< admonition "HTTPBin for testing" note >}}
+You can test clients with [HTTPBin](https://httpbin.org/).
+{{< /admonition >}}
 
 Go's HTTP client can perform almost any HTTP request, and it is highly customizable.
 
+
+
 ## Basic client
 
-A simple GO client performs a a helper function. Helper functions are a wrapper around a request a `Request` object and HTTP client. Other common helper functions include the following:
+A simple Go client performs a a helper function. Helper functions are a wrapper around a request a `Request` object and HTTP client. Other common helper functions include the following:
 -`http.Get`
 - `http.Head`
 - `http.Post`
@@ -48,6 +53,8 @@ Use `DefaultClient` when you need a quick and convenient HTTP client where the f
 - Redirects: Up to 10
 - Transport: See [http.DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport)
 
+
+### Request object and Do
 
 In its most basic form, making a request with the `DefaultClient` requires that you create two objects: a `Request` object and a client that makes the request:
 1. Create a new `Request` object. `NewRequest` takes a method, URL, and request body. Because this is a DELETE request, the body is `nil`.
@@ -94,6 +101,94 @@ func main() {
 }
 ```
 
+### POST
+
+Send a POST request with a custom client. `Post` takes the URL, content type, and request body that is of type `io.Reader`. An easy way to create a Reader is with the `strings.NewReader`:
+1. Create a client and set the timeout to one second.
+2. Create a Reader from a string to pass as the request body.
+3. Make the request.
+
+```go
+func main() {
+	client := &http.Client{Timeout: time.Second} 									// 1
+	body := strings.NewReader(`{"message": "Sending a request"}`) 					// 2
+	res, err := client.Post("https://httpbin.org/post", "application/json", body) 	// 3
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+	fmt.Printf("%s", b)
+}
+```
+
+### Form data
+
+Send form data to a server with the `PostForm` method:
+1. Create a client and set the timeout to one second.
+2. `url.Values` is a map used for form encoding. Its keys are strings, and its values are slices of strings. This lets you send form data if a field has multiple values. This expression creates a map literal.
+3. `Add` takes a key and a value and stores it in the map. Because each key has a slice of strings as a value, you can add multiple values to the same key.
+4. `PostForm` takes a URL and a `url.Values` type as parameters.
+
+```go
+func main() {
+	client := &http.Client{Timeout: time.Second}
+	formValues := url.Values{}
+	formValues.Add("message", "Hello form!")
+	formValues.Add("message", "Nice to meet you!")
+
+	res, err := client.PostForm("https://httpbin.org/post", formValues)
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+	fmt.Printf("%s", b)
+}
+```
+
+### Cookies
+
+To add a cookie to the request, create a Request object and use the `addCookie` method. HTTP is a stateless protocol, and cookies help you with things like authentication and user settings. Cookies are sent as a header in the following format: `Cookie: <key>=<value>`:
+1. Create a client and set the timeout to one second.
+2. Create a Request object. `NewRequest` takes a method, URL, and request body. We're not sending a body, so set that to `nil`.
+3. Add a cookie to the `Header` field in the Request object with `AddCookie`.
+4. Make the request with `Do`.
+
+
+```go
+func main() {
+	client := &http.Client{Timeout: time.Second} 							// 1
+	req, err := http.NewRequest("GET", "https://httpbin.org/cookies", nil) 	// 2
+	if err != nil {
+		panic(err)
+	}
+	req.AddCookie(&http.Cookie{ 											// 3
+		Name:  "cookie",
+		Value: "oreo",
+	})
+
+	resp, err := client.Do(req) 											// 4
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	fmt.Printf("%s", b)
+}
+```
 
 ## Transport layer (TODO)
 

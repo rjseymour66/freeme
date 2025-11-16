@@ -5,7 +5,9 @@ weight = 10
 draft = false
 +++
 
-Go has a templating engine that lets you return text and HTML in response to HTTP requests. The HTML library is built on top of the text engine. It is context-aware, which means it understands HTML, CSS, JS, and URIs and escapes data based on where it appears in the HTML output. In short, developers are trusted and any user data that is injected with variables is untrusted and is escaped. This is a security measure to prevent attacks such as cross-site scripting (XSS) from untrusted data.
+Go has a templating engine that lets you return text and HTML in response to HTTP requests. The HTML library is built on top of the text engine.
+
+The templating engine is context-aware, which means it understands HTML, CSS, JS, and URIs and escapes data based on where it appears in the HTML output. In short, developers are trusted and any user data that is injected with variables is untrusted and is escaped. This is a security measure to prevent attacks such as cross-site scripting (XSS) from untrusted data.
 
 For example, if a user input the following:
 
@@ -19,9 +21,36 @@ The HTML template package escapes text to output this:
 &lt;script&gt;alert(&#39;malicious&#39;)&lt;/script&gt;
 ```
 
+## Data context
+
+This table gives a brief overview of Go's "dot" syntax:
+
+| Syntax                  | Meaning                                |
+| ----------------------- | -------------------------------------- |
+| `{{ . }}`               | Print the current value                |
+| `{{ .Field }}`          | Access a field of the current value    |
+| `{{ range .Items }}`    | Iterate items and set `.` to each item |
+| `{{ with .SubValue }}`  | Temporarily set `.` to `.SubValue`     |
+| `{{if}}` and `{{else}}` | Perform conditional checks             |
+
+The dot represents the current context in that scope. This is best demonstrated with the `range` action, which uses the top-level context and the context nested within each iteration of the loop. The following two `range` expressions evaluate `[]people` equivalently:
+1. `range` over `people`.
+2. `item` in `people` slice.
+
+```go
+{{ range . }} 						// 1
+<li>{{ . }}</li> 					// 2
+{{ end }}
+
+for _, item := range people {		// 1
+	item							// 2
+}
+```
+
+
 ## Getting started
 
-This example demonstrates the basics of HTML templating. It renders the title and content in this simple web page:
+This example demonstrates the basics of HTML templating. It renders the title and content in this simple web page. Here is the returned HTML located at `./html/index.html`:
 
 ```html
 <!DOCTYPE html>
@@ -72,6 +101,18 @@ func displayPage(w http.ResponseWriter, r *http.Request) {          // 2
 func main() {
 	http.HandleFunc("/", displayPage)
 	http.ListenAndServe(":8080", nil)
+}
+```
+
+Alternately, you could instantiate the `Page` object in `t.Execute`:
+
+```go
+func displayPage(w http.ResponseWriter, r *http.Request) {
+	t := template.Must(template.ParseFiles("html/index.html"))
+	t.Execute(w, Page{
+		Title:   ".Title example",
+		Content: "This is the .Content block.",
+	})
 }
 ```
 
