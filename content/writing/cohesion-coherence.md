@@ -39,7 +39,7 @@ People learn by connecting new information to what the already know, so give rea
 
 Familiar information comes in two forms:
 - Information in the sentence that they just read.
-- General knowledge that the readers already posses.
+- General knowledge that the readers already possess.
 
 If you refer to information in a previous sentence with words such as "this", "these", "those", "such", "another", etc., place them as close to the beginning of the sentence as possible:
 - The primary reason people go to college is to increase employment opportunities. **Another** reason is socializing.

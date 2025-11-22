@@ -65,7 +65,7 @@ Examples:
 - the reason for -> why
 - concerning the manner -> about
 
-### Change negatives with affirmatives
+### Replace negatives with affirmatives
 
 Some words are implicitly negative. Do not pair these with _not_:
 
