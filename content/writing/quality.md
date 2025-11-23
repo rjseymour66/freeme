@@ -1,5 +1,5 @@
 +++
-title = 'Tasks'
+title = 'Quality docs'
 date = '2025-11-22T09:07:54-05:00'
 weight = 10
 draft = false
@@ -10,7 +10,12 @@ draft = false
 
 The purpose of a rough draft is to figure out which parts you understand well enough to document, and which parts you need to research.
 
+## Titles
 
+- Tasks: Use the verbal form: _Installing_, _configuring_,...
+- Concepts: Use concrete words that summarize the concept.
+- Referece: Noun or noun phrase that indicates the name of the item and a common noun.
+- Troubleshooting: State the problem that the topic addresses. For example, _Cannot connect to the server_.
 
 ## Tasks
 
@@ -53,6 +58,20 @@ The best place to tell users that a step is optional is at the beginning. Condit
 ## Concepts
 
 Concept topics provide the necessary vocabulary and context for what users are doing.
+
+## Troubleshooting
+
+Troubleshooting documentation must include the following sections:
+- Symptoms of the issue
+- Potential causes of the issue
+- How to resolve the error situation
+
+### Structure
+
+Introduction
+: Define the concept and explain its value to the user.
+
+
 
 
 ## Revising
@@ -173,3 +192,27 @@ Many complicated words are derived from Latin. Replace latin words with words or
 | utilize             | use                       |
 | validate            | check, make sure          |
 | verify              | check                     |
+
+
+### "that" in relative clauses
+
+Always use "that" in a relative clause. It helps with translation and helps clarify how parts of the sentence relate to each other.
+
+#### Original
+
+Each error message explains the issue it addresses.
+
+#### Revision
+
+Each error message explains the issue _that_ it addresses.
+
+### Parentheses
+
+Periods go inside parentheses when what is inside the parentheses is a complete sentence.
+
+### Lists
+
+Follow these steps:
+- Use a complete sentence for the lead-in sentence.
+- Start each list item with a capital letter unless the first word is never capitalized.
+- Do not nest more than two levels
