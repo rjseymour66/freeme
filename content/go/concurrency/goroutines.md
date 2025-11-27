@@ -7,7 +7,7 @@ draft = false
 
 
 
-A goroutine is a function that is invoked after the keyword `go`. It runs separate alongside other code, has its own call stack that is a few KB, and is managed by the Go runtime scheduler. The scheduler distributes the goroutines over multiple operating system threads that run on one or more processors.
+A goroutine is a function that is invoked after the keyword `go`. Goroutines are executed and managed by the Go Scheduler. The scheduler distributes the goroutines over multiple operating system threads that run on one or more processors. They run separate alongside other code with a thir own call stack that is a few KB. 
 
 The `main` method is a goroutine---the main goroutine that comprises the lifetime of the application. To demonstrate, the `countToTen` function in the following example counts from 1 to 10 and logs the current number to the console each second. The main function calls `countToTen` as a goroutine, then sleeps for seven seconds. `countToTen` runs concurrently to the main method, logging numbers to the console, while the main method sleeps. After seven seconds, the main method resumes execution and exits. This means that `countToTen` does not have enough time to complete its loop before the program ends:
 
@@ -40,7 +40,7 @@ A wait group is a message-passing facility that signals to a waiting goroutine w
 4. Call `.Done()` to signal to the wait group that the task is complete. This decrements the tasks registered with `.Add(int)` are complete.
 5. In the outer goroutine, call `.Wait()`. The outer goroutine blocks until all goroutines in the wait group call `.Done()`.
 
-#### Example
+### Example
 
 The following example illustrates this process. It calls a `compress` function on the files passed on the command line:
 1. Creates a wait group named `wg`.
@@ -92,6 +92,40 @@ If the goroutine closure captured `file`, all goroutines would share that same v
 
 Passing `file` as an argument to the IIFL means that it is evaluated immediately, and each goroutine gets its a unique copy of the `file` variable in each iteration.
 {{< /admonition >}}
+
+### Concurrent functions
+
+When you need to perform work within a function but also use WaitGroups to manage concurrency, pass the WaitGroup to the function as a parameter, and call `Done` within the function. All WaitGroup setup (declaration, `Add`) and cleanup (`Wait()`) needs to take place outside the functions:
+
+1. Create the WaitGroup.
+2. Add the number of goroutines you want to run.
+3. Pass the WaitGroup as a parameter.
+4. In the functions, call `Done`.
+5. Wait for the goroutines to finish.
+
+```go
+func main() {
+	var wg sync.WaitGroup 						// 1
+	wg.Add(2) 									// 2
+	go hello("hello", &wg)
+	go world("world", &wg)
+	wg.Wait() 									// 5
+}
+
+func hello(s string, wg *sync.WaitGroup) { 		// 3
+	defer wg.Done() 							// 4
+	for i := 0; i < 5; i++ {
+		fmt.Println(s, i)
+	}
+}
+
+func world(s string, wg *sync.WaitGroup) { 		// 3
+	defer wg.Done()								// 4
+	for i := 0; i < 5; i++ {
+		fmt.Println(s, i)
+	}
+}
+```
 
 ## Mutexes
 

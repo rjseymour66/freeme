@@ -71,8 +71,8 @@ go mod tidy
 Formats your source files with Go's built-in style rules:
 
 ```bash
-gofmt -w <file>.go    // formats <file>.go
-gofmt -l dirname/*.go // lists files in dir that do not conform to go formatting 
+gofmt -w <file>.go      # formats <file>.go
+gofmt -l dirname/*.go   # lists files in dir that do not conform to go formatting 
 ```
 
 ### goimports
@@ -97,28 +97,80 @@ go vet program.go
 
 ### go run
 
-`go run` compiles the application into a temp directory and executes it immediately. After the program runs, the file is cleaned up:
+Run Go code without explicitly compiling the code into a binary. Behind the scenes, `go run` compiles the application into a temp directory and executes it immediately. After the program runs, the file is cleaned up:
 
 ```bash
-go run .                    // runs binary in cwd
+go run .                    # runs binary in cwd
 go run <binary-name>
-go run ./cmd/web            // runs proj-root/cmd/web/main.go
+go run ./cmd/web            # runs proj-root/cmd/web/main.go
 ```
 
 ### go build
 
+Compiles Go code into an executable binary that you can run.
+
 ```bash
-go build                    // uses module name for binary name
-go build -o <binary-name>   // provide binary name
+go build                    # uses module name for binary name
+go build -o <binary-name>   # provide binary name
 ```
+
+### Cross-platform compilation
+
+You can compile for any operating system or chip architecture with the `GOOS` and `GOARCH` environment variables. Set the variables in a `go run` or `go build` command:
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o app
+GOOS=windows GOARCH=amd64 go build -o app.exe
+GOOS=darwin GOARCH=amd64 go run
+```
+
+This table lists the accepted values:
+
+| GOOS        | Description                             |
+| ----------- | --------------------------------------- |
+| `aix`       | IBM AIX                                 |
+| `android`   | Android                                 |
+| `darwin`    | macOS, iOS, iPadOS (Apple platforms)    |
+| `dragonfly` | DragonFly BSD                           |
+| `freebsd`   | FreeBSD                                 |
+| `illumos`   | Illumos/Solaris derivatives             |
+| `ios`       | iOS (device & simulator)                |
+| `js`        | WebAssembly JavaScript host environment |
+| `linux`     | Linux                                   |
+| `netbsd`    | NetBSD                                  |
+| `openbsd`   | OpenBSD                                 |
+| `plan9`     | Plan 9                                  |
+| `solaris`   | Oracle Solaris                          |
+| `wasip1`    | WASI Preview 1                          |
+| `windows`   | Windows                                 |
+
+
+| GOARCH     | Description                                                                  |
+| ---------- | ---------------------------------------------------------------------------- |
+| `386`      | 32-bit x86                                                                   |
+| `amd64`    | 64-bit x86                                                                   |
+| `amd64p32` | 64-bit x86 with 32-bit pointers (old, only for nacl; effectively deprecated) |
+| `arm`      | ARM 32-bit                                                                   |
+| `arm64`    | ARM 64-bit                                                                   |
+| `loong64`  | LoongArch 64                                                                 |
+| `mips`     | MIPS (big-endian), 32-bit                                                    |
+| `mips64`   | MIPS64 (big-endian)                                                          |
+| `mipsle`   | MIPS (little-endian), 32-bit                                                 |
+| `mips64le` | MIPS64 (little-endian)                                                       |
+| `ppc64`    | POWERPC 64-bit (big-endian)                                                  |
+| `ppc64le`  | POWERPC 64-bit (little-endian)                                               |
+| `riscv64`  | RISC-V 64                                                                    |
+| `s390x`    | IBM Z / s390x                                                                |
+| `wasm`     | WebAssembly                                                                  |
+
 
 ## Testing
 
 ### go test
 
 ```bash
-go test -v                  // verbose output
-go test -v ./<dirname>/     // run tests in a specific directory
+go test -v                  # verbose output
+go test -v ./<dirname>/     # run tests in a specific directory
 go test -v ./cmd/
 ```
 

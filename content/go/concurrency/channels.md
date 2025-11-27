@@ -43,7 +43,9 @@ A send channel is a channel that you send data into to retrieve by another go ro
 
 Send channels behave differently whether they are buffered or unbuffered. 
 
-By default, channels are unbuffered. An unbuffered channel blocks until another goroutine is ready to receive the value. When you are sending data into a channel, you need to run it in a separate goroutine so it does not block execution. For example, this code sends data to `sending` in the `main` goroutine. `main` cannot execute past `ch <- 100` because it blocks, resulting in a deadlock:
+By default, channels are unbuffered. An unbuffered channel blocks until another goroutine is ready to receive the value. If you are going to send data into a channel, you need to have another channel ready to receive the data or the program ends in a deadlock.
+
+When sending data into a channel, run it in a separate goroutine so it does not block execution to the receiving channel. For example, this code sends data to `ch` in the `main` goroutine. `main` cannot execute past `ch <- 100` because it blocks, resulting in a deadlock:
 
 ```go
 func main() {
@@ -54,7 +56,7 @@ func main() {
 }
 ```
 
-To fix this, put `ch` in a goroutine:
+To fix this, put `ch` in a goroutine so that execution can continue to the receiving goroutine:
 
 ```go
 func main() {
@@ -99,6 +101,7 @@ func main() {
 When you assign a value from a channel, remember to use the arrow on the receiving channel: `val := <-ch`. If you omit the arrow (`val := chan`), you are only assigning channel itself, which is a virtual memory address.
 {{< /admonition >}}
 
+#### Discard the value
 
 To discard the value, end the program without assigning it to a variable. Use this pattern when the receiving channel does not need to preform any work with the channel value. For example, if the channel sends a signal that the program should exit, you do not need to store the value:
 
@@ -145,6 +148,11 @@ func readStdin(out chan<- []byte) {
 ## Unbuffered channels
 
 By default, a channel in Go is unbuffered. This means that it holds only one value rather than a buffer of values. When you store a value in an unbuffered channel, it blocks until the value is received from another goroutine. If you send two values to an unbuffered channel, then the second value blocks until the first is retrieved by another goroutine.
+
+Unbuffered channels are useful in these scenarios:
+- Guaranteed delivery of data.
+- One-to-one communication between goroutines.
+- Load balancing patterns that ensure work is evenly distributed.
 
 Create an unbuffered channel without providing a capacity as the second argument to `make`:
 
@@ -266,7 +274,13 @@ func main() {
 
 ## Buffered channels
 
-A buffered channel is a channel that can hold more than one value---a buffer of values. To create a buffered channel, provide a capacity value as the second argument to `make`:
+A buffered channel is a channel that can hold more than one value---a buffer of values. Buffered channesl are useful in the following scenarios:
+- Asynchronous communiation between goroutines.
+- Reducing contention when you have multiple producers so they don't have to wait for a receiver.
+- Preventing deadlocks with buffering.
+- Batch processing where data is produced and consumed at different rates.
+
+To create a buffered channel, provide a capacity value as the second argument to `make`:
 
 ```go
 ch := make(chan int, 2)
@@ -401,5 +415,71 @@ Range over channels just other collection types, but note that the channel `for 
 ```go
 for val := range ch {
     fmt.Printf("%v", val)
+}
+```
+
+When you range over an unbuffered channel, you need to close the channel or the program will deadlock. Here, a WaitGroup closes the channel:
+
+1. Create a channel.
+2. Create a WaitGroup.
+3. Increment the WaitGroup counter as needed.
+4. Run your functions in anonymous goroutines.
+5. Defer a call to Done at the start of the goroutine.
+6. Call your worker function.
+7. In a separate goroutine, wait for the WaitGroups to finish, then close the channel.
+8. Range over the channel.
+
+```go
+func main() {
+	balls := make(chan string) 				// 1
+
+	wg := sync.WaitGroup{} 					// 2
+	wg.Add(2) 								// 3
+
+	go func() { 							// 4
+		defer wg.Done() 					// 5
+		throwballs("red", balls) 			// 6
+	}()
+
+	go func() {
+		defer wg.Done()
+		throwballs("green", balls)
+	}()
+
+	go func() {
+		wg.Wait() 							// 7
+		close(balls) 						// 8
+	}()
+
+	for val := range balls {				// 9
+		fmt.Printf("%s received!\n", val)
+	}
+}
+```
+
+## Signaling between channels
+
+
+```go
+func main() {
+	signalChannel := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("Goroutine 1 is waiting for a signal...")
+		<-signalChannel
+		fmt.Println("Goroutine 1 is now doing work...")
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("Goroutine 2 is about to send a signal...")
+		signalChannel <- true
+		fmt.Println("Goroutine 2 sent a signal")
+	}()
+	wg.Wait()
+	fmt.Println("Both goroutines have finished.")
 }
 ```
