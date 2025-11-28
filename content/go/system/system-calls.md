@@ -59,6 +59,3 @@ go get -u golang.org/x/sys
 | `os.Exit()`                     | Exit the current process.                          |
 | `os.Signal`                     | Represents signals such as `SIGINT` and `SIGTERM`. |
 | `os.Notify()`/`signal.Notify()` | Notify on signal reception.                        |
-
-
-## Tracing system calls
