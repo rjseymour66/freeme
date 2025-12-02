@@ -49,7 +49,7 @@ func lineRead(filename string) {
 
 ### Scanner
 
-A [scanner](https://pkg.go.dev/bufio#Scanner) is a high-level utility that reads tokenized input. Tokenized input is data that uses a delimiter to signal the end of a data value. A scanner is memory-safe because it keeps only one token in memory.
+A [scanner](https://pkg.go.dev/bufio#Scanner) is a high-level utility that reads tokenized input. Tokenized input is data that uses a delimiter to signal the end of a data value. By default, the token delimiter is a newline character. A scanner is memory-safe because it keeps only one token in memory.
 
 {{< admonition "Default token size" warning >}}
 A scanner has a default token size of 64KB. If you need to read larger tokens, increase the buffer size with `scanner.Buffer()`.
@@ -84,7 +84,7 @@ func lineRead(filename string) {
 }
 ```
 
-By default, the token delimiter is a newline character, but you can change that with the `Split` function. You can create a custom delimiter with [SplitFunc](https://pkg.go.dev/bufio#SplitFunc), or you can use one of the [convenience methods](https://pkg.go.dev/bufio#pkg-functions) that Go provides to read by byte, line, word, or rune.
+You can change the delimiter with the `Split` function. You can create a custom delimiter with [SplitFunc](https://pkg.go.dev/bufio#SplitFunc), or you can use one of the [convenience methods](https://pkg.go.dev/bufio#pkg-functions) that Go provides to read by byte, line, word, or rune.
 
 This example reads a file and changes the scanner to read by word:
 

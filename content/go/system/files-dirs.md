@@ -7,7 +7,7 @@ draft = false
 
 ## File and directory information
 
-`os.Stat` gets informaiton about a file or directory. It takes a file name string and returns a `FileInfo` type and an `error`. Here is the information available in `FileInfo`:
+`os.Stat` gets information about a file or directory. It takes a file name string and returns a `FileInfo` type and an `error`. Here is the information available in `FileInfo`:
 
 ```go
 type FileInfo interface {
@@ -219,4 +219,332 @@ func main() {
 }
 ```
 
-## Scanning directories
+## File paths
+
+A file path in Go is a string representation of a file or directory location in the filesystem. Directory names are separated by a path separator, which is a forward slash in Linux and macOS (`home/file/path`), and a backslash in Windows (`C:\file\path`). Go's `path/filepath` package is platform-independent, so you can use the same code for all OSs.
+
+### Joining file paths
+
+Create a file path with the `Join` method. It accepts a variable number of `string` arguments and concatenates them using the correct path separator.
+
+When you define the strings, you do not have to worry about whether there is a trailing or leading slash in your string. The `Join` function will build the file path correctly.
+
+Here, the strings all beggin and end with different slash formats and the path output is correct. In production, you should use a consistent style:
+
+```go
+func main() {
+
+	dir := "/home/username/filepath/"
+	subdir := "level1/level2"
+	file := "document.txt"
+
+	fullPath := filepath.Join(dir, subdir, file) 
+	fmt.Println(fullPath)   // /home/username/filepath/level1/level2/document.txt
+}
+```
+
+### Cleaning file paths
+
+In some cases, the file path portions that you want to concatenate might contain redundant separators or refrerences to the current directory (`.`) or parent directory (`..`). Use `Clean` to resolve these issues and return the shortest path name equivalent to the provided input.
+
+{{< admonition "" note >}}
+`Clean` does not resolve file paths, it only transforms them into more readable paths.
+{{< /admonition >}}
+
+For example, the following `uncleanPath` contains multiple separators and a reference to the parent directory. `Clean` removes the redundant separators and then "follows" the parent path to remove `/user/` from the output:
+
+```go
+func main() {
+	uncleanPath := "/home/user///../documents/file.txt"
+	cleanPath := filepath.Clean(uncleanPath)            // /home/documents/file.txt
+}
+```
+
+### Splitting file paths
+
+You can separate a path into directory and file parts with `Split`. A few things to consider:
+- If the `path` argument ends with a path separator, the returned file value is empty.
+- If there is no path separator in the `path` argument, the returned directory value is empty.
+
+```go
+func main() {
+	path := "/home/username/filepath/level1/level2/test.txt"
+	dir, file := filepath.Split(path)
+	fmt.Println(dir)             // /home/username/filepath/level1/level2/
+	fmt.Println(file)            // test.txt
+}
+```
+
+### Relative paths
+
+Get the relative directory path between two filesystem locations with `Rel`. This method accepts a base path and a target path and returns the relative path from the end of the base path to the last directory. For example, if the target path ends with a file name, it returns the path to its parent directory. If the target path ends in a directory, it returns the path to that directory.
+
+The target path must contain the base path, or you will get an error:
+
+```go
+func main() {
+	basePath := "/home/username/"
+	targetPath := "/home/username/filepath/level1/level2/test.txt"
+	relDir, err := filepath.Rel(basePath, filepath.Dir(targetPath))
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(relDir)         // filepath/level1/level2
+}
+```
+
+### Absolute path
+
+Get the absolute path to a file or directory with `Dir`. If the given path ends with a slash, `Dir` returns the given path with no trailing slash. Under the hood, `Dir` calls `Clean` on the path, so it returns a trailing slash only when the returned value is the root directory:
+
+```go
+func main() {
+	file := "/home/username/filepath/level1/level2/test.txt"
+	dir := "/home/username/filepath/level1/level2/"
+	fmt.Println(filepath.Dir(file))         // /home/username/filepath/level1/level2
+	fmt.Println(filepath.Dir(dir))          // /home/username/filepath/level1/level2
+}
+```
+
+### Last element in path
+
+`Base` returns the last element in a given path:
+
+```go
+func main() {
+	dir := "/home/username/"
+	file := "/home/username/filepath/level1/level2/test.txt"
+	fmt.Println(filepath.Base(dir))         // username
+	fmt.Println(filepath.Base(file))        // test.txt
+}
+```
+
+## Traversing directories
+
+{{< admonition "`fs.Walk` vs `fs.WalkDir`" note >}}
+`fs.WalkDir` was introduced in Go 1.16, and is more lightweight than `fs.Walk` because of the callbacks used for each function:\
+
+```go
+type WalkFunc func(path string, info fs.FileInfo, err error) error  // fs.Walk
+type WalkDirFunc func(path string, d fs.DirEntry, err error) error  // fs.WalkDir
+```
+
+`WalkFunc` uses a `FileInfo` struct, which makes a system call on every file. `WalkDirFunc` only makes the system call if you call `d.Info()` on the `DirEntry` struct.
+
+Use `WalkFunc` if you require a `FileInfo` struct.
+
+{{< /admonition >}}
+
+You can traverse directories and perform actions on the directories and files within them with the `WalkDir` method. `WalkDir` takes a `path` and an `fs.WalkDirFunc`, and it returns an `error`. `fs.WalkDirFunc` is a callback that is invoked on each file or directory in the given `path`.
+
+`path`
+: Accepts both relative and absolute paths. If `path` ends in file, the callback is invoked once. If `path` ends in a directory, it is invoked recursively. You can normalize `path` with `Clean` before passing to `WalkDir`.
+
+`fs.WalkDirFunc`
+: `fs.WalkDirFunc` is a callback that you call on each file or directory in the path given to `WalkDir`. It has the following signature:
+  
+  ```go
+  type WalkDirFunc func(path string, d DirEntry, err error) error
+  ```
+  - `path`: The file or directory currently being visited.
+  - `d`: An `fs.DirEntry` struct that gives you access to methods that help you determine whether you want to operate on the current `path`:
+    - `d.Name()`: Returns the name of the current `path`. 
+    - `d.IsDir()`: Boolean, returns whether `path` is a directory.
+    - `d.Type()`: Returns the file type. For details, see [Linux file types](#linux-file-types).
+    - `d.Info()`: [Returns `FileInfo`](#file-and-directory-information) for the current path, identical to `os.Stat`. 
+  - `err`: Handle an error returned by the callback.
+  When you call `WalkDir`, you do not pass arguments to `WalkDirFunc`, only the parameters. `WalkDir` passes the arguments to `WalkDirFunc` as it traverses the file system, so define it as an anonymous functionj
+
+  Here is an example of how to get information from the `fs.DirEntry` struct:
+  1. Get the name.
+  2. Check if the file is a directory.
+  3. Check if the file is a regular file.
+  4. Get the `FileInfo` for the file.
+  5. These four lines show how you can retrieve the file details from the `FileInfo` struct.
+
+  ```go
+  func main() {
+	path := "/home/ryanseymour/filepath/"
+	cleanPath := filepath.Clean(path)
+
+	err := filepath.WalkDir(cleanPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(d.Name())                           // 1
+		fmt.Println(d.IsDir())                          // 2
+		fmt.Println(d.Type().IsRegular())               // 3
+
+		info, err := d.Info()                           // 4
+		if err != nil {
+			return err
+		}
+		fmt.Printf("File name: %s\n", info.Name())      // 5
+		fmt.Printf("File size: %d\n", info.Size())
+		fmt.Printf("File permissions: %s\n", info.Mode())
+		fmt.Printf("Last modified: %s\n", info.ModTime())
+
+		return nil
+	})
+
+	if err != nil {
+		panic(err)
+	}
+  }
+  ```
+
+### SkipDir and SkipAll
+
+`SkipDir` and `SkipAll` are error types that you can return from the callback in `WalkDir`. They determine how `WalkDir` proceeds when it visits files or directories that meet a specific condition:
+
+| Return value | Effect                                             |
+| ------------ | -------------------------------------------------- |
+| `fs.SkipDir` | Skip this directory, continue walking other paths. |
+| `fs.SkipAll` | Stop the entire walk immediately.                  |
+
+This example demonstrates both return values. It skips the `.git` directory, and it stops traversing the file system when it encounters a regular file named `stop-here.txt`:
+
+1. Define the path you want to start the directory traversal.
+2. Check for an unexpected error.
+3. Call `SkipDir` if the file is a directory and the directory name is `.git`. This continues traversing the file system.
+4. If the file is a regular file named `stop-here.txt`, call `SkipAll`. This will stop the file system traversal and return to `main`.
+
+```go
+func main() {
+	traversePath := "testdir"                                           // 1 
+	err := filepath.WalkDir(traversePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {                                                 // 2
+			return err
+		}
+
+		if d.IsDir() && d.Name() == ".git" {                            // 3
+			return fs.SkipDir
+		}
+
+		if d.Type().IsRegular() && d.Name() == "stop-here.txt" {        // 4
+			fmt.Printf("Stopped at %s\n", d.Name())
+			return fs.SkipAll
+		}
+		fmt.Println(path)
+		return nil
+	})
+
+	if err != nil {
+		fmt.Errorf("Error walking %s: %v", traversePath, err)
+	}
+}
+```
+
+## Symbolic links
+
+A symblolic link is a pointer to another file. Create a symbolic link when you want convenient access to a file in another directory. To delete a symlink, [remove the file](#removing-files).
+ 
+This example creates a symbolic link with `os.Symlink`. `Symlink` takes a source path (original file) and symlink path (pointer to the original file):
+1. Define the path for the original file.
+2. Define the path where you want to create the symbolic link.
+3. Call `Symlink`.
+4. Check for errors.
+
+```go
+func main() {
+	sourcePath := "testdir/one/two/three/original.txt"                      // 1
+	symLinkPath := "testdir/one/symlink.txt"                                // 2
+
+	err := os.Symlink(sourcePath, symLinkPath)                              // 3
+	if err != nil {                                                         // 4
+		fmt.Printf("Error creating symlink: %v\n", err)
+		return
+	}
+}
+```
+
+Verify the program with `tree`:
+
+```go
+testdir
+└── one
+    ├── symlink.txt -> testdir/one/two/three/original.txt                   // symlink
+    └── two
+        ├── fourth.txt
+        └── three
+            ├── four
+            ├── original.txt                                                // original file
+            └── stop-here.txt
+```
+
+### Resolving symlinks
+
+You can find which file a symlink points to with `os.Readlink`, which returns the original file that the given symlink points to:
+
+```go
+func main() {
+	orig, err := os.Readlink("testdir/one/symlink.txt")
+	if err != nil {
+		fmt.Errorf("Error: %v\n", err)
+	}
+	fmt.Println(orig)       // testdir/one/two/three/original.txt
+}
+```
+
+The following example uses `fs.Walk` to verify that all symlinks resolve to a valid target:
+1. Check for an unexpected error.
+2. Check if the file is a symlink.
+3. If it is a symlink, get the symlink's target with `os.Readlink`.
+4. If `os.Readlink` doesn't return an error, get information about the symlink target with `os.Stat`.
+5. If `os.Stat` returns an error, use `errors.Is` to check whether the error is `ErrNotExist`.
+6. Handle other errors.
+
+```go
+func main() {
+	dir := "testdir"
+	err := filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {                                                                     // 1
+			fmt.Fprintf(os.Stdout, "Error accessing path %s: %v\n", path, err)
+			return nil
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {                                                // 2
+			target, err := os.Readlink(path)                                                // 3
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "Error reading symlink %s: %v\n", path, err)
+			} else {
+				_, err := os.Stat(target)                                                   // 4
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {                                     // 5
+						fmt.Fprintf(os.Stdout, "Broken symlink found: %s -> %s\n", path, target)
+					} else {                                                                // 6
+						fmt.Fprintf(os.Stderr, "Error checking symlink target %s: %v\n", target, err)
+					}
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error walking directory %s: %v\n", dir, err)
+	}
+}
+```
+
+
+## Removing files
+
+Remove a file with `os.Remove`. It accepts a file path and returns an `error`:
+
+1. Define the file path.
+2. Remove the file with `os.Remove`.
+
+```go
+func main() {
+	junkFile := "testdir/one/two/three/four/junk.file"      // 1
+
+	err := os.Remove(junkFile)                              // 2
+	if err != nil {
+		fmt.Printf("Error removing the file: %v\n", err)
+		return
+	}
+	fmt.Printf("File removed: %s\n", junkFile)
+}
+```
