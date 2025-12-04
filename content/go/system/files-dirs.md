@@ -528,8 +528,9 @@ func main() {
 }
 ```
 
+## File system operations
 
-## Removing files
+### Removing files
 
 Remove a file with `os.Remove`. It accepts a file path and returns an `error`:
 
@@ -546,5 +547,162 @@ func main() {
 		return
 	}
 	fmt.Printf("File removed: %s\n", junkFile)
+}
+```
+
+### Calculating directory size
+
+This function calculates the size of all files in the directory:
+1. Declare an accumulator variable to hold the size in bytes.
+2. You need `FileInfo`, so use the `Walk` function.
+3. Check if the file is a directory.
+4. If the file is not a directory, add its size to the `size` variable.
+5. If `Walk` returned an error, return `0` and the error.
+6. Return the `size` and `nil` for the `error`.
+
+```go
+func calculateDirSize(path string) (int64, error) {
+	var size int64                                                  // 1
+
+	err := filepath.Walk(path,                      
+		func(path string, info fs.FileInfo, err error) error {      // 2
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() {                                      // 3
+				size += info.Size()                                 // 4
+			}
+			return nil
+		})
+	if err != nil {                                                 // 5
+		return 0, err
+	}
+
+	return size, nil                                                // 6
+}
+```
+
+### Finding duplicate files
+
+To find duplicate files, you need to find the MD5 checksum of the file, which is a digital fingerprint of the file and its contents. This function returns a hexadecimal string representation of the file hash:
+
+1. Open the file.
+2. Check for errors.
+3. Make sure the file closes when the function exits.
+4. Create an MD5 hash object. This hasher is a Writer. As you write bytes to it, it updates the hash state.
+5. Use `io.Copy` to read from the file and write to the hasher. This feeds data into the MD5 algorithm. `io.Copy` is efficient because it streams the file---it does not read the entire file into memory.
+6. Return the has as a lowercase hexadecimal string. `hash.Sum(b []byte)` appends the hash digest to the slice `b`. If you pass `nil`, then you get only the hash output.
+
+```go
+func computeFileHash(filePath string) (string, error) {
+	file, err := os.Open(filePath)                          // 1
+	if err != nil {                                         // 2
+		return "", err
+	}
+	defer file.Close()                                      // 3
+
+	hash := md5.New()                                       // 4
+	if _, err := io.Copy(hash, file); err != nil {          // 5
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil            // 6
+}
+```
+
+This function returns a map of duplicate files, where the hash is the key and the file path is the value. It uses `computeHash` to get the MD5 file hash:
+
+{{< admonition "Symbolic links" tip >}}
+Symbolic links might cause this function to behave incorrectly, so you might want to skip symbolic links when detecting duplicate files.
+{{< /admonition >}}
+
+1. Declare the `duplicates` map with a `string` key and a slice of strings value.
+2. You need `FileInfo`, so use the `Walk` function.
+3. Check for unexpected errors.
+4. Check if the file is not a directory.
+5. If the file is not a directory, pass the `path` to `computeFileHash` to get the MD5 hash.
+6. Record the file path under its hash. If the hash key already has a value, the file path is appended to the slice of strings.
+7. Return the map and `nil` error.
+
+```go
+func findDuplicateFiles(rootDir string) (map[string][]string, error) {
+	duplicates := make(map[string][]string)                                 // 1
+	err := filepath.Walk(rootDir, 
+		func(path string, info fs.FileInfo, err error) error {              // 2
+			if err != nil {                                                 // 3
+				return err
+			}
+
+			if !info.IsDir() {                                              // 4
+				hash, err := computeFileHash(path)                          // 5
+				if err != nil {
+					return err
+				}
+
+				duplicates[hash] = append(duplicates[hash], path)           // 6
+			}
+			return nil
+		})
+	return duplicates, err                                                  // 7
+}
+```
+
+### Memory-mapped files
+
+
+```go
+func main() {
+	filePath := "example.txt"
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Printf("Failed to open file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Printf("Failed to get file info: %v\n", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	data, err := syscall.Mmap(int(file.Fd()), 0, int(fileSize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+
+	if err != nil {
+		fmt.Printf("Failed to mmap file: %v\n", err)
+		return
+	}
+
+	defer syscall.Munmap(data)
+
+    func main() {
+	filePath := "example.txt"
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		fmt.Printf("Failed to open file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Printf("Failed to get file info: %v\n", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	data, err := syscall.Mmap(int(file.Fd()), 0, int(fileSize), syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+
+	if err != nil {
+		fmt.Printf("Failed to mmap file: %v\n", err)
+		return
+	}
+
+	defer syscall.Munmap(data)
+
+	fmt.Printf("Initial content: %s\n", string(data))
+	newContent := []byte("Hello, mmap!")
+	copy(data, newContent)
+	fmt.Println("Content updated successfully.")
 }
 ```
