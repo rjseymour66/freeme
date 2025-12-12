@@ -145,9 +145,25 @@ func readStdin(out chan<- []byte) {
 }
 ```
 
+## Unbuffered vs buffered
+
+| Aspect                | Unbuffered                                                    | Buffered                                             |
+| --------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| Use case              | Hand-off communication, coordination, enforcing ordering      | Queues, pipelines, smoothing spikes, async behavior  |
+| Send behavior         | Blocks until a receiver is ready                              | Blocks only when buffer is full                      |
+| Receive behavior      | Blocks until a sender sends                                   | Blocks only when buffer is empty                     |
+| Synchronization       | Provides implicit synchronization between sender and receiver | Decouples sender/receiver; not strictly synchronized |
+| Capacity              | 0                                                             | N > 0                                                |
+| When send unblocks    | Exactly when a receiver receives                              | When a receiver receives or buffer has space         |
+| When receive unblocks | Exactly when a sender sends                                   | When buffer contains at least 1 value                |
+| Backpressure behavior | Immediate backpressure                                        | Backpressure only when buffer is full                |
+| Typical pattern       | `send <- value` waits for `x := <-send`                       | `send <- value` proceeds until buffer fills          |
+| Example               | Worker must be ready to receive                               | Allow bursts of requests before workers catch up     |
+
+
 ## Unbuffered channels
 
-By default, a channel in Go is unbuffered. This means that it holds only one value rather than a buffer of values. When you store a value in an unbuffered channel, it blocks until the value is received from another goroutine. If you send two values to an unbuffered channel, then the second value blocks until the first is retrieved by another goroutine.
+By default, a channel in Go is unbuffered. This means that it holds only one value rather than a buffer of values. When you store a value in an unbuffered channel, it blocks until until that value is received from another goroutine. If you send two values to an unbuffered channel, then the second value blocks until the first is retrieved by another goroutine.
 
 Unbuffered channels are useful in these scenarios:
 - Guaranteed delivery of data.
@@ -274,7 +290,7 @@ func main() {
 
 ## Buffered channels
 
-A buffered channel is a channel that can hold more than one value---a buffer of values. Buffered channesl are useful in the following scenarios:
+A buffered channel is a channel that can hold more than one value---a buffer of values. Buffered channels are useful in the following scenarios:
 - Asynchronous communiation between goroutines.
 - Reducing contention when you have multiple producers so they don't have to wait for a receiver.
 - Preventing deadlocks with buffering.
