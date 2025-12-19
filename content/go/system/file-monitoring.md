@@ -81,7 +81,7 @@ Web server logs
 : Web servers track who visits their websites with logs. Rotate these logs to help with analysis and security monitoring.
 Sensor data and IoT devices: These devices continually gather data, so you need to manage the resources consumed by the data files.
 
-This example rotates a log file when it reaches 10MB:
+This example rotates a log file when it reaches 10MB. There should be an existing log file, or you can update this code to create one.
 
 ### Step 1: Constants and globals
 
@@ -92,7 +92,7 @@ First, define the constants and globals:
 
 ```go
 const (
-	logFilePath = "./testdir"           // 1
+	logFilePath = "./testdir/logfile"   // 1
 	maxFileSize = 1024 * 10 * 10        // 2
 )
 
