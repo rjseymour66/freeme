@@ -1,5 +1,5 @@
 +++
-title = 'Processes'
+title = 'Processes and pipes'
 date = '2025-12-12T23:41:03-05:00'
 weight = 60
 draft = false
@@ -124,11 +124,17 @@ func main() {
 }
 ```
 
-### Mkfifo() (named pipes)
+## Named pipes
 
-Named pipes can be used between any processes (they don't have to be live), and they persist in the filesystem.
+Named pipes enable local streaming communication between independent programs on your computer without using a network. They can be used between any processes (they don't have to be live), and they persist in the filesystem. Think of a named pipe as a shared mailbox that lives at a known address (location in the file system) with the following properties:
+- One program sends messages in
+- Another program picks up messages
+- Messages come out in the same order they went in (FIFO)
+- Nothing is saved to disk
+- Messages wait until a program picks them up
 
-Create a named pipe with `Mkfifo()`:
+
+This example creates a named pipe. Create a named pipe with `Mkfifo()`:
 
 
 1. The path to the named pipe.
@@ -245,5 +251,95 @@ func namedPipeExists(pipePath string) bool {
 
 	fmt.Println("Error checking named pipe:", err)
 	return false                                        // 4
+}
+```
+
+### Log processing tool
+
+This tool is a live log filter built on a named pipe (FIFO). It simulates a logger that writes to a pipe and a function that filters for error logs:
+
+```
+log writer > named pipe > filterLogs func > stdout
+```
+
+#### Log filterer
+
+The `filterLogs` function uses a scanner to read log entries and check for error lines. It takes a reader and a writer, and it writes any error logs to the Writer:
+
+```go
+func filterLogs(reader io.Reader, writer io.Writer) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		logEntry := scanner.Text()
+		if strings.Contains(logEntry, "ERROR") {
+			writer.Write([]byte(logEntry + "\n"))
+		}
+	}
+}
+```
+
+#### Create read-only pipe
+
+`main` defines the pipe, opens it for writing, then defines a goroutine that opens it for reading. These processes are in the same program, but they could be completely separate. This demonstrates a decoupled producer and consumer, where the producer behaves like a never-ending file stream that blocks until the consumer reads data from the pipe:
+
+1. Defines the filesystem location of the pipe.
+2. If there is already a pipe that exists in that location, it deletes the pipe.
+3. Create a named pipe. `0600` permissions grant the user executing the program with read/writer permissions.
+4. Cleans up the pipe when the program exits.
+5. Opens a FIFO read-only pipe that blocks until there is a writer. If the pipe exists (it does), then `os.O_CREATE` is ignored.
+6. Close the pipe when `main` exits.
+
+```go
+func main() {
+	pipePath := "/tmp/my_log_pipe"                          // 1
+	if err := os.RemoveAll(pipePath); err != nil {          // 2
+		panic(err)
+	}
+	if err := unix.Mkfifo(pipePath, 0600); err != nil {     // 3
+		panic(err)
+	}
+	defer os.RemoveAll(pipePath)                            // 4
+
+	pipeFile, err := os.OpenFile(                           // 5
+        pipePath, 
+        os.O_RDONLY|os.O_CREATE, 
+        os.ModeNamedPipe,
+    )
+	if err != nil {
+		panic(err)
+	}
+	defer pipeFile.Close()                                  // 6
+```
+
+#### Create writer that reads from pipe
+
+Start the writer goroutine. The goroutine simulates a separate process that writes logs, such as an `slog`:
+1. Opens the pipe for write only (`os.O_WRONLY`). This unblocks the `OpenFile` call in the `main` goroutine.
+2. Close the pipe when `main` exits.
+3. Simulates the logger. It writes an INFO and and ERROR log every second. Scanners depend on newline delimiters, so each log message ends with a `\n` character.
+4. Filters the logs for ERROR messages.
+
+
+```go
+    // main continued...
+	go func() {
+		writer, err := os.OpenFile( 
+			pipePath,
+			os.O_WRONLY,
+			os.ModeNamedPipe,
+		)
+		if err != nil {
+			panic(err)
+		}
+		defer writer.Close()
+
+		for {
+			writer.WriteString("INFO: All systems operational\n")
+			writer.WriteString("ERROR: An error occurred\n")
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	filterLogs(pipeFile, os.Stdout)
 }
 ```
