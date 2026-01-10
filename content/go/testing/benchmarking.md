@@ -6,6 +6,8 @@ draft = false
 +++
 
 
+Benchmarking is a systematic method of measuring and comparing the performance of software. It creates a controlled environment where you can analyze the impact of changes in code, algorithms, or system architecture.
+
 Benchmark tests are nonfunctional tests---they do test whether the software performs its intended purpose. They test how well the software performs in terms of stability, speed, and scalability.
 
 
@@ -21,8 +23,9 @@ func Add(a, b int) int {
 }
 ```
 
+Here is the benchmark test function:
 1. Pass the function a pointer to `testing.B`. `B` is a struct that manages benchmark timing and specifies how many iterations to run.
-2. A C-style `for` loop that repeats `b.N` times.
+2. A C-style `for` loop that repeats `b.N` times. Go automatically determines the value of `N`. `b.N` adjusts the number of iterations dynamically, ensuring that the measurements are accurate and reliable.
 3. The function you want to benchmark.
 
 ```go
@@ -39,7 +42,7 @@ To run the performance test, use the `-bench` flag. This command runs all benchm
 3. Chip architecture.
 4. Package name.
 5. Details about the CPU.
-6. Number of cores used in the test | Number of iterations | Time it took to run the benchmark
+6. Number of cores used in the test | Number of iterations | Average time per iteration
    
 ```bash
 go test -bench=.                                            # 1
@@ -77,7 +80,7 @@ Benchmark tests share `x_test.go` files alongside regular test functions. To exe
 
 `run` takes a regular expression. Go runs only functions that match that regular expression. To run only benchmark tests, pass `run` a regular expression that matches no test functions.
 
-The `^$` regex matches the beginning and end of a string, which matches an empty string. You could also pass something random that you know won't match your function names, such as `-run=XXX`:
+The `^$` regex matches the beginning and end of a string, which matches an empty string. You could also pass something random that you know won't match your function names, such as `-run=XXX`. `-run=XXX` ensures that it does not match any regular tests and only runs performance tests:
 
 ```bash
 go test -v -bench=. -run=^$
@@ -153,7 +156,9 @@ Use the `-benchtime` flag to control the minimum duration that the benchmark tes
 
 ## Sub-benchmarks
 
-Sub-benchmark tests let you run table-driven performance tests:
+Sub-benchmark tests let you run table-driven performance tests.
+
+This example measures string building and allocations:
 
 ```go
 func BenchmarkURLString(b *testing.B) {
@@ -172,10 +177,46 @@ func BenchmarkURLString(b *testing.B) {
 }
 ```
 
-To run this test:
+This command runs this test specifically, and `-run=XXX` tells it to run only performance tests:
 
 ```bash
 go test -run=XXX -bench=BenchmarkURLString
+```
+
+This test demonstrates a more common usage. It tests the performance of a function with different inputs:
+
+1. Create a slice of anonymous structs to store the test cases.
+2. This holds the individual test case name.
+3. Inputs for each test.
+4. Test case definitions.
+5. This `for...range` loops over each test case.
+6. Within each loop, call `b.Run` to call each test case. It takes the name of the sub-benchmark test case and a function that contains the benchmarking code. The first input is always the `name` field of the test input, and the function is always an anonymous testing function provided below.
+7. The benchmarking loop.
+
+```go
+func BenchmarkSum(b *testing.B) {
+	cases := []struct {                          // 1
+		name string                               // 2
+		a, b int                                  // 3
+	}{
+		{"small", 1, 2},                          // 4
+		{"large", 1000, 2000},                    
+	}
+
+	for _, c := range cases {                    // 5
+		b.Run(c.name, func(b *testing.B) {        // 6
+			for i := 0; i < b.N; i++ {             // 7
+				Sum(c.a, c.b)
+			}
+		})
+	}
+}
+```
+
+Run this test:
+
+```bash
+go test -bench=BenchmarkSum
 ```
 
 ## Comparing test results
@@ -199,6 +240,14 @@ Use `benchstat` to compare results from performance tests before and after you m
    ```bash
    benchstat old-flip.txt new-flip.txt
    ```
+
+## Memory allocations
+
+The `-benchmem` flag measures memory allocations. It adds two new columns to the benchmark output:
+- `allocs/op`: Number of memory allocations per operation.
+- `B/op`: Number of bytes allocated per operation.
+
+
 
 ## Profiling a program
 
