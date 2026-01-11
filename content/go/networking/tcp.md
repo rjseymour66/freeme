@@ -5,7 +5,7 @@ weight = 10
 draft = false
 +++
 
-TCP provides built-in handshaking, error detection, and reconnection features.
+Transmission Control Protocol (TCP) provides built-in handshaking, error detection, and reconnection features.
 
 ## TCP server
 
@@ -31,47 +31,51 @@ nc -lk 1902
 
 ### Simple server
 
-A socket is a combination of the protocol, IP address or hostname, and port number. The following simple TCP server reads from an infinite loop and handles each connection in a separate goroutine:
-1. `net.Listen` returns a generic network listener for stream-oriented protocols. It accepts two arguments: the protocol, and an address to listen on in _`host:port`_ format. If there is no hostname or IP address provided, it will listen on any interface for IPv4 or IPv6. If you provide the host, it listens only for IPv4. If you set the port to `0`, then a random port is chosen and you have to retrieve it with `net.Addr`.
-2. Handle any errors.
-3. Close the listener.
-4. Listen for connections in an infinite `for` loop.
-5. `Accept` is a method on the `Listener` interface. It blocks until a new connection arrives, and then returns a `Conn` struct that represents the next connection.
-6. Handle any errors for `Accept`.
-7. Handle each connection in a separate goroutine so the main thread can continue accepting connections. This IIFL accepts a `Conn` object named `c`. This ensures that each goroutine operates on a different connection variable. Passing `conn` directly to the closure would overwrite the connection in each goroutine.
-8. Create a buffer to store connection data.
-9. `Read` reads data from the connection into `buf`.
-10. Handle errors for `Read`.
-11. Log the contents of `buf` to the console. It is stored as a slice of bytes, so make sure you caste it as a string.
-12. `Write` writes a slice of bytes to the connection.
-13. Close the connection.
-14. Pass to the IIFL the `conn` value returned from `Accept`.
+A socket is a combination of the protocol, IP address or hostname, and port number. The following simple TCP server reads from an infinite loop and handles each connection in a separate goroutine.
+
+1. Establish the connection:
+   1. `net.Listen` returns a generic network listener for stream-oriented protocols. It accepts two arguments: the protocol, and an address to listen on in _`host:port`_ format. If there is no hostname or IP address provided, it will listen on any interface for IPv4 or IPv6. If you provide the host, it listens only for IPv4. If you set the port to `0`, then a random port is chosen and you have to retrieve it with `net.Addr`.
+   2. Handle any errors.
+   3. Close the listener.
+2. Listen for connections:
+   1. Listen for connections in an infinite `for` loop.
+   2. `Accept` is a method on the `Listener` interface. It blocks until a new connection arrives, and then returns a `Conn` struct that represents the next connection.
+   3. Handle any errors for `Accept`.
+3. Handle the connections. This logic could be extracted into a function and called in a goroutine, such as `handleConnection(c Conn)`.
+   1. Handle each connection in a separate goroutine so the main thread can continue accepting connections. This IIFL accepts a `Conn` object named `c`. This ensures that each goroutine operates on a different connection variable. Passing `conn` directly to the closure would overwrite the connection in each goroutine.
+   2. Close the connection when the goroutine exits.
+   3. Create a buffer to store connection data.
+   4. `Read` reads data from the connection into `buf`.
+   5.  Handle errors for `Read`.
+   6.  Log the contents of `buf` to the console. It is stored as a slice of bytes, so make sure you caste it as a string.
+   7.  `Write` writes a slice of bytes to the connection. This sends a trivial response back to the server. If you wanted to log the contents of the buffer, you would replace this line with `Write(buf[:n])`.
+   8.  Pass to the IIFL the `conn` value returned from `Accept`.
    
 
 ```go
 func main() {
-	listener, err := net.Listen("tcp", "localhost:9000") 	// 1
-	if err != nil { 										// 2
+	listener, err := net.Listen("tcp", "localhost:9000") 	// 1.1
+	if err != nil { 										// 1.2
 		log.Fatal(err)
 	}
-	defer listener.Close() 									// 3
+	defer listener.Close() 									// 1.3
 
-	for { 													// 4
-		conn, err := listener.Accept() 						// 5
-		if err != nil { 									// 6
+	for { 													// 2.1
+		conn, err := listener.Accept() 						// 2.2
+		if err != nil { 									// 2.3
 			log.Fatal(err)
 		}
 
-		go func(c net.Conn) { 								// 7
-			buf := make([]byte, 1024) 						// 8
-			_, err := c.Read(buf) 							// 9
-			if err != nil { 								// 10
+		go func(c net.Conn) { 								// 3.1
+			defer c.Close() 								// 3.2
+			buf := make([]byte, 1024) 						// 3.3
+			_, err := c.Read(buf) 							// 3.4
+			if err != nil { 								// 3.5
 				log.Fatal(err)
 			}
-			log.Print(string(buf)) 							// 11
-			c.Write([]byte("Hello from TCP server\n")) 		// 12
-			c.Close() 										// 13
-		}(conn) 											// 14
+			log.Print(string(buf)) 							// 3.6
+			c.Write([]byte("Hello from TCP server\n")) 		// 3.7
+		}(conn) 											// 3.8
 	}
 }
 ```

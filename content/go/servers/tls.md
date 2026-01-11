@@ -5,7 +5,61 @@ weight = 100
 draft = false
 +++
 
-Transport Security Layer (TLS) encrypts communications between the client and server. HTTPS is layering HTTP on top of the TLS layer.
+Transport Security Layer (TLS)---also called a Secure Socket Layer (SSL) certificate---encrypts communications between the client and server. It serves two purposes:
+- **Encryption**: Ecrypts the data in transit between client and server.
+- **Authentication**: Verifies the identity of the server to client, and vice versa.
+
+A TLS certificate is signed by a trusted Certificate Authority (CA). This "trust" comes from a root CA cert that is already installed in the client's trust store, which is in the OS or browser. In reality, the cert is signed by an intermediate CA, which chains up to a trusted root. 
+
+The cert contains the server's public key and identity (domain name). The domain name is indicted by the Subject Alternative Names (SANs). Previously, this was indicated by the Common Name (CN).
+
+When a client connects to a server, the server presents its certificate. Next, the client verifies the server certificate signature to ensure it was signed by a trusted CA, its expiration date, and that the domain name in the cert matches the client's hostname.
+
+HTTPS is layering HTTP on top of the TLS layer.
+
+## File formats
+
+Both `.crt` and `.pem` files can contain the same types of data encoded in different ways. PEM files are more widely supported across different platforms and software.
+
+| Aspect                       | .crt                                | .pem                         |
+| :--------------------------- | :---------------------------------- | :--------------------------- |
+| File extension meaning       | Conventional name for a certificate | Indicates PEM encoding       |
+| Encoding format              | DER (binary) or PEM                 | PEM only (Base64 ASCII)      |
+| Human-readable               | Sometimes                           | Yes                          |
+| Can contain multiple objects | Rarely                              | Yes                          |
+| Typical contents             | X.509 certificate                   | Certs, keys, chains          |
+| Platform support             | Depends on encoding                 | Widely supported             |
+| Used by                      | OpenSSL, browsers, servers          | OpenSSL, servers, containers |
+| Parsing determined by        | File contents                       | File contents                |
+
+### `.crt` files
+
+`.crt` files are used to store certificates that contain public keys to verify the ownership of a public key with the identity of the certificate holder.
+
+The `.crt` extension is traditionally used for certificate files. The file extension does not matter---the content and encoding format matter. `.crt` files are typically encoded in binary form in the Distinguished Encoding Rules (DER) format, but they can be encoded in the human-readable Privacy Enhanced Mail (PEM) format.
+
+
+
+
+### PEM files
+
+As its name suggests, Privacy Enhanced Mail (PEM) is a format that was originally used in email encryption but has become a standard format for storing and exchanging cyrptographic material such as certificates, private keys, and intermediate certificates.
+
+PEM files are ASCII-encoded and use Base64 encoding in the following format:
+
+```bash
+-----BEGIN CERTIFICATE-----
+
+# base64 data
+
+-----END CERTIFICATE-----
+```
+
+This format makes them more human readable.
+
+`.pem` keys can contain multiple certs and keys in the same file, which makes them suitable for various configurations, such as certificate chains.
+
+
 
 ## Serving HTTPS
 
@@ -62,3 +116,9 @@ Here are the common `openssl` command options to generate a certificiate and key
 | `-out cert.pem`    | Output certificate file     | Writes the generated certificate to `cert.pem`.                                                                                |
 | `-days 365`        | Validity period             | Certificate will be valid for 365 days.                                                                                        |
 | `-nodes`           | No DES (no encryption)      | Saves the private key without a passphrase (unencrypted). Necessary for servers that must start without manual password entry. |
+
+
+### PEM
+
+
+### CRT

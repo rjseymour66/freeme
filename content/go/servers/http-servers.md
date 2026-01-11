@@ -319,9 +319,9 @@ Notice that the `ServeHTTP` method does not return anything---it only writes to 
 
 | Method        | Accepts             | Description                                                                                                                                                                                                                               |
 | :------------ | :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Handle`      | path and a Handler  | Handler is any type with a `ServeHTTP` method.                                                                                                                                                                                            |
-| `HandlerFunc` | function            | An adaptor type that implements the `Handler` interface. You can use this to cast a function with the same signature as `ServeHTTP`. When you cast the function, the function gets access to the `ServeHTTP` method on the `HandlerFunc`. |
-| `HandleFunc`  | path and a function | This is a convenience method that lets you directly register a function as a handler. The handler must have the same signature as `ServeHTTP`. Under the hood, Go casts the function with `HandlerFunc`.                                  |
+| `Handle`      | Path and a Handler  | Handler is any type with a `ServeHTTP` method.                                                                                                                                                                                            |
+| `HandlerFunc` | Function            | An adaptor type that implements the `Handler` interface. You can use this to cast a function with the same signature as `ServeHTTP`. When you cast the function, the function gets access to the `ServeHTTP` method on the `HandlerFunc`. |
+| `HandleFunc`  | Path and a function | This is a convenience method that lets you directly register a function as a handler. The handler must have the same signature as `ServeHTTP`. Under the hood, Go casts the function with `HandlerFunc`.                                  |
 
 #### Handle
 
@@ -360,11 +360,15 @@ The `HandlerFunc` type does implement the `Handler` interface, so when you cast 
 
 #### HandleFunc
 
-`http.HandleFunc` is the simplest way to register a handler. It accepts a path and a function. The function must have the `func handlerName(res http.ResponseWriter, req *http.Request)` method signature:
+{{< admonition "Best Practice" tip >}}
+This method is the simplest way to register a handler.
+{{< /admonition >}}
+
+`http.HandleFunc` accepts a path and a function. The function must have the `func handlerName(res http.ResponseWriter, req *http.Request)` method signature:
 
 ```go
-func helloWorldHandler(res http.ResponseWriter, req *http.Request) {
-	fmt.Fprint(res, "Hello, my name is Superman")
+func helloWorldHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Hello, my name is Superman")
 }
 
 func main() {
@@ -842,6 +846,43 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Resource created successfully!")
 }
 ```
+
+#### HTTP status constants
+
+HTTP status codes are grouped in classes that are identified by their range:
+
+- **1xx (100–199)**: Informational. The request was received and processing continues.                              
+- **2xx (200–299)**: Success.The request was successfully received, understood, and accepted.                
+- **3xx (300–399)**: Redirection. Further action is needed by the client to complete the request.                 
+- **4xx (400–499)**: Client Error. There’s a problem with the client’s request (e.g., bad syntax, not authorized). 
+- **5xx (500–599)**: Server Error. The server understands the request but fails to fulfill it.                     
+
+The following table describes the most common HTTP status codes and provides their Go constants:
+
+| Status Code | Go Constant                      | Description                              |
+| :---------- | :------------------------------- | :--------------------------------------- |
+| 100         | `http.StatusContinue`            | Request received; client should continue |
+| 200         | `http.StatusOK`                  | Request succeeded                        |
+| 201         | `http.StatusCreated`             | Resource successfully created            |
+| 202         | `http.StatusAccepted`            | Request accepted for processing          |
+| 204         | `http.StatusNoContent`           | Success with no response body            |
+| 301         | `http.StatusMovedPermanently`    | Resource permanently moved               |
+| 302         | `http.StatusFound`               | Resource temporarily moved               |
+| 304         | `http.StatusNotModified`         | Cached version is still valid            |
+| 400         | `http.StatusBadRequest`          | Invalid request from client              |
+| 401         | `http.StatusUnauthorized`        | Authentication required or failed        |
+| 403         | `http.StatusForbidden`           | Client not allowed to access resource    |
+| 404         | `http.StatusNotFound`            | Resource not found                       |
+| 405         | `http.StatusMethodNotAllowed`    | HTTP method not allowed                  |
+| 409         | `http.StatusConflict`            | Request conflicts with current state     |
+| 422         | `http.StatusUnprocessableEntity` | Valid request but semantic error         |
+| 429         | `http.StatusTooManyRequests`     | Client is rate limited                   |
+| 500         | `http.StatusInternalServerError` | Generic server error                     |
+| 502         | `http.StatusBadGateway`          | Invalid response from upstream server    |
+| 503         | `http.StatusServiceUnavailable`  | Server temporarily unavailable           |
+| 504         | ``http.StatusGatewayTimeout`     | Upstream server timeout                  |
+
+
 
 ### Cookies
 

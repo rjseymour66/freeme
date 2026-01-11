@@ -9,8 +9,12 @@ draft = false
 You can test clients with [HTTPBin](https://httpbin.org/).
 {{< /admonition >}}
 
-Go's HTTP client can perform almost any HTTP request, and it is highly customizable.
+Network programming in Go uses the `http` package---built on top of the `net` package---to perform the fundamental aspects of network programming:
+1. Establish a connection to a remote server.
+2. Retrieve data.
+3. Close the connection gracefully.
 
+Go's HTTP client can perform almost any HTTP request, and it is highly customizable.
 
 
 ## Basic client
