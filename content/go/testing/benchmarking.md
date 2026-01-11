@@ -55,6 +55,14 @@ PASS
 ok  	testdir	0.275s
 ```
 
+### bench flag
+
+`-bench=` lets you filter benchmark tests that you want to run. It accepts a regex that matches test names. To run all tests, use the `.` character:
+
+```bash
+go test -bench=.
+```
+
 ### count flag
 
 Use the `count` flag if you want to run the same performance test a specified number of times. This makes sure that the timing is not a one-off. Pass `count` the number of tests that you want to run:
@@ -74,7 +82,19 @@ PASS
 ok  	testdir	1.338s
 ```
 
-## Run only performance tests
+### benchtime flag
+
+Use the `-benchtime` flag to control the minimum duration that the benchmark tests run or increase the number of iterations:
+
+1. Runs for 2 seconds.
+2. Runs exactly 10 iterations.
+
+```bash
+go test -run=XXX -bench=BenchmarkAdd -benchtime=2s 	# 1
+go test -bench=BenchmarkAdd -benchtime=10x 			# 2
+```
+
+### run flag
 
 Benchmark tests share `x_test.go` files alongside regular test functions. To execute only the benchmark functions, use the `run` flag.
 
@@ -116,7 +136,7 @@ func flip(grid [][]color.Color) {
 }
 ```
 
-### Reset
+### ResetTimer
 
 The benchmark test needs to load the image first, so you need to reset the benchmark timer:
 1. Load the resource.
@@ -131,7 +151,7 @@ func BenchmarkFlip(b *testing.B) {
 }
 ```
 
-### Stop and Start
+### StopTimer and StartTimer
 
 If you need to perform the task during every iteration of the loop, you can start and stop the timer:
 1. Create the loop.
@@ -149,41 +169,10 @@ func BenchmarkFlip(b *testing.B) {
 }
 ```
 
-## Specific duration or iterations
-
-Use the `-benchtime` flag to control the minimum duration that the benchmark tests run or increase the number of iterations.
-
 
 ## Sub-benchmarks
 
-Sub-benchmark tests let you run table-driven performance tests.
-
-This example measures string building and allocations:
-
-```go
-func BenchmarkURLString(b *testing.B) {
-    var benchmarks = []*URL{
-        {Scheme: "https"},
-        {Scheme: "https", Host: "foo.com"},
-        {Scheme: "https", Host: "foo.com", Path: "go"},
-    }
-    for _, u := range benchmarks {
-        b.Run(u.String(), func(b *testing.B) {
-            for i := 0; i < b.N; i++ {
-                u.String()
-            }
-        })
-    }
-}
-```
-
-This command runs this test specifically, and `-run=XXX` tells it to run only performance tests:
-
-```bash
-go test -run=XXX -bench=BenchmarkURLString
-```
-
-This test demonstrates a more common usage. It tests the performance of a function with different inputs:
+Sub-benchmark tests let you run table-driven performance tests. This example demonstrates a more common usage. It tests the performance of a function with different inputs:
 
 1. Create a slice of anonymous structs to store the test cases.
 2. This holds the individual test case name.
@@ -195,17 +184,17 @@ This test demonstrates a more common usage. It tests the performance of a functi
 
 ```go
 func BenchmarkSum(b *testing.B) {
-	cases := []struct {                          // 1
-		name string                               // 2
-		a, b int                                  // 3
+	cases := []struct {                          	// 1
+		name string                               	// 2
+		a, b int                                  	// 3
 	}{
-		{"small", 1, 2},                          // 4
+		{"small", 1, 2},                          	// 4
 		{"large", 1000, 2000},                    
 	}
 
-	for _, c := range cases {                    // 5
-		b.Run(c.name, func(b *testing.B) {        // 6
-			for i := 0; i < b.N; i++ {             // 7
+	for _, c := range cases {                    	// 5
+		b.Run(c.name, func(b *testing.B) {        	// 6
+			for i := 0; i < b.N; i++ {             	// 7
 				Sum(c.a, c.b)
 			}
 		})
@@ -219,9 +208,24 @@ Run this test:
 go test -bench=BenchmarkSum
 ```
 
+### Specify sub-benchmark test
+
+You can run a specific sub-benchmark test with the `-bench` flag. Specify the test case name after the benchmark test name, separated by a forward slash. For example, this command runs the `small` sub-benchmark test within the `BenchmarkSum` test:
+
+```bash
+go test -bench=BenchmarkSum/small
+goos: linux
+goarch: amd64
+pkg: perf
+cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+BenchmarkSum/small-12         	1000000000	         0.3237 ns/op
+PASS
+ok  	perf	0.360s
+```
+
 ## Comparing test results
 
-Use `benchstat` to compare results from performance tests before and after you make code changes.
+Use `benchstat` to compare results from performance tests before and after you make code changes. `benchstat` provides a statistical analysis of benchmark results. This helps you compare different test run output to understand the different versions of your code:
 
 1. Install `benchstat`:
    ```bash
@@ -247,6 +251,18 @@ The `-benchmem` flag measures memory allocations. It adds two new columns to the
 - `allocs/op`: Number of memory allocations per operation.
 - `B/op`: Number of bytes allocated per operation.
 
+```bash
+go test -bench=. -benchmem
+goos: linux
+goarch: amd64
+pkg: perf
+cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+BenchmarkSum/small-12         	1000000000	         0.3446 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSum/large-12         	1000000000	         0.3229 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	perf	0.748s
+```
+
 
 
 ## Profiling a program
@@ -261,16 +277,16 @@ The CPU profile helps you understand how much time is spent processing specific 
 
 1. When you have the code that you want to profile, run this command. It creates a binary file named `cpu.prof` that you can analyze with `pprof`:
 
-```bash
-go test -cpuprofile cpu.prof -bench=Resize -run=XXX
-goos: linux
-goarch: amd64
-pkg: testdir
-cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
-BenchmarkResize-12    	       3	 335413698 ns/op
-PASS
-ok  	testdir	2.227s
-```
+   ```bash
+   go test -cpuprofile cpu.prof -bench=Resize -run=XXX
+   goos: linux
+   goarch: amd64
+   pkg: testdir
+   cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+   BenchmarkResize-12    	       3	 335413698 ns/op
+   PASS
+   ok  	testdir	2.227s
+   ```
 
 2. Next, you need to analyze `cpu.prof`. The easiest way is in the web interface, which requires Graphviz. To install this on Linux:
    ```bash
