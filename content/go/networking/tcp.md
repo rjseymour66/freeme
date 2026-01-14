@@ -7,6 +7,8 @@ draft = false
 
 Transmission Control Protocol (TCP) provides built-in handshaking, error detection, and reconnection features.
 
+TCP uses a reliablity method called Go-Back-N to ensure there is no data loss in a connection. If a packet is lost, the sender rolls back and retransmits from the lost packet onward. This means that even received packets are retransmitted. 
+
 ## TCP server
 
 TCP ensures a reliable and ordered delivery of birectional data with messag acknowledgements and sequences of data packets. A simple TCP server has the following parts:
