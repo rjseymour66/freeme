@@ -1,13 +1,80 @@
 +++
 title = 'Logging'
 date = '2025-09-02T08:26:42-04:00'
-weight = 100
+weight = 10
 draft = false
 +++
 
 Logs are records of events that occur during the running of an application. When something breaks, they are an invaluable diagnostic resource.
 
 The IETF maintains standards for logging in [RFC 5424](https://datatracker.ietf.org/doc/html/rfc5424).
+
+## Types of logs
+
+You can generate logs for development purposes or observation. These are called debugging and monitoring logs.
+
+### Debugging logs
+
+Debugging logs help during the development phase or when you need to diagnose issues. They provide developers with detailed, contextual information about the application's behavior at a specific moment in time. The most common examples include stack traces and variables at certain checkpoints.
+
+Debugging logs have the following properties:
+- Granualr: Detailed an verbose information about the state of the application, variable values, execution paths, and error messages.
+- Temporary: These logs are verbose, so they are not running permanently. They might be generated in a development environment or temporarily enabled in production to track down issues.
+- Developer focused: The audience is developers that are familiar with the application's code base.
+
+### Monitoring logs
+
+These logs are for ongoing observation of an application in production so you can understand health and usage patterns over time. For example, an HTTP request log that tracks the HTTP method, URL, status code, user agent, etc.
+
+Monitoring logs have the following properties:
+- Aggregation friendly: Structured to be easily aggregated and analyzed by monitoring tools. They follow a consistent format.
+- Persistent: Continuously generated as part of the app's normal operation, so they are less informative to reduce overhead.
+- Operational insight: Provide information relevant to the application, user activity, and error rates.
+
+## Logging formats
+
+The most popular logging formats are JSON and structured text. The following table compares use cases for both:
+
+
+| Use case                                | JSON Logs                                                                                                                      | Structured Text Logs (key=value)                                                                            |
+| :-------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| **Log consumption tools**               | Excellent support in modern log pipelines (ELK, Loki, Datadog, Splunk). Native parsing with no custom rules required.          | Good support, but often requires regex or logfmt parsers. Less universally standardized than JSON.          |
+| **Logging data complexity**             | Handles nested objects, arrays, and rich data naturally. Well suited for complex event data.                                   | Best for flat, simple fields. Nested or hierarchical data becomes awkward or lossy.                         |
+| **Performance and overhead**            | Slightly higher CPU and allocation overhead due to encoding and larger payload size.                                           | Lower overhead. Faster to write and smaller on the wire, especially for high-volume logs.                   |
+| **Log analysis**                        | Strong querying, filtering, aggregation, and correlation using structured fields. Ideal for dashboards and metrics extraction. | Effective for basic filtering and searches, but advanced analytics may require extra parsing steps.         |
+| **Troubleshooting**                     | Excellent for distributed systems where correlation IDs and structured context are critical.                                   | Very readable for humans during live debugging, but less powerful at scale.                                 |
+| **Human readability**                   | Lower without formatting; optimized for machines first.                                                                        | Higher; easy to read directly in terminals and text files.                                                  |
+| **Schema evolution**                    | More tolerant of adding new fields without breaking consumers.                                                                 | Field additions can break brittle parsers or regex-based tooling.                                           |
+| **Development and maintenance context** | Slightly more setup and discipline required, but easier to maintain long-term as systems grow and teams change.                | Faster to start with and simpler locally, but maintenance cost increases as log volume and complexity grow. |
+| **Common formats**                      | JSON (NDJSON)                                                                                                                  | logfmt (`key=value`), custom structured text                                                                |
+|                                         |
+
+## What to log?
+
+Knowing what to log and what not to log is critical.
+
+### Log
+
+Log these events:
+
+- Errors: Include stack traces to facilitate debugging.
+- System state changes: Significant changes in your application, such as system startup or shutdown, configuration changes, status changes of critical components.
+- User actions: Actions that modify data or trigger significant processes.
+
+If you do not have a metrics server in place:
+- Performance metrics: Response times, throughput, resource utilization, etc.
+- Security events: Login attempts, access control violations, etc.
+- API calls: Any interactions with external services through APIs.
+
+### Do not log
+
+- Sensitive information: Passwords, personal identification information (PII), credit card numbers, and security tokens.
+- Verbose or debug information in prod: Large logging messages can overwhelm a production system.
+- Redundant or irrelevant information: Don't log the same information multiple times or capture useless details.
+- Large binary data: Do not log files or images, they degrade performance.
+- User input without sanitzation: Raw user input can increase security risks, such as injection attacks. Always sanitize user input before logging.
+
+
 
 ## log package
 
@@ -169,7 +236,7 @@ func main() {
 
 ## Structured logging
 
-Structured logging includes log levels in its log messages. Log levels help distinguish between messages, increase readability and searchability, simplify parsing, and add context to logs. Many production log analysis tools ingest structured logs.
+Structured logging organizes log files into a structured format with machine-readable data in key-value format, typically in JSON. This helps you query and analyze log messages. It also includes log levels in its log messages. Log levels help distinguish between messages, increase readability and searchability, simplify parsing, and add context to logs. Many production log analysis tools ingest structured logs.
 
 Go provides structured logging in its `slog` package. This example shows a basic implementation:
 
@@ -187,7 +254,7 @@ In the previous example, the `Debug` messages are not logged to the console. You
 
 ### JSON logging
 
-This example:
+Go provides tools to simplify structured logging in JSON:
 1. Creates a log file.
 2. Creates a new structured logger.
    - The `New` method returns a logger and accepts a log handler that handles any logs produced by the logger.
