@@ -160,5 +160,14 @@ Summaries cannot be aggregated across instances, so do not use them for distribu
 
 ## OTel project
 
-OpenTelemetry (OTel) is an open standard and set of tools for observability that lets you generate, collect, and export telemetry data from your application in a vendor-neutral way.
+OpenTelemetry (OTel) is an open standard project under the Cloud Native Computing Foundation (CNCF) that provides a set of tools (standars, SDKs, APIs) for observability that lets you generate, collect, and export telemetry data from your application in a vendor-neutral way. It includes the following:
 
+- [Traces](https://pkg.go.dev/go.opentelemetry.io/otel/trace): to follow the flow of requests through systems
+- [Metrics](https://pkg.go.dev/go.opentelemetry.io/otel/metric): system behavior measurements
+- [Context propagation](https://pkg.go.dev/go.opentelemetry.io/otel/propagation)
+
+{{< admonition "Logging" warning >}}
+The Logs SDK is still in development. Use uber/zap for logging until the SDK is complete.
+{{< /admonition >}}
+
+These SDKs support [multiple vendors](https://opentelemetry.io/ecosystem/vendors/) that so you can export your telemetry data for analysis.

@@ -9,6 +9,23 @@ Alex Edwards [An Overview of Go's tooling](https://www.alexedwards.net/blog/an-o
 
 ## Dependencies and maintenance
 
+Go Modules enable reproducible builds by leveraging a module cache and a defined set of dependencies. It tackles the following problems common in software release:
+- **Reliable versioning**: Uses semantic versioning, which lets you know the kind of changes that an update contains Semantic Versioning (SemVer) is a version numbering system that communicates compatibility. The version number tells consumers what kind of changes were made and what risk an upgrade carries.
+  
+  Semantic verisoning uses the following format: `MAJOR.MINOR.PATCH`:
+  - `MAJOR`: When this increments, it means there are breaking changes that require code modification. Read the changelog.
+  - `MINOR`: Backward-compatibile features. Can add new APIs without breaking existing ones.
+  - `PATCH`: Backward-compatibile bug fixes.
+- **Reproducible builds**: The Go Module proxy is a service that sits between Go and source control to download, cache, and serve Go modules. Your Go code doesn't talk directly to GitHub, it talks to the Module proxy. Dependencies are cached within the project to guarantee your code always builds.
+- **Dependency bloat**: You never have unused dependencies in your project.
+
+### go.mod and go.sum
+
+These files help the Minimal Version Selection (MVS) algorithm manage your project dependencies:
+- `go.mod`: Contains the version requirements and direct dependencies for your module. MVS selects the highest required version for each module in this file and downloads it.
+- `go.sum`: Contains the checksums for the content of the specific module versions used in your project.
+
+
 ### go mod
 
 Go modules (`go mod`) is a built-in package and dependency manager. This makes Go's dependency management and compiler very efficient.
@@ -30,15 +47,31 @@ This creates the `go.mod` file at your project root. `go.mod` includes the modul
 Downloads package dependencies into your project. If you already have a package in your project but want to upgrade versions, use the `-u <path>` option.
 
 After you run `go get`, you should always run `go mod tidy` to update your project's dependency graph:
+1. Upgrade to latest minor version or patch.
+2. Upgrade to specific version.
+3. Remove unused package (same as 'go mod tidy -v')
 
 ```bash
 go get github.com/entire/module/path
-go get -u github.com/entire/module/path         # upgrade to latest minor version or patch
-go get -u github.com/entire/module/path@v2.0.0  # upgrade to specific version
-go get github.com/entire/module/path@none       # remove unused package (same as 'go mod tidy -v')
+go get -u github.com/entire/module/path         # 1
+go get -u github.com/entire/module/path@v2.0.0  # 2
+go get github.com/entire/module/path@none       # 3
 ```
 
-### Finding available versions
+### go list
+
+To view the current module and all its dependencies, use `go list`:
+
+```bash
+go list -m all
+telemetry
+github.com/alecthomas/kingpin/v2 v2.4.0
+github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
+github.com/beorn7/perks v1.0.1
+...
+```
+
+### Finding versions
 
 Use `git ls-remote` to retrieve the versions or branches of a repo:
 1. `-t` returns the repo tags, or versions.
