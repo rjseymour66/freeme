@@ -91,7 +91,33 @@ builder.WriteString(" in the morning.")
 var built string = builder.String()                     // 3
 ```
 
-## Splitting into an array
+## Splitting a string
+
+### Cut
+
+`Cut` splits a string using a separator. It returns the portions before and after the separator and a Boolean that indicates whether the separator was found. If it is not found, it returns the original string in the before portion.
+
+In this example, the function parses a URL. It uses `strings.Cut` twice: once to separate the scheme from the host and path, and another to separate the host and path. It uses the [comma OK idiom](../../fundamentals/idioms/#comma-ok) to check whether the first call to `Cut` succeeds:
+
+1. Call `Cut` to separate the scheme from the rest of the URL.
+2. Comma-ok idiom to check that the separator existed and the URL is parseable.
+3. Call `Cut` again to separate the host from the path. Ignore the boolean this time because not all URLs require a path portion.
+
+```go
+func Parse(rawURL string) (*URL, error) { 				
+	scheme, rest, ok := strings.Cut(rawURL, "://") 	 	// 1
+	if !ok { 											// 2
+		return nil, errors.New("missing scheme")
+	}
+
+	host, path, _ := strings.Cut(rest, "/") 			// 3
+	return &URL{
+		Scheme: scheme,
+		Host:   host,
+		Path:   path,
+	}, nil
+}
+```
 
 ### Split
 

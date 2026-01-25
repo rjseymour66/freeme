@@ -47,40 +47,61 @@ This package format requires that you import the source into the test file.
 
 
 
-## Commands
+## Writing tests
 
-1. Verbose output.
-2. Add the `-shuffle=on` flag to execute tests in a random order.
-3. Stops tests in a single package if there is a failing test. This is helpful if you want to work on the first failing test.
-4. Run a specific test.
-5. Run a specific subtest.
-6. You can use globbing syntax. This test runs a specific subtest that begins with `with_port`.
-7. Use the short flag to skip long-running tests, like integration tests. The test function must use the `testing.Short()` function, and optionally use `t.Skip` to provide context for skipping the test.
+Each test contain three main phases:
+
+1. Arrange: Set up the test inputs and expected values:
+   ```go
+   a := 2, b := 3
+   ```
+2. Act: Execute the code that you are testing:
+   ```go
+   got := Add(a, b), want := 5
+   ```
+3. Assert: Verify that the code returns the correct values. You can use the `got`/`want` or `got`/`expected` semantics:
+   ```go
+   if got != want { ... }
+   ```
+
+| Phase   | Purpose                                                                                                      | Example                       |
+| :------ | :----------------------------------------------------------------------------------------------------------- | :---------------------------- |
+| Arrange | Set up the test inputs and expected values.                                                                  | `a := 2`, `b := 3`            |
+| Act     | Execute the code that you are testing.                                                                       | `got := Add(a, b), want := 5` |
+| Assert  | Verify that the code returns the correct values. You can use the `got`/`want` or `got`/`expected` semantics. | `if got != want { ... }`      |
+
+
+
+### Single test
+
+Run a single test to validate one specific behavior of a function. The three phases are shown in comments because single tests are usually simple:
 
 ```go
-go test -v                              // 1
-go test -v -shuffle=on                  // 2
-go test -v -failfast                    // 3
-go test -v -run=TestName                // 4
-go test -v -run=TestName/with_port      // 5
-go test -v -run=TestName/^with_port     // 6
-go test -v -short ./...                 // 7
+func TestParse(t *testing.T) {
+	
+    const uri = "https://github.com/username"                       // 1. Arrange
+
+	got, err := Parse(uri)                                          // 2. Act
+	if err != nil {
+		t.Fatalf("Parse (%q) err = %q, want <nil>", uri, err)
+	}
+	want := &URL{
+		Scheme: "https",
+		Host:   "github.com",
+		Path:   "username",
+	}
+
+	if *got != *want {                                              // 3. Assert
+		t.Errorf("Parse (%q)\ngot   %#v\nwant  %#v", uri, got, want)
+	}
+}
 ```
 
-## Writing a test
+### Table test
 
-Each test contain three main sections:
+Use a table test when you need to test multiple inputs.
 
-Arrange
-: Set up the test inputs and expected values.
-
-Act
-: Execute the portion of code that you are testing.
-
-Assert
-: Verify that the code returned the correct values. You can use the `got`/`want` or `got`/`expected` formatting.
-
-### Arrange
+#### Arrange
 
 A common way to arrange a test is to use table tests. Table tests are a way to provide multiple test cases that you loop over and test during the `Act` stage. To set up a table test, complete the following:
 1. Create a `testCase` struct that models the inputs and expected outputs of the test:
@@ -111,7 +132,7 @@ A common way to arrange a test is to use table tests. Table tests are a way to p
         },
    }
    ```
-### Act
+#### Act
 
 Within the same `TestAdd()` function, write a `for range` loop. This is where you execute each test case with the code that you are testing. Use the `t.Run()` subtest method in the `for range` loop to run each individual test case with a name. `t.Run()` accepts two parameters: the name of the test, and an unnamed test function:
 
@@ -126,7 +147,7 @@ for name, tc := range tt {
 ```
 In the previous example, `name` is the key in the `tt` map, and `tc` is the `testCase` struct in the `tt` map.
 
-### Assert
+#### Assert
 
 In the assert step, you compare the actual values (what you got in the Act step) with the expected value, which is usually a field in the `testCase` struct. Asserts are generally `if` statements that return a formatted error with `t.Errorf` when the `got` and `expected` values do not match:
 
@@ -172,6 +193,102 @@ for name, tc := range tt {
 		// assert
 		assert.Equal(t, got, tc.expected)
 	})
+}
+```
+
+## Running tests
+
+1. Verbose output.
+2. Test results are cached, but this skips the cache and forces Go to rerun the test.
+3. Add the `-shuffle=on` flag to execute tests in a random order. This command returns the "shuffling seed" number. You can use this to run tests in the same order. This is helpful if you have a bug and want to reproduce the tests until you fix the issue:
+   ```bash
+   go test -v -shuffle=on
+   -test.shuffle 1769368631148682425
+   ...
+   ```
+4. Stops tests in a single package if there is a failing test. This is helpful if you want to work on the first failing test.
+5. Run a specific test.
+6. Run a specific subtest.
+7. Globbing syntax. This test runs a specific subtest that begins with `with_port`.
+8. Use the short flag to skip long-running tests, like integration tests. The test function must use the `testing.Short()` function, and optionally use `t.Skip` to provide context for skipping the test.
+
+```go
+go test -v                              // 1
+go test -count=1                        // 2
+go test -v -shuffle=on                  // 3
+go test -v -shuffle=1769368631148682425
+go test -v -failfast                    // 4
+go test -v -run=TestName                // 5
+go test -v -run=TestName/with_port      // 6
+go test -v -run=TestName/^with_port     // 7
+go test -v -short ./...                 // 8
+```
+
+## Comparing structs
+
+Comparing structs is not as straightforward as primitive types. You can use the `reflect` package, but the [`go-cmp` package](https://pkg.go.dev/github.com/google/go-cmp/cmp) is easier. Run this command to download the package:
+
+```bash
+go get github.com/google/go-cmp/cmp
+```
+
+Here is an example of how to compare values:
+
+```go
+func TestParseWithoutPath(t *testing.T) {
+	const uri = "https://github.com"
+
+	got, err := Parse(uri)
+	if err != nil {
+		t.Fatalf("Parse (%q) err = %q, want <nil>", uri, err)
+	}
+	want := &URL{
+		Scheme: "https",
+		Host:   "github.com",
+		Path:   "",
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Parse(%q) mismatch (-want +got):\n%s", uri, diff)
+	}
+}
+```
+
+Here is the sample output:
+
+```bash
+go test -v .
+=== RUN   TestParseWithoutPath
+    url_test.go:45: Parse("https://github.com") mismatch (-want +got):
+          &urlcopy.URL{
+          	Scheme: "https",
+          	Host:   "github.com",
+        - 	Path:   "",
+        + 	Path:   "username",
+          }
+...
+```
+
+## Failure messages
+
+Test failure messages should be easy to read and show you how the test failed. Use `\n` and the correct format verbs: 
+
+{{< admonition "Formatting verbs" tip >}}
+If you use `%s`, `Errorf` calls the type's `String` method. Instead, use `%#v` to show exactly how the value is represented in code. Here are all versions of this format verb:
+
+- `%v`: Default value format
+- `%+v`: Include struct field names
+- `%#v`: Go-syntax representation
+{{< /admonition >}}
+
+```go
+got, err := Parse(uri)
+if err != nil {
+    t.Fatalf("Parse (%q) err = %q, want <nil>", uri, err)
+}
+
+if *got != *want {
+	t.Errorf("Parse (%q)\ngot   %#v\nwant  %#v", uri, got, want)
 }
 ```
 
