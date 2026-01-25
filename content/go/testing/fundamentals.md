@@ -19,26 +19,33 @@ Functional testing
 Test suite
 : Collection of test cases. If you use testing resources, set up the resources at the start of the test suite, then tear them down at the end.
 
-## Naming conventions
+## Conventions
 
-All test files must end in `_test.go`, which lets the Go test tool identify them. Place test files in the same package as the code that they test.
-```bash
-project-root
-├── go.mod
-├── main.go
-└── packagename
-    ├── functional.go         # source code
-    └── testing_test.go       # test file
-```
+All Go tests must follow these conventions:
+- All test files must end in `_test.go`, which lets the Go test tool identify them.
+- Each test function must start with `TestXxx`, with the remainder of the name in camel case.
+- A test function takes a single argument, a pointer to `testing.T`. `T` is a struct with testing methods that manages test state and can log test results.
+
+### File location
+
+Place test files in the same package as the code that they test.
+  ```bash
+  project-root
+  ├── go.mod
+  ├── main.go
+  └── packagename
+      ├── functional.go         # source code
+      └── testing_test.go       # test file
+  ```
+### External tests
 
 For external (integration) tests, use the original package name followed by `_test`. For example:
-
 ```go
 package original_test
 ```
 This package format requires that you import the source into the test file.
 
-Each test function must start with `TestXxx`, with the remainder of the name in camel case. The function takes a single argument, a pointer to `testing.T`. `T` is a struct that manages test state and can log test results.
+
 
 ## Commands
 

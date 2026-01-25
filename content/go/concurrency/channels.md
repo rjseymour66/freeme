@@ -13,9 +13,11 @@ Channels have the following properties:
 - Short-lived or long-lived
 - Can use multiple channels per app, with each channel working with a different data type
 
+The idiomatic way to use channels is for passing data, distributing tasks, or communicating results.
+
 ## Channels basics
 
-There are many ways to create and use channels:
+There are many ways to create and use channels.
 
 ### Creating a channel
 
@@ -31,10 +33,10 @@ chTwo := make(chan []byte)
 
 By default, channels are bidirectional, which means it can both send and receive data. To create a unidirectional channel---one that either sends or receives---use the arrow operator. This table summarizes the arrow placement:
 
-| Channel type | Example |
-| :----------- | :------ |
-| send         | `ch <-` |
-| receive      | `<-ch`  |
+| Channel type | Example | Description             |
+| :----------- | :------ | :---------------------- |
+| send         | `ch <-` | Send data into `ch`.    |
+| receive      | `<-ch`  | Receive data from `ch`. |
 
 
 ### Send channels

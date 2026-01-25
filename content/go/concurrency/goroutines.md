@@ -7,7 +7,14 @@ draft = false
 
 
 
-A goroutine is a function that is invoked after the keyword `go`. Goroutines are executed and managed by the Go Scheduler. The scheduler distributes the goroutines over multiple operating system threads that run on one or more processors. They run separate alongside other code with a thir own call stack that is a few KB. 
+A goroutine is an independently running concurrent function that is invoked after the keyword `go`. Goroutines are executed and managed by the Go Scheduler. The Scheduler distributes the goroutines over multiple operating system threads that run on one or more processors. They run separate alongside other code with a thir own call stack that is a few KB.
+
+Goroutines use a few features that manage goroutines:
+- [Channels](../channels): Channels enable communication between goroutines.
+- [WaitGroups](#waitgroups): A WaitGroup tracks the number of executing goroutines and blocks the calling process until all goroutines are complete.
+
+
+## `main` goroutine
 
 The `main` method is a goroutine---the main goroutine that comprises the lifetime of the application. To demonstrate, the `countToTen` function in the following example counts from 1 to 10 and logs the current number to the console each second. The main function calls `countToTen` as a goroutine, then sleeps for seven seconds. `countToTen` runs concurrently to the main method, logging numbers to the console, while the main method sleeps. After seven seconds, the main method resumes execution and exits. This means that `countToTen` does not have enough time to complete its loop before the program ends:
 
@@ -28,10 +35,9 @@ func countToTen() {
 	}
 }
 ```
+You can prevent the program from exiting before the goroutines complete their work with [WaitGroups](#waitgroups).
 
 ## WaitGroups
-
-You can prevent the program from exiting before the goroutines complete their work with `sync.WaitGroup`.
 
 A wait group is a message-passing facility that signals to a waiting goroutine when it is safe to proceed execution. The wait group doesn't need to know about what kind of work it is facilitating, only the number of goroutines that it needs to wait for. Think of it as a counter in the outer process (waiting goroutine) that keeps track of the number of concurrent tasks in process. You increment the counter for each concurrent task, perform the task, then decrement the counter when the work completes. The outer process blocks until the counter returns to 0. The general process is as follows:
 1. Create a wait group.

@@ -28,13 +28,13 @@ type Reader interface {
 Any struct that implements the `Reader` interface is called a "reader". This means the struct must have a `Read` method that takes a slice of bytes and returns the number of bytes read and an error. You read data _from_ the reader into a slice of bytes. So, a reader is something that allows you to read data from it.
 
 
-| When to Use                | Reader | BufferedReader |
-| -------------------------- | ------ | -------------- |
-| Simple, small reads        | ✅      | ❌              |
-| Line-by-line reading       | ❌      | ✅              |
-| Minimize syscalls          | ❌      | ✅              |
-| Real-time reads (no delay) | ✅      | ❌              |
-| Parsing or tokenizing      | ❌      | ✅              |
+| Use Case                   | Reader | BufferedReader |
+| :------------------------- | :----: | :------------: |
+| Simple, small reads        |   ✅    |       ❌        |
+| Line-by-line reading       |   ❌    |       ✅        |
+| Minimize syscalls          |   ❌    |       ✅        |
+| Real-time reads (no delay) |   ✅    |       ❌        |
+| Parsing or tokenizing      |   ❌    |       ✅        |
 
 
 ### Unbuffered
@@ -43,13 +43,13 @@ Any struct that implements the `Reader` interface is called a "reader". This mea
 
 Use unbuffered I/O in the following circumstances:
 
-| Use Case                         | Example                                                                                             |
-| -------------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Small files directly**         | Use `os.Open()` + `Read()` for config files or metadata <br>`file.Read(buf)`                        |
-| **From in-memory data**          | Use `strings.NewReader("data")` or `bytes.NewReader()` when you already have the content in memory. |
-| **From a network connection**    | Use `conn.Read()` to process packets or headers directly from a TCP stream.                         |
-| **Stdin directly (single read)** | `os.Stdin.Read(buf)` for reading a fixed-size input or when buffering isn’t needed.                 |
-| **Composing custom readers**     | Implement `io.Reader` to wrap or transform streams (e.g., decrypting reader, counting reader).      |
+| Use Case                     | Example                                                                                             |
+| :--------------------------- | :-------------------------------------------------------------------------------------------------- |
+| Small files directly         | Use `os.Open()` + `Read()` for config files or metadata <br>`file.Read(buf)`                        |
+| From in-memory data          | Use `strings.NewReader("data")` or `bytes.NewReader()` when you already have the content in memory. |
+| From a network connection    | Use `conn.Read()` to process packets or headers directly from a TCP stream.                         |
+| Stdin directly (single read) | `os.Stdin.Read(buf)` for reading a fixed-size input or when buffering isn’t needed.                 |
+| Composing custom readers     | Implement `io.Reader` to wrap or transform streams (e.g., decrypting reader, counting reader).      |
 
 
 In this example, we read a small file directly. A file in Go is a reader because the [File interface](https://pkg.go.dev/io/fs#File) implements `Read`. The following example reads data from the file into a buffer of bytes and prints its contents to the console:
@@ -78,13 +78,13 @@ The `bufio` package provides the `NewReader` method, which wraps an existing rea
 
 Use buffered I/O in the following circumstances:
 
-| Use Case                                        | Example                                                                                            |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| **Text input line by line**                     | Wrap stdin or a file: `reader := bufio.NewReader(os.Stdin)` → `line, _ := reader.ReadString('\n')` |
-| **Parsing structured files (CSV, JSONL, logs)** | Use buffering to efficiently read large files without loading them fully in memory.                |
-| **From network sockets efficiently**            | `bufio.NewReader(conn)` minimizes syscalls when reading variable-sized messages.                   |
-| **Interactive CLI input**                       | Use `ReadString('\n')` to get user input with editing or line buffering.                           |
-| **Scanning tokens or prefixes**                 | Use `Peek()` or `ReadBytes()` to inspect part of the stream without consuming all data yet.        |
+| Use Case                                    | Example                                                                                            |
+| :------------------------------------------ | :------------------------------------------------------------------------------------------------- |
+| Text input line by line                     | Wrap stdin or a file: `reader := bufio.NewReader(os.Stdin)` → `line, _ := reader.ReadString('\n')` |
+| Parsing structured files (CSV, JSONL, logs) | Use buffering to efficiently read large files without loading them fully in memory.                |
+| From network sockets efficiently            | `bufio.NewReader(conn)` minimizes syscalls when reading variable-sized messages.                   |
+| Interactive CLI input                       | Use `ReadString('\n')` to get user input with editing or line buffering.                           |
+| Scanning tokens or prefixes                 | Use `Peek()` or `ReadBytes()` to inspect part of the stream without consuming all data yet.        |
 
 
 The reader fills the buffer each time it reads data. This example reads text line-by-line:
@@ -249,12 +249,12 @@ type Writer interface {
 Go provides buffered and unbuffered methods. This table summarizes why you would use each:
 
 | Feature               | Regular Writer (`os.File`) | Buffered Writer (`bufio.Writer`) |
-| --------------------- | -------------------------- | -------------------------------- |
-| Writes directly to OS | ✅                          | ❌                                |
-| Batches small writes  | ❌                          | ✅                                |
-| Fewer system calls    | ❌                          | ✅                                |
-| Must call `Flush()`   | ❌                          | ✅                                |
-| Best for              | Large single writes        | Many small writes                |
+| :-------------------- | :------------------------: | :------------------------------: |
+| Writes directly to OS |             ✅              |                ❌                 |
+| Batches small writes  |             ❌              |                ✅                 |
+| Fewer system calls    |             ❌              |                ✅                 |
+| Must call `Flush()`   |             ❌              |                ✅                 |
+| Best for              |    Large single writes     |        Many small writes         |
 
 
 ### Unbuffered
@@ -340,7 +340,7 @@ Go provides a few options for reading files:
 This table compares use cases for each method:
 
 | Use Case                        | Recommended                 |
-| ------------------------------- | --------------------------- |
+| :------------------------------ | :-------------------------- |
 | Small file (config.json, < 1MB) | `os.ReadFile`               |
 | Large log file (1GB+)           | `os.Open` + `Read`          |
 | Stream or pipe (stdin, socket)  | `os.Open` or `bufio.Reader` |
@@ -350,16 +350,16 @@ This table compares use cases for each method:
 
 This table summarizes the features:
 
-| Feature               | `os.ReadFile` | `os.Open` + `Read`      |
-| --------------------- | ------------- | ----------------------- |
-| Reads all at once     | ✅             | ❌                       |
-| Stream / partial read | ❌             | ✅                       |
-| Automatic close       | ✅             | ❌                       |
-| Control over buffer   | ❌             | ✅                       |
-| Best for small files  | ✅             | ⚠️                       |
-| Best for large files  | ❌             | ✅                       |
-| Memory use            | High          | Low                     |
-| Simplicity            | Very simple   | More code, more control |
+| Feature               | `os.ReadFile` |   `os.Open` + `Read`    |
+| :-------------------- | :-----------: | :---------------------: |
+| Reads all at once     |       ✅       |            ❌            |
+| Stream / partial read |       ❌       |            ✅            |
+| Automatic close       |       ✅       |            ❌            |
+| Control over buffer   |       ❌       |            ✅            |
+| Best for small files  |       ✅       |            ⚠️            |
+| Best for large files  |       ❌       |            ✅            |
+| Memory use            |     High      |           Low           |
+| Simplicity            |  Very simple  | More code, more control |
 
 
 
@@ -427,7 +427,7 @@ Go provides a few options for writing to files:
 This table compares use cases for each method:
 
 | Use Case                            | Recommended                               |
-| ----------------------------------- | ----------------------------------------- |
+| :---------------------------------- | :---------------------------------------- |
 | Small config file                   | `os.WriteFile`                            |
 | Large file (stream or batch writes) | `os.OpenFile` + `Write`                   |
 | Append logs continuously            | `os.OpenFile(..., os.O_APPEND, ...)`      |
@@ -437,14 +437,14 @@ This table compares use cases for each method:
 This table summarizes the feature of each method:
 
 | Feature                         | `os.WriteFile` | `os.OpenFile` + `Write` | `os.OpenFile` + `bufio.Writer` |
-| ------------------------------- | -------------- | ----------------------- | ------------------------------ |
-| Writes all at once              | ✅              | ❌                       | ❌                              |
-| Stream / chunk writing          | ❌              | ✅                       | ✅                              |
-| Buffering                       | ❌              | ❌                       | ✅                              |
-| Simplicity                      | ✅              | ⚠️                       | ⚠️                              |
-| Performance (small data)        | ✅              | ✅                       | ✅                              |
-| Performance (many small writes) | ❌              | ⚠️                       | ✅                              |
-| Automatic close                 | ✅              | ❌                       | ❌                              |
+| :------------------------------ | :------------: | :---------------------: | :----------------------------: |
+| Writes all at once              |       ✅        |            ❌            |               ❌                |
+| Stream / chunk writing          |       ❌        |            ✅            |               ✅                |
+| Buffering                       |       ❌        |            ❌            |               ✅                |
+| Simplicity                      |       ✅        |            ⚠️            |               ⚠️                |
+| Performance (small data)        |       ✅        |            ✅            |               ✅                |
+| Performance (many small writes) |       ❌        |            ⚠️            |               ✅                |
+| Automatic close                 |       ✅        |            ❌            |               ❌                |
 
 
 
@@ -555,7 +555,7 @@ func main() {
 
 Temporary files and standard files share many of the same methods. The difference between the two files is how and why they are created, and how they are managed:
 
-| Aspect           | `os.CreateTemp`                                                                                  | `os.Create` / `os.Open`                        |
+| Use case         | `os.CreateTemp`                                                                                  | `os.Create` / `os.Open`                        |
 | ---------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | **Purpose**      | Create a uniquely named temporary file                                                           | Create or open a specific file                 |
 | **Location**     | In the system’s temp directory (`/tmp` or `%TEMP%`) by default, or a custom temp dir you pass in | Anywhere you specify (e.g., working directory) |
