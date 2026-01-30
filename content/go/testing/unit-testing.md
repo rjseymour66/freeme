@@ -1,5 +1,5 @@
 +++
-title = 'Unit Testing'
+title = 'Unit testing'
 date = '2025-09-05T08:42:58-04:00'
 weight = 10
 draft = false
@@ -105,17 +105,42 @@ for _, tt := range testCases {
 
 Subtests let you run different testing scenarios within a test function. You can use this within a single test function, but it works well for testing different contexts within a table test.
 
-Use `t.Run()` to run subtests. Subtests run in isolation, so you can use `t.Fatal[f]()`, and the table test continues execution. In addition, you can run subtests [in parallel](#parallel-testing).
+Use `t.Run()` to run subtests. Each subtest has its own `*T` and runs in its own goroutine in isolation, so you can use `t.Fatal[f]()`, and the table test continues execution. Because subtests run in isolation, you can also run them [in parallel](#parallel-testing).
+
+Here, we place the test cases in a separate, global variable:
 
 ```go
-for name, tc := range tt {
-	t.Run(name, func(t *testing.T) {
-        ...
-		// assert
-		if got != tc.expected {
-			t.Errorf("expected %d, got %d", tc.expected, got)
-		}
-	})
+var parseTests = []struct {
+	name string
+	uri  string
+	want *URL
+}{
+	{
+		name: "with_data_scheme",
+		...
+	},
+	{
+		name: "full",
+		...
+	},
+	{
+		name: "without_path",
+		...
+	},
+}
+
+func TestParse(t *testing.T) {
+	for _, tt := range parseTests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Parse(tt.uri)
+			if err != nil {
+				t.Fatalf("Parse(%q) err = %v, want <nil>", tt.uri, err)
+			}
+			if *got != *tt.want {
+				t.Errorf("Parse (%q)\ngot  %#v\nwant  %#v", tt.uri, got, tt.want)
+			}
+		})
+	}
 }
 ```
 

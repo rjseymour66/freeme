@@ -99,7 +99,7 @@ func TestParse(t *testing.T) {
 
 ### Table test
 
-Use a table test when you need to test multiple inputs.
+Table tests separate the test data from the logic so you can reuse the logic for different test cases. Use a table test when you need to test multiple inputs.
 
 #### Arrange
 
@@ -112,6 +112,9 @@ A common way to arrange a test is to use table tests. Table tests are a way to p
 	   expected int
    }
    ```
+   {{< admonition "`name` field" note >}}
+   Table tests commonly use a `name` field so you can distinguish between tests. For more information, see [Unit testing: Subtests](../unit-testing#subtests).
+   {{< /admonition >}}
 2. Use a map literal with a `string` key and `testCase` value. The `string` key is the name of the test, and `testCase` is the test values:
    ```go
    tt := map[string]testCase{   // tt for table tests
@@ -196,7 +199,7 @@ for name, tc := range tt {
 }
 ```
 
-## Running tests
+## Test commands
 
 1. Verbose output.
 2. Test results are cached, but this skips the cache and forces Go to rerun the test.
