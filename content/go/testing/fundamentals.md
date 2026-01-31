@@ -236,23 +236,37 @@ Writing example tests within your test code shows how to use your package. If yo
 
 A _testable example_ is live documentation for code. You write a testable example to demonstrate the package API to other developers. The API includes the exported identifiers, such as functions, methods, etc. A testable example never goes out of date.
 
-The testing package runs testable examples and checks their results, but it does not report successes or failures:
+The testing package runs testable examples and checks their results, but it does not report successes or failures.
+
+Conventionally, testable example files are named `example_test.go`. If you create multiple files, use the `_test.go` suffix. These examples display alongside the corresponding package in the documentation:
+
+1. The `_test` suffix declares a test-only package that is named after the package that it tests. This is called _blackbox testing_---it can access only the package that it tests.
+   
+   Go usually doesn't allow multiple packages in the same directory, but it makes an exception for test packages. The `_test` suffix means that you cannot import it from other packages.
+2. You have to import the package that you are testing.
+3. Name the test `Example<FuncToTest>`. Example tests print their output to stdout, so they do not take a `*T` type.
+4. Demonstrate how to use the function you are testing.
+5. Print the result of the test to stdout. This is critical for the output assertion in the next step.
+6. Output assertion. The `// Output` comment signals that the following line should equal what was printed to stdout.
+7. This line match stdout. Whitespace and newlines matter. 
 
 ```go
-func ExampleURL_fields() {
-	u, err := url.Parse("https://foo.com/go")
+package urlcopy_test                                            // 1
+
+import (
+	"fmt"
+	"log"
+	"urlcopy"                                                   // 2
+)
+
+func ExampleParse() {                                           // 3
+	uri, err := urlcopy.Parse("https://github.com/username")    // 4
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(u.Scheme)
-	fmt.Println(u.Host)
-	fmt.Println(u.Path)
-	fmt.Println(u)
-	// Output:
-	// https
-	// foo.com
-	// go
-	// https://foo.com/go
+	fmt.Println(uri)                                            // 5
+	// Output:                                                  // 6
+	// https://github.com/username                              // 7
 }
 ```
 
