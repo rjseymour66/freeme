@@ -107,6 +107,10 @@ Subtests let you run different testing scenarios within a test function. You can
 
 Use `t.Run()` to run subtests. Each subtest has its own `*T` and runs in its own goroutine in isolation, so you can use `t.Fatal[f]()`, and the table test continues execution. Because subtests run in isolation, you can also run them [in parallel](#parallel-testing).
 
+{{< admonition "Panics" note >}}
+A failure in a subtest does not stop test execution, but a panic will stop execution without running the remaining subtests.
+{{< /admonition >}}
+
 Here, we place the test cases in a separate, global variable:
 
 ```go
@@ -454,13 +458,15 @@ func FuzzReverse(f *testing.F) {
 
 ## Test coverage
 
-Go can generate a test report that details how much of your code is tested. Use the `-cover` option to view your code coverage:
+Go can generate a test report that details how much of your code is tested. This does not mean that your code is bug-free---it means that the code is executed during testing.
+
+Use the `-cover` option to view your code coverage:
 
 1. Basic coverage for one package.
 2. Write coverage data to a file.
-3. View coverage per function.
-4. View coverage data in browser.
-5. View coverage data in browser.
+3. View coverage per function in the terminal.
+4. View coverage data in browser. The green sections are covered, red is not covered, gray does not need to be tested.
+5. View coverage data in browser. `covermode` controls how coverage is tracked. `count` counts how many times each statement executes.
 
 
 ```bash
@@ -469,5 +475,5 @@ go test -coverprofile=cover.out         			# 2
 go tool cover -func=cover.out 						# 3
 go tool cover -html=cover.out           			# 4
 go tool cover -html cover.out           			# 5
-to test -covermode=count -coverprofile=count.out 	# 6
+go test -covermode=count -coverprofile=count.out 	# 6
 ```

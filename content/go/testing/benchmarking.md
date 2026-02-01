@@ -10,6 +10,8 @@ Benchmarking is a systematic method of measuring and comparing the performance o
 
 Benchmark tests are nonfunctional tests---they do test whether the software performs its intended purpose. They test how well the software performs in terms of stability, speed, and scalability.
 
+Benchmark tests take `*testing.B` as a parameter. This type has many of the log and error functions available to the `*testing.T` type.
+
 
 ## Basic benchmarking
 
@@ -25,13 +27,23 @@ func Add(a, b int) int {
 
 Here is the benchmark test function:
 1. Pass the function a pointer to `testing.B`. `B` is a struct that manages benchmark timing and specifies how many iterations to run.
-2. A C-style `for` loop that repeats `b.N` times. Go automatically determines the value of `N`. `b.N` adjusts the number of iterations dynamically, ensuring that the measurements are accurate and reliable.
+2. Run a loop for the benchmark tests. There is an "old style" and "new style":
+   1. A C-style `for` loop that repeats `b.N` times. Go automatically determines the value of `N`. `b.N` adjusts the number of iterations dynamically, ensuring that the measurements are accurate and reliable.
+   2. Similary to the C-style, the benchmark package determines how many times this loop runs, which is until the measurements are statistically meaninful.
 3. The function you want to benchmark.
 
 ```go
+// old style
 func BenchmarkAdd(b *testing.B) {       // 1
-	for i := 0; i < b.N; i++ {          // 2
+	for i := 0; i < b.N; i++ {          // 2.1
 		Add(1, 2)                       // 3
+	}
+}
+
+// new style
+func BenchmarkAdd(b *testing.B) {
+	for b.Loop() { 						// 2.2
+		Add(1, 2)
 	}
 }
 ```
@@ -100,7 +112,7 @@ Benchmark tests share `x_test.go` files alongside regular test functions. To exe
 
 `run` takes a regular expression. Go runs only functions that match that regular expression. To run only benchmark tests, pass `run` a regular expression that matches no test functions.
 
-The `^$` regex matches the beginning and end of a string, which matches an empty string. You could also pass something random that you know won't match your function names, such as `-run=XXX`. `-run=XXX` ensures that it does not match any regular tests and only runs performance tests:
+The `^$` regex matches the beginning and end of a string, which matches an empty string. You could also pass something random that you know won't match your function names, such as `-run=XXX` or `-run=' '`. `-run=XXX` ensures that it does not match any regular tests and only runs performance tests:
 
 ```bash
 go test -v -bench=. -run=^$
@@ -223,7 +235,7 @@ PASS
 ok  	perf	0.360s
 ```
 
-## Comparing test results
+## Comparing benchmarks
 
 Use `benchstat` to compare results from performance tests before and after you make code changes. `benchstat` provides a statistical analysis of benchmark results. This helps you compare different test run output to understand the different versions of your code:
 
@@ -249,7 +261,7 @@ Use `benchstat` to compare results from performance tests before and after you m
 
 The `-benchmem` flag measures memory allocations. It adds two new columns to the benchmark output:
 - `allocs/op`: Number of memory allocations per operation.
-- `B/op`: Number of bytes allocated per operation.
+- `B/op`: Number of heap bytes allocated per operation.
 
 ```bash
 go test -bench=. -benchmem
@@ -267,11 +279,13 @@ ok  	perf	0.748s
 
 ## Profiling a program
 
-Use `pprof` to profile how your program uses system resources.
+Use `pprof` to profile how your program uses system resources. `pprof` is the performance profiling tool that shows you where your system is spending time and memory.
 
 A _profile_ is a collection of stack traces that show the sequence of certain events like CPU use, memory allocation, etc. Profiling has two parts:
 - Creating the profile and saving it to a file.
 - Running `pprof` to analyze the profile.
+
+### CPU profiling
 
 The CPU profile helps you understand how much time is spent processing specific parts of your code. When you profile your CPU, the runtime interrupts itself every 10ms and records the stack trace. The amount of time the code appears in the profile indicates how much time is spent in that particular line of code.
 
@@ -296,3 +310,41 @@ The CPU profile helps you understand how much time is spent processing specific 
    ```bash
    go tool pprof -http localhost:8080 cpu.prof
    ```
+
+### Memory profiling
+
+
+1. Generate a memory profile with the `memprofile` flag. This command writes the memory profile to `mem.out`:
+
+   ```bash
+   go test . -bench=BenchmarkURLStringLong -benchmem -memprofile=mem.out
+   ```
+2. Inspect the `String` method's allocations using the `list` flag. The `list` flag tells pprof to find all functions whose name matches `String`, open its source code, and annotate each line with allocation data.
+   
+   The output shows how much memory each line of the code allocates:
+   - `flat`: Number of allocations on that line.
+   - `cum`: Number of allocations including callees.
+   ```bash
+   go tool pprof -list String mem.out
+   Total: 7.70GB
+   ROUTINE ======================== urlcopy.(*URL).String in /path/to/gofile.go
+       7.70GB     7.70GB (flat, cum)   100% of Total
+            .          .     34:func (u *URL) String() string {
+            .          .     35:	if u == nil {
+            .          .     36:		return ""
+            .          .     37:	}
+            .          .     38:	var s string
+            .          .     39:	if sc := u.Scheme; sc != "" {
+            .          .     40:		s += sc
+          1GB        1GB     41:		s += "://"
+            .          .     42:	}
+            .          .     43:	if h := u.Host; h != "" {
+       1.83GB     1.83GB     44:		s += h
+            .          .     45:	}
+            .          .     46:	if p := u.Path; p != "" {
+       1.92GB     1.92GB     47:		s += "/"
+       2.95GB     2.95GB     48:		s += p
+            .          .     49:	}
+            .          .     50:	return s
+            .          .     51:}
+	```

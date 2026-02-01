@@ -77,7 +77,7 @@ var spf string = fmt.Sprintf("The time is %v in the morning.", time.Now().Format
 
 ### Builder
 
-Strings are immutable, and string concatenation is expensive in Go. A string builder is an idiomatic way to build strings:
+Strings are immutable, and string concatenation is expensive in Go. A string builder is an idiomatic way to build strings. It accumulates bytes in its internal buffer without making additional memory allocations:
 
 1. Create a new `builder` type.
 2. Build the string with `WriteString` and the string that you want to add to the builder.
@@ -89,6 +89,50 @@ builder.WriteString("The time is ")                     // 2
 builder.WriteString(time.Now().Format(time.Kitchen))
 builder.WriteString(" in the morning.")
 var built string = builder.String()                     // 3
+```
+
+Here is a more complex example that implements the `String` interface on a URL type. It uses the `Grow` method to set the size of the Builder's internal buffer so it does not have to reallocate memory when it is full.
+
+1. Create constants that represent the length of the URL separators.
+2. Calculate the size of the URL using the constants. For example, `https://mydomain/resource-name`.
+3. Create the Builder.
+4. `Grow` sets the Builder's internal buffer size.
+5. Write each part of the URL to the Builder.
+6. Return the string.
+
+
+```go
+func (u *URL) String() string {
+	if u == nil {
+		return ""
+	}
+
+	const ( 									// 1
+		lenSchemeSeparator = len("://")
+		lenPathSeparator   = len("/")
+	)
+	lenURL := len(u.Scheme) +  					// 2
+			  lenSchemeSeparator + 
+			  len(u.Host) + 
+			  lenPathSeparator + 
+			  len(u.Path)
+
+	var s strings.Builder 						// 3
+	s.Grow(lenURL) 								// 4
+
+	if sc := u.Scheme; sc != "" { 				// 5
+		s.WriteString(sc)
+		s.WriteString("://")
+	}
+	if h := u.Host; h != "" {
+		s.WriteString(h)
+	}
+	if p := u.Path; p != "" {
+		s.WriteByte('/')
+		s.WriteString(p)
+	}
+	return s.String() 							// 6
+}
 ```
 
 ## Splitting a string
