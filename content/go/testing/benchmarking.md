@@ -17,6 +17,38 @@ Benchmark tests take `*testing.B` as a parameter. This type has many of the log 
 
 Benchmark functions are similar to regular testing functions. They use the `BenchmarkXxx(b *testing.B)`, and you place them in `<name>_test.go` file along with other test functions.
 
+### `b.N` vs `b.Loop()`
+
+The `N` integer lets you dynamically adjust the number of iterations that your code runs. There are two ways to use the `N` integer in your code: `b.N` and `b.Loop()`.
+
+#### b.N
+`b.N` is the "old way" to write loops. This was commonly called in a C-style `for` loop that repeats `b.N` times:
+```go
+func BenchmarkAdd(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		Add(1, 2)
+	}
+}
+```
+In this loop, the `N` integer is set by Go to a value that runs long enough to be accurate and reliable. You directly call the `N` integer.
+
+The issue is that the compiler always tries to find optimizations. It sees the `Add` function and removes it and computes the value at compile time because it has no side effects (no return value, no change in inputs). To make the compiler "observe" `Add`, you have to assign its result to a variable.
+
+#### b.Loop()
+
+`b.Loop` is the "new way" to write loops:
+```go
+func BenchmarkAdd(b *testing.B) {
+	for b.Loop() {
+		Add(1, 2)
+	}
+}
+```
+This lets Go control the iteration count, and when the benchmark timing starts and stops. The compiler does not try to optimize code found within `b.Loop`, so you do not have to create a variable to store the result of `Add`.
+
+
+### Example
+
 To demonstrate, here is a simple function that adds two integers and returns the answer:
 
 ```go
@@ -27,23 +59,13 @@ func Add(a, b int) int {
 
 Here is the benchmark test function:
 1. Pass the function a pointer to `testing.B`. `B` is a struct that manages benchmark timing and specifies how many iterations to run.
-2. Run a loop for the benchmark tests. There is an "old style" and "new style":
-   1. A C-style `for` loop that repeats `b.N` times. Go automatically determines the value of `N`. `b.N` adjusts the number of iterations dynamically, ensuring that the measurements are accurate and reliable.
-   2. Similary to the C-style, the benchmark package determines how many times this loop runs, which is until the measurements are statistically meaninful.
+2. Run a loop for the benchmark tests. The benchmark package determines how many times this loop runs, which is until the measurements are statistically meaninful.
 3. The function you want to benchmark.
 
 ```go
-// old style
-func BenchmarkAdd(b *testing.B) {       // 1
-	for i := 0; i < b.N; i++ {          // 2.1
-		Add(1, 2)                       // 3
-	}
-}
-
-// new style
-func BenchmarkAdd(b *testing.B) {
-	for b.Loop() { 						// 2.2
-		Add(1, 2)
+func BenchmarkAdd(b *testing.B) { 		// 1
+	for b.Loop() { 						// 2
+		Add(1, 2) 						// 3
 	}
 }
 ```
@@ -66,6 +88,8 @@ BenchmarkAdd-12    	1000000000	         0.2460 ns/op       # 6
 PASS
 ok  	testdir	0.275s
 ```
+
+## Flags
 
 ### bench flag
 

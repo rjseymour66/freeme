@@ -148,51 +148,6 @@ func TestParse(t *testing.T) {
 }
 ```
 
-### Parallel testing
-
-By default, functions in the same function package run sequentially. To run tests in parallel, add `t.Parallel()` to your test or subtest function:
-
-```go
-func TestAddOne(t *testing.T) {
-	t.Parallel()
-	result := Add(1, 2)
-	// assertions
-}
-
-func TestAddEvens(t *testing.T) {
-	t.Parallel()
-	result := Add(2, 4)
-	// assertions
-}
-
-func TestAddOdds(t *testing.T) {
-	t.Parallel()
-	result := Add(3, 5)
-	// assertions
-}
-```
-
-Tests marked with `t.Parallel()` are run in parallel with other parallel tests. If you have a mixture of sequential and parallel tests, Go pauses all tests with `t.Parallel()` and then runs them when other tests complete.
-
-{{< admonition "Parallel testing subtests" warning >}}
-You get incorrect results when you run subtest in parallel because the `for...range` function that runs each test case uses a pointer to a variable, which is overwritten during each iteration. To fix this, make the variable a local variable within each subtest:
-
-```go
-for _, tc := range testCases {
-	testCase := tc 								// local variable
-	t.Run(testCase.name, func(t *testing.T) {
-		t.Parallel()
-		// ...
-	})
-}
-```
-{{< /admonition >}}
-
-`GOMAXPROCS` determines how many tests run in parallel. By default, `GOMAXPROCS` is set to the number of CPUs on the machine. You can override this with the `-parallel` flag:
-
-```shell
-$ go test -parallel=4 ./...
-```
 
 ### Skipping tests 
 
@@ -252,6 +207,112 @@ func TestWithAssert(t *testing.T) {
 ```
 
 Helper functions accept an instance of the `testing.T` type, so make sure you pass the `t` testing instance to the helper in the `TestXxx` function. This provides the helper with access to the testing instance as the rest of the test function.
+
+## Parallel testing
+
+By default, functions in the same function package run sequentially. Run the tests in parallel to reduce the time it takes to run tests.
+
+To run tests in parallel, add `t.Parallel()` to your test or subtest function:
+
+```go
+func TestAddOne(t *testing.T) {
+	t.Parallel()
+	result := Add(1, 2)
+	// assertions
+}
+
+func TestAddEvens(t *testing.T) {
+	t.Parallel()
+	result := Add(2, 4)
+	// assertions
+}
+
+func TestAddOdds(t *testing.T) {
+	t.Parallel()
+	result := Add(3, 5)
+	// assertions
+}
+```
+
+Tests marked with `t.Parallel()` are run in parallel with other parallel tests. If you have a mixture of sequential and parallel tests, Go runs sequential tests first and then runs tests with `t.Parallel()`.
+
+{{< admonition "Parallel subtests" error >}}
+To run subtests in parallel, you must add `t.Parallel()` to both the parent test and subtest.
+{{< /admonition >}}
+
+`GOMAXPROCS` determines how many tests run in parallel. By default, `GOMAXPROCS` is set to the number of CPUs on the machine. You can override this with the `-parallel` flag, but make sure you do not set this flag to a value higher than the number of CPUs on the machine.
+
+The following two commands set `parallel` and are equivalent:
+
+```shell
+go test -parallel=4 ./...
+go test -parallel 4 ./...
+```
+
+{{< admonition "Parallel testing subtests" warning >}}
+You get incorrect results when you run subtest in parallel because the `for...range` function that runs each test case uses a pointer to a variable, which is overwritten during each iteration. To fix this, make the variable a local variable within each subtest:
+
+```go
+for _, tc := range testCases {
+	testCase := tc 								// local variable
+	t.Run(testCase.name, func(t *testing.T) {
+		t.Parallel()
+		// ...
+	})
+}
+```
+{{< /admonition >}}
+
+## Detecting data races
+
+A data race occurs when multiple goroutines access the same variable simultaneously and at least one of them modifies it. For example, the `incr` function increments the `counter` variable:
+
+```go
+var counter int
+
+func incr() { counter++ }
+```
+
+If you run this function in parallel subtests, you might get a data race:
+
+```go
+func TestDataRace(t *testing.T) {
+	t.Parallel()
+	t.Run("once", func(t *testing.T) {
+		t.Parallel()
+		incr()
+		if counter != 1 {
+			t.Errorf("counter = %d, want 1", counter)
+		}
+	})
+
+	t.Run("twice", func(t *testing.T) {
+		t.Parallel()
+		incr()
+		incr()
+		if counter != 3 {
+			t.Errorf("counter = %d, want 3", counter)
+		}
+	})
+}
+```
+
+### race flag
+
+{{< admonition "" note>}}
+Only use the `race` flag in test code. This flag adds assembly code to the final binary, so it can dramatically slow down programs.
+{{< /admonition >}}
+
+Check for a data race with the `race` flag. You can set the `count` variable to a high number to make sure you give the race detectore enough changes to catch a data race:
+
+```bash
+go test . -run=DataRace$ -race -count=10
+==================
+WARNING: DATA RACE
+Read at 0x0000007cc220 by goroutine 9:
+...
+```
+
 
 #### Benchmarking helpers
 
