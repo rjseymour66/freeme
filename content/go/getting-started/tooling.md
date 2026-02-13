@@ -143,8 +143,9 @@ go run ./cmd/web            # runs proj-root/cmd/web/main.go
 Compiles Go code into an executable binary that you can run.
 
 ```bash
-go build                    # uses module name for binary name
-go build -o <binary-name>   # provide binary name
+go build                        # uses module name for binary name
+go build -o <binary-name>       # provide binary name
+go build -o bin/hit ./cmd/hit   # find /cmd/hit, confirm its package main, build hit binary in bin/
 ```
 
 ### Cross-platform compilation
