@@ -93,6 +93,7 @@ func main() {
 You can create custom flag value parsers beyond the built-in `flag.Var` and `flag.[Type]Var` parsers. This lets you create flag value parsers with additional features, such as argument validation. You have to implement the `Value` interface:
 1. `String` is used when you print default values or help output.
 2. `Set` parses the string input, validates it, and stores it.
+
 ```go
 type Value interface {
     String() string 		// 1
@@ -111,6 +112,7 @@ type Value interface {
    4. If the argument is a positive `int`, set the caller to the argument.
 
 ```go
+// config.go
 type positiveIntValue int 								// 1
 
 func asPositiveIntValue(p *int) *positiveIntValue { 	// 2
@@ -142,6 +144,7 @@ func (n *positiveIntValue) Set(s string) error { 		// 4
 To implement the customer value parser, use the `Var` function, and caste the given variable as the custom value parser type:
 
 ```go
+// config.go
 func parseArgs(c *config, args []string) error {
 	fs := flag.NewFlagSet("hit", flag.ContinueOnError)
 
@@ -171,6 +174,7 @@ This example parses flags and a mandatory `url` argument. When you use both flag
 4. Extracts the positional argument. After you call `Parse`, all remaining non-flag arguments are stored internally. You need to access them with `fs.Arg(index)`. The first argument is `fs.Arg(0)`, the second `fs.Arg(1)`, and so on. Here, we extract only the `url` field.
 
 ```go
+// config.go
 func parseArgs(c *config, args []string) error {
 	fs := flag.NewFlagSet("hit", flag.ContinueOnError)
 	fs.Usage = func() { 													// 1
@@ -193,9 +197,61 @@ func parseArgs(c *config, args []string) error {
 
 ## Validating flags
 
-FlagSet doesn't support validating mandatory arguments or flags, so you have to validate flag values after they are parsed and set in the configuration object.
+FlagSet doesn't support validating mandatory arguments or flags, so you have to validate flag values after they are parsed and set in the configuration object. Creating a separate validation lets you check edge cases.
 
+For example, the following function takes the `config` struct and validates its field values:
+1. Verify the given URL is valid.
+2. Verify the number of requests is less than the currency level.
 
+```go
+// config.go
+func validateArgs(c *config) error {
+
+	u, err := url.Parse(c.url) 													// 1
+	if err != nil {
+		return fmt.Errorf("invalid value %q for url: %w", c.url, err)
+	}
+	if c.url == "" || u.Host == "" || u.Scheme == "" {
+		return fmt.Errorf(
+			"invalid value %q for url: requires a valid url", c.url)
+	}
+	if c.n < c.c { 																// 2
+		return fmt.Errorf(
+			"invalid value %d for flag -n: should be greater than flag -c: %d", c.n, c.c)
+	}
+	return nil
+}
+```
+
+Add `validateArgs` after the flags and positional arguments are parsed.
+1. Validates the parsed flag values.
+2. If there is an error, print the error to the FlagSet's output.
+3. Print the FlagSet's usage message that is defined at the top of the function.
+   
+```go
+func parseArgs(c *config, args []string) error {
+	fs := flag.NewFlagSet("hit", flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "usage: %s [options] url\n", fs.Name())
+		fs.PrintDefaults()
+	}
+
+	// Register flags... 
+
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	c.url = fs.Arg(0)
+
+	if err := validateArgs(c); err != nil { 		// 1
+		fmt.Fprintln(fs.Output(), err) 				// 2
+		fs.Usage() 									// 3
+		return err
+	}
+
+	return nil
+}
+```
 
 ## flag functions
 
