@@ -88,7 +88,116 @@ func main() {
 }
 ```
 
-## Flag functions
+### Custom flags
+
+You can create custom flag value parsers beyond the built-in `flag.Var` and `flag.[Type]Var` parsers. This lets you create flag value parsers with additional features, such as argument validation. You have to implement the `Value` interface:
+1. `String` is used when you print default values or help output.
+2. `Set` parses the string input, validates it, and stores it.
+```go
+type Value interface {
+    String() string 		// 1
+    Set(string) error 		// 2
+}
+```
+
+
+1. Create a new type so you can attach methods to it.
+2. An adapter function that converts an `int` pointer to a `positiveIntValue` pointer.
+3. You need to convert the argument to a `string`. This function dereferences `n`, converts `n` to an `int`, then converts it to a `string`.
+4. This function verifies that the input is a positive `int`:
+   1. Parse the string into an integer. `0` tells the compiler to detect the base size from the string.
+   2. `IntSize` is a constant that determines the number of bytes based on your system (32 or 64).
+   3. Check whether the argument is positive.
+   4. If the argument is a positive `int`, set the caller to the argument.
+
+```go
+type positiveIntValue int 								// 1
+
+func asPositiveIntValue(p *int) *positiveIntValue { 	// 2
+	return (*positiveIntValue)(p)
+}
+
+func (n *positiveIntValue) String() string {
+	return strconv.Itoa(int(*n))
+}
+
+func (n *positiveIntValue) Set(s string) error { 		// 4
+	v, err := strconv.ParseInt( 						
+		s,
+		0,  											// 4.1
+		strconv.IntSize, 								// 4.2
+	)
+	if err != nil {
+		return err
+	}
+	if v <= 0 { 										// 4.3
+		return errors.New("should be greater than zero")
+	}
+	*n = positiveIntValue(v) 							// 4.4
+
+	return nil
+}
+```
+
+To implement the customer value parser, use the `Var` function, and caste the given variable as the custom value parser type:
+
+```go
+func parseArgs(c *config, args []string) error {
+	fs := flag.NewFlagSet("hit", flag.ContinueOnError)
+
+	fs.StringVar(&c.url, "url", "", "HTTP server `URL` (required)")
+	fs.Var(asPositiveIntValue(&c.n), "n", "Number of requests") 			// custom value parser
+	fs.Var(asPositiveIntValue(&c.c), "c", "Concurrency level") 				// custom value parser
+	fs.Var(asPositiveIntValue(&c.rps), "rps", "Requests per second") 		// custom value parser
+
+	return fs.Parse(args)
+}
+```
+
+{{< admonition "Default values" note >}}
+You can't set a default value in the custom value parser definition. Instead, set the default value when you define the configuration object.
+{{< /admonition >}}
+
+## Flags vs positional arguments
+
+A flag is an optional argument that customizes a tool's behavior. A Positional argument is a required value that define a tool's primary purpose.
+
+This example parses flags and a mandatory `url` argument. When you use both flags and positional arguments, the flags are parsed first, and then you access the positional arguments by index with `fs.Arg()`:
+
+
+1. Create a usage flag that uses flagset methods to print the following default help message: `<tool-name> [options] url`, and then prints the help text for the registered flags.
+2. Register the flags.
+3. Parse the flags and return any error.
+4. Extracts the positional argument. After you call `Parse`, all remaining non-flag arguments are stored internally. You need to access them with `fs.Arg(index)`. The first argument is `fs.Arg(0)`, the second `fs.Arg(1)`, and so on. Here, we extract only the `url` field.
+
+```go
+func parseArgs(c *config, args []string) error {
+	fs := flag.NewFlagSet("hit", flag.ContinueOnError)
+	fs.Usage = func() { 													// 1
+		fmt.Fprintf(fs.Output(), "usage: %s [options] url\n", fs.Name())
+		fs.PrintDefaults()
+	}
+
+	fs.Var(asPositiveIntValue(&c.n), "n", "Number of requests") 			// 2
+	fs.Var(asPositiveIntValue(&c.c), "c", "Concurrency level")
+	fs.Var(asPositiveIntValue(&c.rps), "rps", "Requests per second")
+
+	if err := fs.Parse(args); err != nil { 									// 3
+		return err
+	}
+	c.url = fs.Arg(0) 														// 4
+
+	return nil
+}
+```
+
+## Validating flags
+
+FlagSet doesn't support validating mandatory arguments or flags, so you have to validate flag values after they are parsed and set in the configuration object.
+
+
+
+## flag functions
 
 Call each of these functions after you call `flag.Parse()`:
 
