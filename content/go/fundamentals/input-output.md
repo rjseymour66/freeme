@@ -9,6 +9,10 @@ In Go, input and output center around the `io.Reader` and `io.Writer` interfaces
 - Reader: A type that reads its own bytes. Each reader has a `Read` method that reads the contents of the reader itself and stores it in a slice of bytes in memory.
 - Writer: A type that can receive bytes. Each writer has a `Write` method that writes a slice of bytes from memory into the writer itself.
 
+{{< admonition "Memory management" note >}}
+Memory management is a primary design feature of the Reader and Writer interface. Both interfaces require that the caller provide a byte slice (`[]byte`). This lets the caller allocate memory for one byte slice, read or write data into that slice, then do something with the data. The caller can fill that single buffer as many times as needed instead of allocating multiple byte slices.
+{{< /admonition >}}
+
 ## io.Reader
 
 A reader is something that you can read bytes from. Think of it as a mechanism that reads data from a stream and stores it in memory:

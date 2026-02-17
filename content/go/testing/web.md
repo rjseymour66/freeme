@@ -1,7 +1,7 @@
 +++
 title = 'Web apps'
 date = '2025-11-18T22:55:55-05:00'
-weight = 30
+weight = 40
 draft = false
 +++
 
