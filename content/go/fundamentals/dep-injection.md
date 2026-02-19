@@ -14,7 +14,7 @@ Go doesn't use frameworks for dependency injection, it uses the following:
 
 To do this, you need to place the core logic of `main` into another function, and store all of its dependencies into a environment struct. This lets you inject real dependencies during production and fake dependencies during testing.
 
-## Decoupling main
+## Decoupling `main`
 
 The following steps decouple `main` from global dependencies:
 1. Declare a `run` function next to `main`.
@@ -140,3 +140,6 @@ e := &env{
 
 err := run(e)
 ```
+
+## CLI tools
+
