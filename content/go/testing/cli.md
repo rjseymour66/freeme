@@ -100,3 +100,78 @@ func TestRunInvalidInput(t *testing.T) {
 	}
 }
 ```
+
+## Unit testing
+
+Unit tests confirm that each component functions correctly in isolation. The following tests validate that a program can parse flags.
+
+
+### Setup
+
+These tests validate the CLI tool configuration, which is set with `parseArgs`. This function mutates a configuration struct, takes a string of arguments, and logs error messages to a Writer:
+
+```go
+func parseArgs(c *config, args []string, stderr io.Writer) error
+```
+
+To test this, we create a `parseArgsTest` struct to model the inputs and expected outputs:
+1. Name for the test case.
+2. Arguments that populate the config.
+3. Expected output of the test, a mutated configuration object 
+
+```go
+type parseArgsTest struct {
+	name string         // 1
+	args []string       // 2
+	want config         // 3
+}
+```
+
+### Table tests
+
+Test the configuration with table tests that run in parallel. These tests follow the same patterns described in [Unit testing](../unit-testing/#table-driven-tests), with the addition of `io.Discard`. Use this when you do not care about capturing the error output with `os.Stderr` or `strings.Builder`. `io.Discard` throws away the bytes passed to the Writer.
+
+```go
+func TestParseArgsValidInput(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []parseArgsTest{
+		{
+			name: "all_flags",
+			args: []string{"-n=10", "-c=5", "-rps=5", "http://test"},
+			want: config{n: 10, c: 5, rps: 5, url: "http://test"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got config
+			if err := parseArgs(&got, tt.args, io.Discard); err != nil {
+				t.Fatalf("parseArgs() error = %v, want no error", err)
+			}
+			if got != tt.want {
+				t.Errorf("flags = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseArgsInvalidInput(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []parseArgsTest{
+		{name: "n_syntax", args: []string{"-n=ONE", "http://test"}},
+		{name: "n_zero", args: []string{"-n=0", "http://test"}},
+		{name: "n_negative", args: []string{"-n=-1", "http://test"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := parseArgs(&config{}, tt.args, io.Discard)
+			if err == nil {
+				t.Fatal("parseArgs() = nil, want error")
+			}
+		})
+	}
+}
+```

@@ -95,3 +95,132 @@ Here, we run a goroutine in an IIFL and pass the `file` value from the outer `fo
 If the goroutine closure captured `file`, all goroutines would share that same variable. This variable changes with each iteration, and it might be the same value by the time they execute. In other words, every goroutine might try to compress the last file passed to the `for range` loop.
 
 Passing `file` as an argument to the IIFL means that it is evaluated immediately, and each goroutine gets its a unique copy of the `file` variable in each iteration.
+
+## Function types
+
+You can declare a type as a function. For example:
+- Assign it to a variable
+- Pass it as an argument
+- Return it from another function
+- Store it in a struct
+
+Function types are a clean way to pass behavior in your program. They are similar to an interface, but they are not applied as broadly and are usually used for a simple abstraction.
+
+
+### Strategy pattern
+
+This pattern lets you pass different behavior into the same function.
+
+1. Declare a function type. `Operation` is a function that takes two `int`s and returns an `int`:
+   ```go
+   type Operation func(int, int) int
+   ```
+2. `calculate` takes two `int`s and an `Operation` function type. The function calls the `Operation` function on the given `int` inputs:
+   ```go
+   func calculate(a, b int, op Operation) int {
+	   return op(a, b)
+   }
+   ```
+3. Now, you can define multiple functions that use the `Operation` signature:
+   ```go
+   func add(a, b int) int {
+   	  return a + b
+   }
+   
+   func subtract(a, b int) int {
+   	  return a - b
+   }
+   
+   func multiply(a, b int) int {
+   	  return a * b
+   }
+   ```
+4. Pass these functions to `calculate`, which defines its behavior:
+   ```go
+   func main() {
+	   a := calculate(5, 4, add)
+	   b := calculate(5, 4, subtract)
+	   c := calculate(9, 2, multiply)
+   }
+   ```
+
+### Dependency injection
+
+This example creates a service that uses a function type to define what kind of notification it sends. 
+
+1. Define the function type:
+   ```go
+   type SendFunc func(to, message string) error
+   ```
+2. Build a service that depends on it:
+   1. Define the struct. The `NotificationService` type does not know what `send` does, only that it is a function that takes two strings and returns an error.
+   2. A factory function. This is where the dependency injection occurs. You pass to the factory function a `SendFunc` function that is assigned to the new `NotificationService` instance.
+   3. Create a `NotifyUser` method that calls a `SendFunc` with the given arguments. This is a closure that captures the arguments that you pass to the the `SendFunc`. In addition, it registers a function with the service that sends a not-yet-defined function.
+   
+      `send` returns an error, so we do not have to explicitly return an `error`.
+
+   ```go
+   type NotificationService struct {                                    // 1
+	   send SendFunc
+   }
+
+   func NewNotificationService(send SendFunc) *NotificationService {    // 2
+   	  return &NotificationService{send: send}
+   }
+
+   func (s *NotificationService) NotifyUser(user string) error {        // 3
+      msg := "Welcome!"
+      return s.send(user, msg)
+   }
+   ```
+3. To implement the pattern, define a `SendFunc` function:
+   ```go
+   func testSend(to, message string) error {
+	  fmt.Printf("--Test message--\nTo: %s\nMessage: %s\n", to, message)
+	  return nil
+   }
+   ```
+4. In `main`, create the service:
+   1. Creat a `NotificationService`, and pass the `testSend` function to set its `send` field.
+   2. Call the `NotifyUser` method and handle the error.
+   ```go
+   func main() {
+	   svc := NewNotificationService(printSend)                          // 1
+	   if err := svc.NotifyUser("alice@example.com"); err != nil {       // 2
+	      log.Fatal(err)
+	   }
+   }
+   ```
+
+#### Production-grade 
+
+If we were to implement this in production, we would want to remove the global dependency on STDERR, which is where the error is logged. To do this, we need to move the logic in `main` into a `run` function.
+
+Define an `env` struct that stores the dependencies, and pass it to the `run` function:
+
+
+```go
+// dependencies
+type env struct {
+	stderr io.Writer
+}
+
+func run(e *env) error {
+	svc := NewNotificationService(printSend)
+	if err := svc.NotifyUser("alice@example.com"); err != nil {
+		fmt.Fprintf(e.stderr, "%v\n", err)
+		return err
+	}
+	return nil
+}
+```
+
+Now, we can call the service from `main` and pass any Writer for STDERR. This makes our code composable and testable:
+
+```go
+func main() {
+	if err := run(&env{stderr: os.Stderr}); err != nil {
+		os.Exit(1)
+	}
+}
+```

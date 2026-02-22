@@ -359,9 +359,9 @@ The `select` statement watches zero or more channels for an event. It behaves si
 
 A `select` statement is a control flow mechanism, because it blocks if none of the statements can execute.
 
-#### Example
+### Example
 
-Here is a basic example that uses a select statement to echo console input back to the console. The `readStdin` function uses multiple channels to send and receive data:
+Here is a basic example that uses a `select` statement to echo console input back to the console. The `readStdin` function uses multiple channels to send and receive data:
 1. The function accepts the `out` channel as an argument. `out` is a send-only channel---the program sends bytes into this channel.
 2. There is an infinite `for` loop so we can read as long as needed.
 3. The `data` channel is slice of bytes that can hold up to 1KB (1024 bytes).
@@ -423,6 +423,32 @@ func main() {
 			return
 		}
 	}
+}
+```
+
+## time.Ticker (todo)
+
+https://gobyexample.com/tickers
+
+In Go, `time.NewTicker` is a function used to create a Ticker, which sends signals over a channel at regular, repeated intervals. It is the standard tool for executing periodic tasks like polling an API, logging system status, or running background maintenance.
+
+### Key Characteristics
+
+- **Periodic Execution**: Unlike `time.Timer`, which fires once, a Ticker repeats indefinitely until it is stopped.
+- **The Channel (C)**: The ticker contains a receive-only channel, `ticker.C`, which transmits the current time at each interval.
+- **Timing Accuracy**: It uses the monotonic clock and will adjust intervals or drop ticks if the receiver is too slow to keep up with the specified duration.
+- **Resource Management**: You should call `ticker.Stop()` to release associated resources when the ticker is no longer needed.
+
+{{< admonition "Stop()" note >}}
+Since Go 1.23, unreferenced tickers can be garbage collected even if not stopped, but calling Stop() remains a best practice for compatibility and clarity. 
+{{< /admonition >}}
+
+```go
+ticker := time.NewTicker(2 * time.Second)
+defer ticker.Stop() // Ensure it's cleaned up
+
+for t := range ticker.C {
+    fmt.Println("Tick at", t)
 }
 ```
 

@@ -1,7 +1,7 @@
 +++
 title = 'Cobra'
 date = '2025-08-13T15:51:46-04:00'
-weight = 20
+weight = 30
 draft = false
 +++
 
