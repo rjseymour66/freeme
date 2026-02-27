@@ -31,13 +31,18 @@ chTwo := make(chan []byte)
 
 ### Arrow operator
 
-By default, channels are bidirectional, which means it can both send and receive data. To create a unidirectional channel---one that either sends or receives---use the arrow operator. This table summarizes the arrow placement:
+By default, channels are bidirectional, which means it can both send and receive data. To create a unidirectional channel---one that either sends or receives---use the arrow operator.
+
+This table summarizes the arrow placement:
 
 | Channel type | Example | Description             |
 | :----------- | :------ | :---------------------- |
-| send         | `ch <-` | Send data into `ch`.    |
-| receive      | `<-ch`  | Receive data from `ch`. |
+| send-only    | `ch <-` | Send data into `ch`.    |
+| receive-only | `<-ch`  | Receive data from `ch`. |
 
+{{< admonition "Caller's perspective" tip>}}
+A channel's direction is determined by the caller's perspective. If the caller can only send data into a channel, then it is a "send-only" channel. If the caller can only receive data from a channel, then it is a "recieve-only" channel.
+{{< /admonition >}}
 
 ### Send channels
 

@@ -14,8 +14,7 @@ Network programming in Go uses the `http` package---built on top of the `net` pa
 2. Retrieve data.
 3. Close the connection gracefully.
 
-Go's HTTP client can perform almost any HTTP request, and it is highly customizable.
-
+Go's HTTP client can perform almost any HTTP request, and it is highly customizable. Sending a request and returning a response is an HTTP round trip.
 
 ## Basic client
 
@@ -29,7 +28,7 @@ This example demonstrates a GET request:
 1. Makes a GET request to the given URL. This function returns an `http.Response` and an `error`, which you ignore.
 2. `ReadAll` accepts a Reader and returns a byte slice and an `error`. 
 3. Handle the error.
-4. Closes the network connection. When you make a GET request, Go opens a TCP connection to the web server. This prevents memory leaks that result from open connection, and it lets the client reuse the TCP keep-alive connection.
+4. Closes the network connection. When you make a GET request, Go opens a TCP connection to the web server. This prevents memory leaks that result from open connection, and it lets the client's transport layer reuse the TCP keep-alive connection.
 5. Prints the contents of the body to the console.
 
 ```go
@@ -63,13 +62,17 @@ Use `DefaultClient` when you need a quick and convenient HTTP client where the f
 In its most basic form, making a request with the `DefaultClient` requires that you create two objects: a `Request` object and a client that makes the request:
 1. Create a new `Request` object. `NewRequest` takes a method, URL, and request body. Because this is a DELETE request, the body is `nil`.
 2. Handle any errors.
-3. `DefaultClient` sends the request with its `Do` method. The `Do` method is how the HTTP client sends a request. It accepts a `Request` object, passes it to the client's Transport layer, opens a connection, sends the request, then waits for the response.
+3. `DefaultClient` sends the request with its `Do` method. The `Do` method is how the HTTP client sends a request. It accepts a `Request` object, passes it to the client's Transport layer, opens a connection, sends the request, then waits for the response. It returns the `Response`, but it does not download the response body immediately.
 4. Handle any errors.
 5. Print the response status code to the console.
 
 ```go
 func main() {
-	req, err := http.NewRequest("DELETE", "https://jsonplaceholder.typicode.com/posts/1", nil)      // 1
+	req, err := http.NewRequest( 				// 1
+		"DELETE", 
+		"https://jsonplaceholder.typicode.com/posts/1",
+		nil,
+	)      
 	if err != nil {                             // 2
 		panic(err)
 	}
@@ -79,6 +82,38 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("%s\n", res.Status)              // 5
+}
+```
+
+### Request with context
+
+You can attach a context to a request with one of these methods:
+- Request `Clone` method: Attach an existing context to a Request object.
+- `NewRequestWithContext`: Create a new request with a new Context.
+
+This example returns a new request with a new Context:
+1. Creates a new request with a context.
+2. Creates a root context.
+3. `http.NoBody` is a variable that explicitly represents a request with no body and sets `ContentLength` to 0. Use this rather than `nil`.
+
+```go
+func main() {
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodGet,
+		"http://www.example.com",
+		http.NoBody,
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
 }
 ```
 
@@ -191,6 +226,52 @@ func main() {
 	}
 	defer resp.Body.Close()
 	fmt.Printf("%s", b)
+}
+```
+
+## Reading responses
+
+{{< admonition "I/O" tip >}}
+For more information about Readers and Writers, see [Input/Output](../../fundamentals/input-output).
+{{< /admonition >}}
+
+A response `Body` is a Reader, so we can stream it as chunks of bytes. This means that you don't have to use `io.ReadAll` to store the entire response body in memory. `io.ReadAll` allocates a 512-byte array, then appends memory to that array as needed. This leads to inefficient memory and CPU use.
+
+### io.Copy
+
+`io.Copy` lets you transfer bytes in a memory-efficient way. It transfers 32 KB chunks of bytes from a Reader to a Writer, then returns the number of bytes written and an error. Internally, `io.Copy` loops and reads from Reader and Writes to Writer. This continues until it reaches an EOF or an error occurs:
+
+```go
+func Copy(dst Writer, src Reader) (written int64, err error)
+```
+
+To demonstrate, this `Send` function sends an HTTP request and returns a custom `Result` type. It does not read the content of the response body, it only counts the bytes:
+1. Send the request.
+2. If the request fails, continue and assign the error to `Result.Error`. If it succeeds:
+   1. Close the response body to free the keep-alive connection. You want to close the body within these brackets because `Body.Close` discards the error if it is not `nil`.
+   2. Get the response status code. 
+   3. Get the number of bytes in the response. Because we don't care about the content in the response body, we write the bytes to `io.Discard`, which is the Go equivalent of `/dev/null`.
+
+```go
+func Send(client *http.Client, req *http.Request) Result {
+	started := time.Now()
+	var (
+		bytes int64
+		code  int
+	)
+	resp, err := client.Do(req) 						// 1
+	if err == nil { 									// 2
+		defer resp.Body.Close() 						// 2.1
+		code = resp.StatusCode 							// 2.2
+		bytes, err = io.Copy(io.Discard, resp.Body) 	// 2.3
+	}
+
+	return Result{
+		Duration: time.Since(started),
+		Bytes:    bytes,
+		Status:   code,
+		Error:    err,
+	}
 }
 ```
 
