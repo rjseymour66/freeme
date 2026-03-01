@@ -56,6 +56,227 @@ Use `DefaultClient` when you need a quick and convenient HTTP client where the f
 - Redirects: Up to 10
 - Transport: See [http.DefaultTransport](https://pkg.go.dev/net/http#DefaultTransport)
 
+## Custom client
+
+Go's `http.Client` lets you create a client with custom properties, like redirects and timeouts. Here is the `Client` implementation. Read the [Go documentation](https://pkg.go.dev/net/http#Client) for a complete description of all fields:
+
+```go
+type Client struct {
+	Transport RoundTripper
+	CheckRedirect func(req *Request, via []*Request) error
+	Jar CookieJar
+	Timeout time.Duration
+}
+```
+
+Here is a sample implementation:
+
+```go
+client := &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: o.Concurrency,
+			},
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+			Timeout: 30 * time.Second,
+		}
+```
+### Transport (Roundtripper)
+
+The `Transport` field uses the `Roundtripper` interface type, which enables the `Client` to delegate HTTP request and response handling to your `Roundtripper` implementation. It uses this interface:
+
+```go
+type RoundTripper interface {
+    RoundTrip(*http.Request) (*http.Response, error)
+}
+```
+
+The `DefaultClient` keeps 100 connections open and only allows 2 connections to be reused for the same host. If you are sending more than 2 requests to a host, you might consider creating a custom client with a transport layer.
+
+You can set a custom `RoundTripper` in a custom `Client`. It must perform the following tasks:
+- Establish TCP connections
+- Send HTTP requests
+- Return HTTP responses.
+
+
+#### Set connections per host
+
+This example customizes the [`Transport`](https://pkg.go.dev/net/http#Transport) type that sets the number of idle clients connections equal to the concurrency used in the client tool:
+
+```go
+client := &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConnsPerHost: o.Concurrency,
+			}
+		}
+```
+
+{{< admonition "Custom Transport" tip >}}
+`http.Transport` is the default concrete implementation of the `http.RoundTripper` interface. This differs from `http.DefaultTransport` because the `http.Transport` does not have other default settings. For a better pattern, see [Clone default transport](#clone-default-transport)
+{{< /admonition >}}
+
+
+#### Logging Transport
+
+This example creates a 
+
+```go
+type LoggingTransport struct {
+    Base http.RoundTripper
+}
+
+func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    fmt.Println("Sending request to:", req.URL)
+
+    resp, err := t.Base.RoundTrip(req)
+    if err != nil {
+        return nil, err
+    }
+
+    fmt.Println("Received response:", resp.Status)
+    return resp, nil
+}
+```
+
+#### Modify headers
+
+```go
+type HeaderTransport struct {
+    Base http.RoundTripper
+}
+
+func (t *HeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    req.Header.Set("X-Custom-Header", "myvalue")
+    return t.Base.RoundTrip(req)
+}
+```
+
+#### Clone default transport
+
+This example clones the `DefaultTransport` type so you can set some custom values but maintain the sensible defaults: 
+
+```go
+main {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+
+	transport.MaxIdleConns = 100
+	transport.IdleConnTimeout = 30 * time.Second
+
+	client := &http.Client{
+	    Transport: transport,
+	}
+}
+```
+
+### CheckRedirect
+
+This field lets you handle HTTP redirects. You can assign it a function to prevent redirects. The function must have the following signature:
+
+```go
+CheckRedirect func(req *Request, via []*Request) error
+```
+In the preceding function:
+- `req` is the next request that the client is about to send
+- `via` is a slice that contains all previous requests in the redirect chain, oldest to newest. `via[0]` is the original request.
+
+
+For example, imagine that you make a request to `a.com`, and then get redirected to `b.com` then `c.com`. When the client follows the last redirect to make a request to `c.com`, then `req` is an HTTP request to `c.com` and `via` is a slice that contains the previous requests, `[a.com, b.com]`.
+
+```bash
+Original Request  ──▶ Redirect 1 ──▶ Redirect 2 ──▶ Redirect 3
+      via[0]             via[1]         via[2]         req
+```
+
+
+#### Disable redirects
+
+The following setting disables HTTP redirects:
+
+```go
+client := &http.Client{
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+		}
+```
+
+#### Limit redirects
+
+This example limits the client to 3 redirects:
+
+```go
+client := &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 3 {
+			return fmt.Errorf("too many redirects")
+		}
+		return nil
+	},
+}
+```
+
+#### Log redirects
+
+This example logs redirects to the console:
+
+```go
+client := &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		fmt.Println("Redirecting to:", req.URL)
+		return nil
+	},
+}
+```
+
+#### Cross-domain redirects
+
+This example blocks any redirects to a domain that differs from the domain for the original request:
+
+```go
+client := &http.Client{
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) == 0 {
+			return nil
+		}
+
+		originalHost := via[0].URL.Host
+		if req.URL.Host != originalHost {
+			return fmt.Errorf("cross-domain redirect blocked")
+		}
+
+		return nil
+	},
+}
+```
+
+### Timeout
+
+HTTP allows the server and client to keep established connections alive until there is a timeout. This is called _keep-alive_.
+
+This example creates a client with a custom `Timeout` value:
+1. Create a custom client with a 1 second `Timeout`.
+2. Send a request with its `Get` method.
+
+```go
+func main() {
+	client := &http.Client{Timeout: time.Second}            // 1
+	res, err := client.Get("https://www.manning.com/")      // 2
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	defer res.Body.Close()
+	fmt.Printf("%s", b)
+}
+```
+
+
+
+## Sending Requests
 
 ### Request object and Do
 
@@ -114,29 +335,6 @@ func main() {
 		panic(err)
 	}
 
-}
-```
-
-## Custom client
-
-Go's `http.Client` lets you create a client with custom properties, like redirects and timeouts. This example creates a client with a custom `Timeout` value:
-1. Create a custom client with a 1 second `Timeout`.
-2. Send a request with its `Get` method.
-
-```go
-func main() {
-	client := &http.Client{Timeout: time.Second}            // 1
-	res, err := client.Get("https://www.manning.com/")      // 2
-	if err != nil {
-		panic(err)
-	}
-
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-	defer res.Body.Close()
-	fmt.Printf("%s", b)
 }
 ```
 
@@ -275,11 +473,9 @@ func Send(client *http.Client, req *http.Request) Result {
 }
 ```
 
-## Transport layer (TODO)
 
-The transport layer sits between the application code and the network connection.
 
-## Timeouts
+## Handling timeouts
 
 Timeout errors occur when the client waits too long for a response from a server and terminates the operation or connection. This might happen whether or not you explicitly set a timeout. You can detect a timeout error and retry the operation. The server might respond, or you might be routed to another running instance.
 
@@ -610,5 +806,61 @@ func main() {
 	res2.Body.Close()                               // 3
 
 	fmt.Println(body2)                              // 4
+}
+```
+
+## Testing
+
+### Roundtripper
+
+Implement a fake `RoundTripper` and pass it to the `Client`. You can satisfy the `RoundTripper` interface with a function type, and inject the function during testing so you don't have to make network calls in tests.
+
+This functional test verifies whether our `Send` method returns the correct error code.
+
+First, create the function type that satisfies `RoundTripper`:
+1. The function definition. Any function that takes an `*http.Request` and returns `*http.Response` and `error` can be this type.
+2. `RoundTrip` is the only method in the `RoundTripper` interface, so this means that the `roundTripperFunc` function type can be used as a `RoundTripper` type in a client's `Transport` field.
+   
+   Here, `RoundTrip` only calls the underlying function.
+
+```go
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+```
+
+Next, test that `Send` responds with the correct error code:
+1. Create the request.
+2. Create the fake `Transport`. This function ignores the request, then returns a `Response` with the status 500.
+3. Inject the fake. When `client` makes a call, it performs the following:
+   ```bash
+   client.Do ──▶ client.Transport.RoundTrip(req) ──▶ roundTripperFunc.RoundTrip ──▶ fake(req)
+   ```
+   When you inject the `fake` transport, you ensure that there are no live network calls. Think of a `RoundTripper` as the instructions needed to send a request over the network and a `Transport` as the engine that sends the request. By injecting "fake" instructions, the engine (`http.Transport`) doesn't call anything over the network.
+
+```go
+func TestSendStatusCode(t *testing.T) {
+	t.Parallel()
+
+	req, err := http.NewRequest(http.MethodGet, "/", http.NoBody)
+	if err != nil {
+		t.Fatalf("creating http request: %v", err)
+	}
+
+	fake := func(_ *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+		}, nil
+	}
+	client := &http.Client{
+		Transport: roundTripperFunc(fake),
+	}
+	result := Send(client, req)
+
+	if result.Status != http.StatusInternalServerError {
+		t.Errorf("got %d, want %d", result.Status, http.StatusInternalServerError)
+	}
 }
 ```

@@ -937,3 +937,39 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 
 
 You can find an in depth discussion about this technique in the Go article [Writing Web Applications](https://go.dev/doc/articles/wiki/).
+
+
+## Test servers
+
+```go
+func TestSendN(t *testing.T) {
+	t.Parallel()
+
+	var hits atomic.Int64
+
+	srv := httptest.NewServer(http.HandlerFunc(
+		func(_ http.ResponseWriter, _ *http.Request) {
+			hits.Add(1)
+		},
+	))
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL, http.NoBody)
+	if err != nil {
+		t.Fatalf("creating http requests: %v", err)
+	}
+	results, err := SendN(t.Context(), 10, req, Options{
+		Concurrency: 5,
+	})
+	if err != nil {
+		t.Fatalf("SendN() err=%v, want nil", err)
+	}
+
+	for range results { // just consume the results
+	}
+
+	if got := hits.Load(); got != 10 {
+		t.Errorf("got %d hits, want 10", got)
+	}
+}
+```
