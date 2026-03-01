@@ -1,5 +1,6 @@
 +++
-title = 'CLI tools'
+title = 'Testing CLI tools'
+linkTitle = "Testing"
 date = '2026-02-17T23:08:26-05:00'
 weight = 50
 draft = false
