@@ -5,8 +5,6 @@ weight = 10
 draft = false
 +++
 
-
-
 A goroutine is an independently running concurrent function that is invoked after the keyword `go`. Goroutines are executed and managed by the Go Scheduler. The Scheduler distributes the goroutines over multiple operating system threads that run on one or more processors. They run separate alongside other code with a thir own call stack that is a few KB.
 
 Goroutines use a few features that manage goroutines:
@@ -135,11 +133,15 @@ func world(s string, wg *sync.WaitGroup) { 		// 3
 
 ## Mutexes
 
-_Mutex_ stands for “mutual exclusion”---it is a mechanism that handles concurrency through memory access synchronization. A mutex provies a concurrent-safe way to provide exclusive access to shared resources.
+_Mutex_ stands for “mutual exclusion”---it is a mechanism that handles concurrency through memory access synchronization. A mutex provies a concurrent-safe way to provide exclusive access to shared resources. They protect shared state.
 
 Mutexes prevent _race conditions_, which occur when at least two processes are "racing" to read or write to the same data at the same time. One process might be in the middle of writing data while the other reads it, which can lead to data integrity problems and other errors.
 
 `sync.Mutex` provides the `.Lock()` and `.Unlock()` methods to implement mutexes. First, you lock a resource, perform a task on the resource, then unlock it when the task is complete. Goroutines wait to access the resource until the lock is removed.
+
+{{< admonition "Mutex vs RWMutex" note >}}
+`Mutex` provides exclusive access to a resource to one goroutine at a time. `RWMutex` allows multiple goroutines to read from a resource, but only one can write, or change the state.
+{{< /admonition>}}
 
 ### Example
 

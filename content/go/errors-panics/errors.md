@@ -138,6 +138,21 @@ func echoString(s string) (string, error) {
 }
 ```
 
+## Declaring errors
+
+Idiomatic Go declares errors at package scope of your program. Prefix all errors with `Err`:
+
+```go
+var (
+	ErrConflict   = errors.New("conflict")
+	ErrNotFound   = errors.New("not found")
+	ErrBadRequest = errors.New("bad request")
+	ErrInternal   = errors.New("internal error")
+)
+```
+
+
+
 ## Helper functions
 
 If you find yourself doing repetitive error checking, then you can create a helper function that takes an error and prints a message:
