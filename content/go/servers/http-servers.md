@@ -38,6 +38,15 @@ type Server struct {
 
 ### Timeouts
 
+In some cases, a multiplex server might have an issue if it handles multiple large client requests that take too long to read. The server might become overwhelmed and become unresponsive or crash. You can set timeouts that define how long the server should wait before giving up.
+
+There are two important server timeout settings:
+- `ReadTimeout`: Starts a timer when the server accepts the connection and stops when it receives the request. This prevents the server from spending time on slow requests.
+- `IdleTimeout`: Allots a set amount of total time that the server keeps a connection open while waiting for a new request. If no request comes, then the server closes the connection.
+
+
+#### Example
+
 The following example creates a server with different timeout values:
 1. Create a multiplex server.
 2. Register the `timeoutHandler` to the `/timeout` path.
@@ -52,7 +61,7 @@ The following example creates a server with different timeout values:
    The protocol determines when the timeout deadline occurs:
    - HTTP: 1 second after the request header is read.
    - HTTPS: 2 seconds after the request is accepted.
-7. `TimeoutHandler` is a wrapper that returns a 503 error for any request that exceeds the timeout deadline.
+7. `TimeoutHandler` is a wrapper that returns a 503 error for any request that exceeds the timeout deadline. This protects the server from long-running handlers.
 
 ```go
 func main() {
@@ -171,6 +180,18 @@ func main() {
 	} else {
 		fmt.Println("Server stopped cleanly")
 	}
+}
+```
+
+### Health check
+
+A health check handler should respond with a simple "OK" message to confirm that the server is functioning. Health checks are used by load balancers and orchestrators like Kubernetes.
+
+This handler responds with a 200 status code:
+
+```go
+func Health(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "OK")
 }
 ```
 
@@ -294,15 +315,14 @@ A handler is any type or function that can respond to an HTTP request.
 
 ### Handler interface
 
-To handle an HTTP request, a type or function must implement the `Handler` interface:
+To handle an HTTP request, a type or function must implement the `Handler` interface, which has only the `ServeHTTP` method:
 
 ```go
 type Handler interface {
 	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 ```
-
-So if you have a type `customHandler` with the `ServeHTTP` method, it is an `http.Handler`:
+The `ServeHTTP` method does not return anything---it writes to a `ResponseWriter` and reads the `Request` object. If you have a type `customHandler` with the `ServeHTTP` method, it is an `http.Handler`:
 
 ```go
 type customHandler struct {}
@@ -311,7 +331,21 @@ func (c *customHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// logic
 }
 ```
-Notice that the `ServeHTTP` method does not return anything---it only writes to the writer, or reads the request object.
+
+### ResponseWriter
+
+`ResponseWriter` is an interface with the following methods. You must call them in the proper order, for example, write headers before you write the body:
+- `Header`: Sets the HTTP response headers.
+- `WriteHeader`: Sets the HTTP status code on the response. This defaults to `200` if you don't set it, or if you call `WriteHeader` after `Write`.
+- `Write`: Writes the response body to the client.
+
+```go
+type ResponseWriter interface {
+	Header() Header
+	WriteHeader(statusCode int)
+	Write([]byte) (int, error)
+}
+```
 
 ### Registering a Handler
 
@@ -418,9 +452,27 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 }
 ```
 
-## Handling HTTP requests
+### Handler closures
 
-Extract information from a request with `http.Request`, and send responses with the `http.ResponseWriter`.
+Handler closures are factory functions that build HTTP handlers with injected dependencies. This example returns a handler that takes a logger and a custom `link` type:
+
+```go
+func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key, err := links.Shorten(r.Context(), link.Link{
+			Key: link.Key(r.PostFormValue("key")),
+			URL: r.PostFormValue("url"),
+		})
+		if err != nil {
+			httpError(w, r, lg, fmt.Errorf("shortening: %w", err))
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, key)
+	})
+}
+```
 
 ## Reading requests
 
@@ -664,6 +716,36 @@ func fileUploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+#### PostFormValue
+
+`PostFormValue` reads post form data from a Request body or form, not query parameters. It automatically parses the form, so there is no need to call `r.ParseForm()`.
+
+If there is no value, it returns an empty string, not an error. For example, if you have the following form:
+
+```html
+<form method="POST" action="/login">
+  <input name="username">
+  <input name="password" type="password">
+  <button type="submit">Login</button>
+</form>
+```
+
+You can retrieve the `username` and `password` fields with the following `loginHandler` function:
+
+```go
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.PostFormValue("username")
+	password := r.PostFormValue("password")
+
+	fmt.Fprintf(w, "username=%s password=%s\n", username, password)
+}
+
+func main() {
+	http.HandleFunc("/login", loginHandler)
+	http.ListenAndServe(":8080", nil)
+}
+```
+
 ### Body (raw bytes)
 
 The `Body` field is an `io.ReaderCloser` that contains the requet body. A request body is available only if it is a request that includes one, such as a POST request.
@@ -703,6 +785,50 @@ func decodeJSON(w http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		fmt.Println("Line:", scanner.Text())
 	}
+}
+```
+
+### Errors
+
+Non-trivial applications define their own error types, which you can use in handlers. For example, you might have an `error.go` file that contains these custom errors:
+
+```go
+var (
+	ErrConflict   = errors.New("conflict")
+	ErrNotFound   = errors.New("not found")
+	ErrBadRequest = errors.New("bad request")
+	ErrInternal   = errors.New("internal error")
+)
+```
+
+You can create a helper that checks the error type and writes the error to the ResponseWriter:
+1. Sets the error code to an internal server error if no cases match.
+2. Create a `switch` statement to compare the error to your custom error types and assign `code` when there is a match.
+3. If there is an internal server error, log the error internally with `ErrorContext`.
+   1. Assign `err` the custom internal error so you can write it to the client response.
+4. Write the response with `http.Error`.
+   
+```go
+func httpError(
+	w http.ResponseWriter,
+	r *http.Request,
+	lg *slog.Logger,
+	err error,
+) {
+	code := http.StatusInternalServerError 							// 1
+	switch { 														// 2
+	case errors.Is(err, link.ErrBadRequest):
+		code = http.StatusBadRequest
+	case errors.Is(err, link.ErrConflict):
+		code = http.StatusConflict
+	case errors.Is(err, link.ErrNotFound):
+		code = http.StatusNotFound
+	}
+	if code == http.StatusInternalServerError { 					// 3
+		lg.ErrorContext(r.Context(), "internal", "error", err)
+		err = link.ErrInternal 										// 3.1
+	}
+	http.Error(w, err.Error(), code) 								// 4
 }
 ```
 

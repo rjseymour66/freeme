@@ -251,6 +251,23 @@ func main() {
 
 In the previous example, the `Debug` messages are not logged to the console. You can change that with a custom structured logger.
 
+### Creating a logger
+
+These examples create custom structured loggers:
+1. `jsonLogger` creates a new JSON logger that writes to a file with custom options.
+2. `textLogger` creates a new text logger that writes to SDTERR. `With` attaches a persistent structured field to each log entry, which adds context and makes the log more searchable and filterable. For example, every log with this logger includes `app=linkd`.
+
+```go
+	jsonLogger := slog.New(slog.NewJSONHandler(file, &slog.HandlerOptions{ 		// 1
+		Level: slog.LevelDebug,
+	}))
+
+	textLogger := slog.New(slog.NewTextHandler(os.Stderr, nil)) 				// 2
+		.With("app", "linkd")
+		
+	// time=2026-03-07T08:15:00Z level=INFO msg="server started" app=linkd
+```
+
 
 ### JSON logging
 

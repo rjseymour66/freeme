@@ -50,6 +50,54 @@ func TestSendN(t *testing.T) {
 }
 ```
 
+## Handlers
+
+Testing a handler involves providing a `Request` and `ResponseWriter` and observing its response. You can inspect a handler's response with `httptest.ResponseRecorder` to verify it responds with what you expect.
+
+### Response recording
+
+`ResponseRecorder` is a `ResponseWriter`, so you can pass it to a handler to observe its response.
+
+Here is table of useful fields:
+
+| Field       | Type            | Purpose                                      |
+| :---------- | :-------------- | :------------------------------------------- |
+| `Code`      | `int`           | HTTP status code written by the handler      |
+| `Body`      | `*bytes.Buffer` | Contains the response body                   |
+| `HeaderMap` | `http.Header`   | Stored headers (deprecated — use `Header()`) |
+| `Flushed`   | `bool`          | Indicates whether `Flush()` was called       |
+
+
+#### Example 
+
+For example, we want to test this `Health` handler function that sends an "OK" response to requests:
+
+```go
+func Health(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "OK")
+}
+```
+
+Create the `TestHealth` function that validates the handler response with a `ResponseRecorder`:
+1. Create the recorder.
+2. Call `Health`. You don't have to call this with a server because it is a regular function that you convert to a handler with `HandleFunc`. You can create the `Request` inline with `NewRequest`.
+3. Check the response code.
+4. Check the response body.
+
+```go
+func TestHealth(t *testing.T) {
+	rec := httptest.NewRecorder() 												// 1
+	Health(rec, httptest.NewRequest(http.MethodGet, "/ ", nil)) 				// 2
+
+	if rec.Code != http.StatusOK { 												// 3
+		t.Errorf("got status code = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got := rec.Body.String(); !strings.Contains(got, "OK") { 				// 4
+		t.Errorf("\ngot body = %s\nwant contains %s", got, "OK")
+	}
+}
+```
+
 ## Services
 
 
