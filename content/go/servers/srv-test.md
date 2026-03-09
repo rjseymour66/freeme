@@ -78,21 +78,44 @@ func Health(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+First, create a test helper so you can create a new request. The `http.NewRequest()` function panics instead of returning an error, so we handle this with a helper:
+1. You are using the helper function for unit testing, so you do not need to export it.
+2. Use `testing.TB` so you can use the function for both tests and benchmarks.
+3. Don't return an error from a test helper or the caller has to handle the error.
+
+```go
+func newRequest( 		// 1
+	tb testing.TB, 		// 2
+	method string,
+	target string,
+	body io.Reader,
+) *http.Request {
+	tb.Helper() 		// 3
+
+	r, err := http.NewRequest(method, target, body)
+	if err != nil {
+		tb.Fatalf("newRequest() err = %v, want nil", err)
+	}
+	return r
+}
+```
+
 Create the `TestHealth` function that validates the handler response with a `ResponseRecorder`:
 1. Create the recorder.
 2. Call `Health`. You don't have to call this with a server because it is a regular function that you convert to a handler with `HandleFunc`. You can create the `Request` inline with `NewRequest`.
-3. Check the response code.
-4. Check the response body.
+3. Create a new request with the `newRequest` helper.
+4. Check the response code.
+5. Check the response body.
 
 ```go
-func TestHealth(t *testing.T) {
-	rec := httptest.NewRecorder() 												// 1
-	Health(rec, httptest.NewRequest(http.MethodGet, "/ ", nil)) 				// 2
+func TestHealth(t *testing.T) { 												// 1
+	rec := httptest.NewRecorder() 												// 2
+	Health(rec, newRequest(t, http.MethodGet, "/ ", http.NoBody)) 				// 3
 
-	if rec.Code != http.StatusOK { 												// 3
+	if rec.Code != http.StatusOK { 									 			// 4
 		t.Errorf("got status code = %d, want %d", rec.Code, http.StatusOK)
 	}
-	if got := rec.Body.String(); !strings.Contains(got, "OK") { 				// 4
+	if got := rec.Body.String(); !strings.Contains(got, "OK") { 				// 5
 		t.Errorf("\ngot body = %s\nwant contains %s", got, "OK")
 	}
 }
