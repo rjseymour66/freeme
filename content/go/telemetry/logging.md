@@ -264,7 +264,7 @@ These examples create custom structured loggers:
 
 	textLogger := slog.New(slog.NewTextHandler(os.Stderr, nil)) 				// 2
 		.With("app", "linkd")
-		
+
 	// time=2026-03-07T08:15:00Z level=INFO msg="server started" app=linkd
 ```
 
@@ -278,7 +278,11 @@ Go provides tools to simplify structured logging in JSON:
    - `NewJSONHandler` returns a handler that writes log records as line-delimited JSON objects to an `io.Writer`. It accepts the `Writer` type and a `HandlerOptions` struct. Here, the `HandlerOptions` struct sets the logging level at debug or higher.
 1. Replaces the default global logger with the new JSON `logger`
 2. `Debug` messages log to the console because how the log handler set the logging level.
-3. `slog` provides helper functions for each type so you can build key/value structured logs without worrying about formatting. The first value is the log message, which is followed by additional key/value pairs of the specified type. The `Group` attribute lets you create nested structured logs.
+3. `slog` provides helper functions for each type so you can build key/value structured logs without worrying about formatting. The first value is the log message, which is followed by additional key/value pairs of the specified type.
+   
+   `String` returns an `slog.Attr` struct, which returns key/value pairs of the given values.
+   
+   The `Group` attribute lets you create nested structured logs.
 
 
 ```go
