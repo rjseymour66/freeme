@@ -82,140 +82,6 @@ func main() {
 }
 ```
 
-### Middleware
-
-Middleware is a pattern that wraps handlers to add functionality like logging or tracing. A middleware function can preprocess a request and postprocess a response. To accomplish this, a middleware function takes a handler interface and returns a handler interface.
-
-The middleware sits between the incoming requests and the handlers---the middleware forwards the request until it reaches a handler. For example:
-1. This function takes a handler named `next`.
-2. It returns a handler function tht calls the `ServeHTTP` function on `next`.
-
-```go
-func Middleware(next http.Handler) http.Handler { 								// 1
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r) 													// 2
-		...
-	})
-}
-```
-
-Here is a more concrete example of a logging middleware. `Logging` takes an existing handler and returns a new handler that calls (wraps) the original handler.
-1. `Logging` takes a handler `next` and returns a handler.
-2. Return a handler. This is an anonymous handler that is adapted to a handler with a `HandlerFunc`.
-3. Within the returned handler, you do work, then call the `next` handler, then do more work.
-
-```go
-func Logging(next http.Handler) http.Handler { 									// 1
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { 		// 2
-		fmt.Println("before handler") 											// 3
-		next.ServeHTTP(w, r)
-		fmt.Println("after handler")
-	})
-}
-```
-
-#### Dependencies in middleware
-
-{{< admonition "Dependency injection" tip >}}
-Do not use global dependencies such as loggers. Instead, inject loggers explicitly into middleware or handlers to simplify testing.
-{{< /admonition >}}
-
-To demonstrate how to inject a dependency with middleware, this example injects a logger. You have to declare a middleware function type and nest closures:
-1. `MiddlewareFunc` is a function type that takes a handler and returns a handler.
-2. `Middleware` is a regular function that takes a logger and returns a `MiddlewareFunc`.
-3. This line returns the `MiddlewareFunc`, which takes the handler (`next`) that you want to wrap.
-4. Return an anonymous function that is adapted to a handler with `HandlerFunc`.
-5. Call the handler, passing in the response and request.
-6. Log values from the Request object. This line emits a log record and is more efficient than `logger.Log` because it accepts typed values.
-7. Propagates the Request Context to the logger.
-8. Emits information-level log message with a "request" message.
-9. Creates a key/value pair from the path and URL (`path=/urlname`).
-10. Creates a key/value pair from the method (`method=GET`).
-
-
-```go
-type MiddlewareFunc func(http.Handler) http.Handler 			// 1
-
-func Middleware(lg *slog.Logger) MiddlewareFunc { 				// 2
-	return func(next http.Handler) http.Handler { 				// 3
-		return http.HandlerFunc( 								// 4
-			func(w http.ResponseWriter, r *http.Request) {
-				next.ServeHTTP(w, r) 							// 5
-				lg.LogAttrs( 									// 6
-					r.Context(), 								// 7
-					slog.LevelInfo, "request",					// 8
-					slog.Any("path", r.URL), 					// 9
-					slog.String("method", r.Method)) 			// 10
-			},
-		)
-	}
-}
-```
-
-This middleware logs the following message if you send a request to the `/health` endpoint:
-
-```bash
-time=2026-03-11T23:47:18.717-04:00 level=INFO msg=request app=linkd path=/health method=GET
-```
-
-To integrate middleware with a server, you wrap the `Handler` field. The `run` function lets you pass a context and configuration to your server. It is called from `main`:
-1. Create the middleware.
-2. Wrap the `ServeMux` with the middleware. When the request arrives, the Server forwards the request to the middleware's handler by calling its `ServerHTTP` method. The handler forwards the request to the `ServeMux`, and then the `/health` handler. The middleware's handler logs request details after the request is served. For example: `Request => Server => Middleware => Duration => StatusCode => ServeMux => /health`.
-
-```go
-func run(_ context.Context, cfg config) error {
-	shortener := new(link.Shortener)
-
-	mux := http.NewServeMux()
-	// register routes
-
-	loggerMiddleware := hlog.Middleware(cfg.lg)
-
-	srv := &http.Server{
-		Handler:     loggerMiddleware(mux),
-		// additional server configuration
-	}
-
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("server closed unexpectedly: %w", err)
-	}
-	return nil
-}
-```
-
-
-
-```go
-var validAgent = regexp.MustCompile(`(?i)(chrome|firefox)`)
-
-func uaMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userAgent := r.UserAgent()
-		if !validAgent.MatchString(userAgent) {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		ctx := context.WithValue(r.Context(), "agent", userAgent)
-		r = r.WithContext(ctx)
-		next(w, r)
-	}
-}
-
-func uaStatusHandler(w http.ResponseWriter, r *http.Request) {
-	ua := r.Context().Value("agent").(string)
-	fmt.Fprint(w, fmt.Sprintf("congratulations, you are using: %s", ua))
-}
-
-func main() {
-	http.HandleFunc("GET /withcontext", uaMiddleware(uaStatusHandler))
-	if err := http.ListenAndServe(":8000", nil); err != nil {
-		panic("could not start server")
-	}
-}
-```
-#### Logging responses
-
-
 
 ### Graceful shutdown
 
@@ -1167,3 +1033,209 @@ func homePageHandler(res http.ResponseWriter, req *http.Request) {
 
 You can find an in depth discussion about this technique in the Go article [Writing Web Applications](https://go.dev/doc/articles/wiki/).
 
+
+## Middleware
+
+Middleware is a pattern that wraps handlers to add functionality like logging or tracing. A middleware function can preprocess a request and postprocess a response. To accomplish this, a middleware function takes a handler interface and returns a handler interface.
+
+The middleware sits between the incoming requests and the handlers---the middleware forwards the request until it reaches a handler. For example:
+1. This function takes a handler named `next`.
+2. It returns a handler function tht calls the `ServeHTTP` function on `next`.
+
+```go
+func Middleware(next http.Handler) http.Handler { 								// 1
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r) 													// 2
+		...
+	})
+}
+```
+
+Here is a more concrete example of a logging middleware. `Logging` takes an existing handler and returns a new handler that calls (wraps) the original handler.
+1. `Logging` takes a handler `next` and returns a handler.
+2. Return a handler. This is an anonymous handler that is adapted to a handler with a `HandlerFunc`.
+3. Within the returned handler, you do work, then call the `next` handler, then do more work.
+
+```go
+func Logging(next http.Handler) http.Handler { 									// 1
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { 		// 2
+		fmt.Println("before handler") 											// 3
+		next.ServeHTTP(w, r)
+		fmt.Println("after handler")
+	})
+}
+```
+
+### Dependencies in middleware
+
+{{< admonition "Dependency injection" tip >}}
+Do not use global dependencies such as loggers. Instead, inject loggers explicitly into middleware or handlers to simplify testing.
+{{< /admonition >}}
+
+To demonstrate how to inject a dependency with middleware, this example injects a logger. You have to declare a middleware function type and nest closures:
+1. `MiddlewareFunc` is a function type that takes a handler and returns a handler.
+2. `Middleware` is a regular function that takes a logger and returns a `MiddlewareFunc`.
+3. This line returns the `MiddlewareFunc`, which takes the handler (`next`) that you want to wrap.
+4. Return an anonymous function that is adapted to a handler with `HandlerFunc`.
+5. Call the handler, passing in the response and request.
+6. Log values from the Request object. This line emits a log record and is more efficient than `logger.Log` because it accepts typed values.
+7. Propagates the Request Context to the logger.
+8. Emits information-level log message with a "request" message.
+9. Creates a key/value pair from the path and URL (`path=/urlname`).
+10. Creates a key/value pair from the method (`method=GET`).
+
+
+```go
+type MiddlewareFunc func(http.Handler) http.Handler 			// 1
+
+func Middleware(lg *slog.Logger) MiddlewareFunc { 				// 2
+	return func(next http.Handler) http.Handler { 				// 3
+		return http.HandlerFunc( 								// 4
+			func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r) 							// 5
+				lg.LogAttrs( 									// 6
+					r.Context(), 								// 7
+					slog.LevelInfo, "request",					// 8
+					slog.Any("path", r.URL), 					// 9
+					slog.String("method", r.Method)) 			// 10
+			},
+		)
+	}
+}
+```
+
+This middleware logs the following message if you send a request to the `/health` endpoint:
+
+```bash
+time=2026-03-11T23:47:18.717-04:00 level=INFO msg=request app=linkd path=/health method=GET
+```
+
+To integrate middleware with a server, you wrap the `Handler` field. The `run` function lets you pass a context and configuration to your server. It is called from `main`:
+1. Create the middleware.
+2. Wrap the `ServeMux` with the middleware. When the request arrives, the Server forwards the request to the middleware's handler by calling its `ServerHTTP` method. The handler forwards the request to the `ServeMux`, and then the `/health` handler. The middleware's handler logs request details after the request is served. For example: `Request => Server => Middleware => Duration => StatusCode => ServeMux => /health`.
+
+```go
+func run(_ context.Context, cfg config) error {
+	shortener := new(link.Shortener)
+
+	mux := http.NewServeMux()
+	// register routes
+
+	loggerMiddleware := hlog.Middleware(cfg.lg)
+
+	srv := &http.Server{
+		Handler:     loggerMiddleware(mux),
+		// additional server configuration
+	}
+
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("server closed unexpectedly: %w", err)
+	}
+	return nil
+}
+```
+
+
+
+```go
+var validAgent = regexp.MustCompile(`(?i)(chrome|firefox)`)
+
+func uaMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userAgent := r.UserAgent()
+		if !validAgent.MatchString(userAgent) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		ctx := context.WithValue(r.Context(), "agent", userAgent)
+		r = r.WithContext(ctx)
+		next(w, r)
+	}
+}
+
+func uaStatusHandler(w http.ResponseWriter, r *http.Request) {
+	ua := r.Context().Value("agent").(string)
+	fmt.Fprint(w, fmt.Sprintf("congratulations, you are using: %s", ua))
+}
+
+func main() {
+	http.HandleFunc("GET /withcontext", uaMiddleware(uaStatusHandler))
+	if err := http.ListenAndServe(":8000", nil); err != nil {
+		panic("could not start server")
+	}
+}
+```
+### Inteceptor pattern
+
+```go
+type Response struct {
+	Duration   time.Duration
+	StatusCode int
+}
+
+func RecordResponse(
+	h http.Handler,
+	w http.ResponseWriter,
+	r *http.Request,
+) Response {
+	var rr Response
+	mws := []MiddlewareFunc{
+		Duration(&rr.Duration),
+		StatusCode(&rr.StatusCode),
+	}
+	for _, wrap := range slices.Backward(mws) {
+		h = wrap(h)
+	}
+	h.ServeHTTP(w, r)
+	return rr
+}
+
+type Interceptor struct {
+	http.ResponseWriter
+	OnWriteHeader func(code int)
+}
+
+func (ic *Interceptor) WriteHeader(code int) {
+	if ic.OnWriteHeader != nil {
+		ic.OnWriteHeader(code)
+	}
+	ic.ResponseWriter.WriteHeader(code)
+}
+
+func StatusCode(n *int) MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			*n = http.StatusOK
+			w = &Interceptor{
+				ResponseWriter: w,
+				OnWriteHeader: func(code int) {
+					*n = code
+				},
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+```
+
+
+
+### Optional interface pattern
+
+The optional interface pattern in Go is a design technique where a type may implement additional interfaces, and callers check for them dynamically using type assertions. It’s heavily used in net/http, especially with `http.ResponseWriter` wrappers.
+
+`Flusher` is an interface that a ResponseWriter might implement. You have to check for it at runtime:
+
+```go
+if f, ok := w.(http.Flusher); ok {
+	f.Flush()
+}
+```
+
+For example, this method lets middleware layers recover the original underlying writer:
+
+```go
+func (ic *Interceptor) Upwrap() http.ResponseWriter {
+	return ic.ResponseWriter
+}
+```
