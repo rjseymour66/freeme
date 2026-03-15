@@ -1239,3 +1239,338 @@ func (ic *Interceptor) Upwrap() http.ResponseWriter {
 	return ic.ResponseWriter
 }
 ```
+
+### Context propagation
+
+```go
+// kit/traceid/traceid.go
+func New() string {
+	return fmt.Sprintf("%d", time.Now().UnixNano())
+}
+
+type traceIDContextKey struct{}
+
+func WithContext(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, traceIDContextKey{}, id)
+}
+
+func FromContext(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(traceIDContextKey{}).(string)
+	return id, ok
+}
+```
+
+
+Create the middleware to inject trace IDs into `Request.Context` for each incoming request:
+
+```go
+// kit/traceid/http.go
+func Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := FromContext(r.Context()); !ok {
+			ctx := WithContext(r.Context(), New())
+			r = r.WithContext(ctx)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+```
+
+Implement the handler:
+
+```go
+// kit/traceid/http.go
+const LogKey = "trace_id"
+
+type LogHandler struct {
+	slog.Handler
+	LogKey string
+}
+
+func NewLogHandler(next slog.Handler) *LogHandler {
+	return &LogHandler{
+		Handler: next,
+		LogKey:  LogKey,
+	}
+}
+
+func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
+	if id, ok := FromContext(ctx); ok {
+		r = r.Clone()
+		r.AddAttrs(slog.String(h.LogKey, id))
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
+func (h *LogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return NewLogHandler(h.Handler.WithAttrs(attrs))
+}
+
+func (h *LogHandler) WithGroup(name string) slog.Handler {
+	return NewLogHandler(h.Handler.WithGroup(name))
+}
+```
+
+Integrate it into `main`:
+
+```go
+// cmd/linkd/linkd.go
+func main() {
+	var cfg config
+
+	// ...
+
+	cfg.lg = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "linkd")
+	cfg.lg.Info("starting", "addr", cfg.http.addr)
+
+	if err := run(context.Background(), cfg); err != nil {
+		cfg.lg.Error("failed to start server", "error", err)
+		os.Exit(1)
+	}
+}
+```
+
+Integrate the logger, and wrap the `mux` handler:
+
+```go
+func run(ctx context.Context, cfg config) error {
+	// ...
+	lg := slog.New(traceid.NewLogHandler(cfg.lg.Handler()))
+
+	mux := http.NewServeMux()
+	mux.Handle("POST /shorten", rest.Shorten(lg, shortener))
+	mux.Handle("GET /r/{key}", rest.Resolve(lg, shortener))
+	mux.HandleFunc("/health", rest.Health)
+
+	loggerMiddleware := hlog.Middleware(lg)
+	
+	srv := &http.Server{
+		Handler:     traceid.Middleware(loggerMiddleware(mux)),
+		// ...
+	}
+}
+```
+
+### Chaining handlers
+
+This makes sure that a handler always returns if there is an error:
+
+```go
+// kit/traceid/hio.go
+type Handler func(w http.ResponseWriter, r *http.Request) Handler
+
+func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	next := h(w, r)
+	if next != nil {
+		next.ServeHTTP(w, r)
+	}
+}
+```
+
+### Response handlers
+
+```go
+// kit/traceid/response.go
+type Responder struct {
+	err func(error) Handler
+}
+
+func NewReponder(err func(error) Handler) Responder {
+	return Responder{err: err}
+}
+
+func (rs Responder) Error(format string, args ...any) Handler {
+	return rs.err(fmt.Errorf(format, args...))
+}
+
+func (rs Responder) Redirect(code int, url string) Handler {
+	return func(w http.ResponseWriter, r *http.Request) Handler {
+		http.Redirect(w, r, url, code)
+		return nil
+	}
+}
+
+func (rs Responder) Text(code int, message string) Handler {
+	return func(w http.ResponseWriter, r *http.Request) Handler {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(code)
+		fmt.Fprint(w, message)
+		return nil
+	}
+}
+```
+
+Now, create the responder in the file that contains your business logic. We are creating a link shortener, so add it to `rest/shortener.go`:
+
+```go
+// rest/shortener.go
+// ...
+func newResponder(lg *slog.Logger) hio.Responder {
+	err := func(err error) hio.Handler {
+		return func(w http.ResponseWriter, r *http.Request) hio.Handler {
+			httpError(w, r, lg, err)
+			return nil
+		}
+	}
+	return hio.NewReponder(err)
+}
+```
+
+Here is how you integrate `newResponder` into the business logic:
+
+```go
+// Shorten handles HTTP requests to create a shortened link.
+func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
+	with := newResponder(lg)
+
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+		key, err := links.Shorten(r.Context(), link.Link{
+			Key: link.Key(r.PostFormValue("key")),
+			URL: r.PostFormValue("url"),
+		})
+		if err != nil {
+			return with.Error("shortening: %w ", err)
+		}
+
+		return with.Text(http.StatusCreated, key.String())
+	})
+}
+
+// Resolve handles HTTP requests to redirect from a key to its full URL.
+func Resolve(lg *slog.Logger, links *link.Shortener) http.Handler {
+	with := newResponder(lg)
+
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+		lnk, err := links.Resolve(r.Context(), link.Key(r.PathValue("key")))
+		if err != nil {
+			with.Error("resloving: %w", err)
+		}
+		return with.Redirect(http.StatusFound, lnk.URL)
+	})
+}
+```
+
+### JSON
+
+
+#### Encoding json
+
+```go
+// kit/hio/responder.go
+func (rs Responder) JSON(code int, from any) Handler {
+	data, err := json.Marshal(from)
+	if err != nil {
+		return rs.Error("encoding json: %w", err)
+	}
+	return func(w http.ResponseWriter, r *http.Request) Handler {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(code)
+		w.Write(data)
+		return nil
+	}
+}
+```
+
+#### Decoding JSON
+
+
+```go
+// kit/hio/request.go
+func DecodeJSON(from io.Reader, to any) error {
+	data, err := io.ReadAll(from)
+	if err != nil {
+		return fmt.Errorf("reading: %w", err)
+	}
+	if err := json.Unmarshal(data, to); err != nil {
+		return fmt.Errorf("unmarshalling json: %w", err)
+	}
+	v, ok := to.(interface{ Validate() error })
+	if ok {
+		if err := v.Validate(); err != nil {
+			return fmt.Errorf("validating: %w", err)
+		}
+	}
+	return nil
+}
+```
+
+
+#### Integrate
+
+Next, integrate this into the business logic:
+
+```go
+// rest/shortener.go
+func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
+	with := newResponder(lg)
+
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+		var lnk link.Link
+		err := hio.DecodeJSON(r.Body, &lnk)
+		if err != nil {
+			return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
+		}
+		key, err := links.Shorten(r.Context(), link.Link{
+			Key: link.Key(r.PostFormValue("key")),
+			URL: r.PostFormValue("url"),
+		})
+		if err != nil {
+			return with.Error("shortening: %w ", err)
+		}
+
+		return with.JSON(http.StatusCreated, map[string]link.Key{
+			"key": key,
+		})
+	})
+}
+```
+
+
+### Denial-of-service attacks
+
+Use the standard library's `MaxBytesReader` to prevent large payloads and make sure clients can't keep sending data after the handler stops reading:
+
+```go
+func MaxBytesReader(
+	w http.ResponseWriter,
+	rc io.ReadCloser,
+	max int64,
+) io.ReadCloser {
+	type unwrapper interface {
+		Unwrap() http.ResponseWriter
+	}
+	for {
+		v, ok := w.(unwrapper)
+		if !ok {
+			break
+		}
+		w = v.Unwrap()
+	}
+	return http.MaxBytesReader(w, rc, max)
+}
+```
+
+Implement it in the business logic after you decode the JSON:
+
+```go
+func Shorten(lg *slog.Logger, links *link.Shortener) http.Handler {
+	with := newResponder(lg)
+
+	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+		var lnk link.Link
+		err := hio.DecodeJSON(r.Body, &lnk)
+		hio.MaxBytesReader(w, r.Body, 4_096)
+		if err != nil {
+			return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
+		}
+		key, err := links.Shorten(r.Context(), lnk)
+		if err != nil {
+			return with.Error("shortening: %w ", err)
+		}
+
+		return with.JSON(http.StatusCreated, map[string]link.Key{
+			"key": key,
+		})
+	})
+}
+```
