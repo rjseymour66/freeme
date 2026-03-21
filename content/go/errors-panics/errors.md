@@ -140,6 +140,8 @@ func echoString(s string) (string, error) {
 
 ## Declaring errors
 
+
+
 Idiomatic Go declares errors at package scope of your program. Prefix all errors with `Err`:
 
 ```go
@@ -151,7 +153,20 @@ var (
 )
 ```
 
+{{< admonition "Tell a story" tip >}}
+Errors should tell a story in the present tense. For example:
 
+```bash
+error: resolving: retrieving: sql: database is closed
+```
+
+This is better than the following:
+```bash
+error occurred while resolving: cannot retrieve a link:
+	failed connection to the database:
+	sql: database is closed
+```
+{{< /admonition >}}
 
 ## Helper functions
 
@@ -227,7 +242,7 @@ func echoString(s string) (string, error) {
 
 ### errors.As
 
-`errors.As` checks if the error is of a specific type and assigns it to a variable. It accepts an error and a pointer to a variable of the custom error type. When you call `errors.As`, it checks if the error value is the same type as the pointer variable. If so, it assigns the error to the variable. This is helpful if you want to access additional fields in a custom error that implements the `error` interface.
+`errors.As` searches the error chain for a specific error type and assigns it to a variable. It accepts an error and a pointer to a variable of the custom error type. When you call `errors.As`, it checks if the error value is the same type as the pointer variable. If so, it assigns the error to the variable. This is helpful if you want to access additional fields in a custom error that implements the `error` interface.
 
 This example creates a custom error that contains a `Code` and a `Message`. The `returnError` method returns an error of this type with a specific error code. The `main` method does the following:
 1. Assigns to a variable the error returned from `returnError`.
