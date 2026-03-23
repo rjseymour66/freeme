@@ -5,8 +5,6 @@ weight = 10
 draft = false
 +++
 
-
-
 ## SQL databases 
 
 Go has two packages to interact with a SQL db:
@@ -48,22 +46,27 @@ go mod tidy
 
 ### Open a connection pool
 
+The `Dial` function connects to a database and opens a connection pool. After you open a connection to a database, you need to maintain it throughout the program's life so you don't have to reconnect for each query that you send:
+1. The DSN is a data-source name, which specifies how to connect to the database.
+1. `Open` returns a `*sql.DB` handle to interact with the database. It opens an empty connection pool and takes the following arguments:
+   - Driver name
+   - Driver-specific connection string
+2. `PingContext` connects to the database, adding the first connection. 
+
 ```go
-func Dial(ctx context.Context, dsn string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dsn)
+func Dial(ctx context.Context, dsn string) (*sql.DB, error) { 	// 1
+	db, err := sql.Open("sqlite", dsn) 							// 2
 	if err != nil {
 		return nil, fmt.Errorf("opening: %w", err)
 	}
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.PingContext(ctx); err != nil { 				// 3
 		return nil, fmt.Errorf("pinging: %w", err)
 	}
 	return db, nil
 }
 ```
 
-`Open` returns a `*sql.DB` handle to interact with the database. It takes the following arguments:
-- Driver name
-- Driver-specific connection string
+Here are some DSN examples:
 
 ```go
 db, err := sql.Open("sqlite", "file:links.db")
@@ -75,16 +78,17 @@ The `*DB` returned manages a connection pool, including connecting, reconnecting
 
 #### Optimizing the connection pool
 
-- `SetMaxOpenConns`: Maximum number of active connections.
-- `SetMaxIdleConns`: Maximum number of dile connections.
-- `SetConnMaxLifetime`: 
-- `SetConnMaxIdleTime`: 
-
+| Setting            | Description                                                                 | Default Behavior                              |
+| ------------------ | :-------------------------------------------------------------------------- | :-------------------------------------------- |
+| SetMaxOpenConns    | Maximum number of open (in-use + idle) connections allowed to the database. | Unlimited (0 = no limit)                      |
+| SetMaxIdleConns    | Maximum number of idle (unused but open) connections kept in the pool.      | 2 (or 0 depending on Go version)              |
+| SetConnMaxLifetime | Maximum total time a connection can be reused before being closed.          | Unlimited (0 = connections live forever)      |
+| SetConnMaxIdleTime | Maximum amount of time a connection can remain idle before being closed.    | Unlimited (0 = idle connections never expire) |
 
 ## File embedding
 
-File embedding lets you include the file's content in a variable and the final compiled binary:
-1. Import the `embed` package with a blank import
+File embedding lets you include the file's content in a variable so it is available in the final compiled binary. This means that you can distribute your program with the schema included:
+1. Import the `embed` package with a blank import.
 2. Add the embed directive to tell the compiler to embed the `schema.sql` file in the `schema` variable.
 3. Create the schema on the database with `DB.ExecContext`. This function grabs a connection from the pool, executes the query, then returns the connection to the pool.
 
@@ -113,15 +117,14 @@ func Dial(ctx context.Context, dsn string) (*sql.DB, error) {
 }
 ```
 
-
-### Migrations
-
-File embedding runs the schema when we connect to the database. To run the schema once, use a migration.
-
 ## Service connection
 
 This service connects to the database and calls a link shortening package to save the `link` type to the database:
-- `ExecContext` inserts a link into the database
+
+
+### Service definition
+
+Create a service object that holds a database connection. The constructor should return a new `Shortner` service:
 
 ```go
 type Shortener struct {
@@ -131,7 +134,16 @@ type Shortener struct {
 func NewShortener(db *sql.DB) *Shortener {
 	return &Shortener{db: db}
 }
+```
 
+### Insert in database
+
+This method takes a link, shortens it, then stores the original link and shortened link in a database:
+1. `ExecContext` inserts a link into the database. It will cancel the database operation if context is canceled. For example, during an HTTP request.
+   This takes a context, query string, and any amount of arguments to inject in the placeholder variables in the query string.
+
+
+```go
 func (s *Shortener) Shorten(ctx context.Context, lnk link.Link) (link.Key, error) {
 	var err error
 	if lnk.Key, err = link.Shorten(lnk); err != nil {
@@ -139,10 +151,10 @@ func (s *Shortener) Shorten(ctx context.Context, lnk link.Link) (link.Key, error
 	}
 
 	// Persist the link in the db
-	_, err = s.db.ExecContext(
+	_, err = s.db.ExecContext( 															// 1
 		ctx,
 		`INSERT INTO links (short_key, uri) VALUES ($1, $2)`,
-		lnk.Key, lnk.URL,
+		lnk.Key, base64String(lnk.URL),
 	)
 	if isPrimaryKeyViolation(err) {
 		return "", fmt.Errorf("saving: %w", link.ErrConflict)
@@ -153,6 +165,8 @@ func (s *Shortener) Shorten(ctx context.Context, lnk link.Link) (link.Key, error
 	return lnk.Key, nil
 }
 ```
+
+#### Key validator helper
 
 This uses a helper function in `sqlite/sqlite.go` to test that the primary key is valid by identifying duplicate keys or other conflicts:
 
@@ -166,65 +180,11 @@ func isPrimaryKeyViolation(err error) bool {
 }
 ```
 
-## Test database
+### Retrieve from database
 
-This tests that you are correctly connecting to the database. It creates a unique database for each test:
-
-```go
-func DialTestDB(tb testing.TB) *sql.DB {
-	tb.Helper()
-
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", tb.Name())
-	db, err := Dial(tb.Context(), dsn)
-	if err != nil {
-		tb.Fatalf("DialTestDB: %v", err)
-	}
-	tb.Cleanup(func() {
-		if err := db.Close(); err != nil {
-			tb.Logf("DialTestDB: closing: %v", err)
-		}
-	})
-
-	return db
-}
-```
-
-### Integration testing
-
-This tests whether the `Shotener` function properly calls the `link` package to shorten and persist a link:
-
-```go
-func TestShortenerShorten(t *testing.T) {
-	t.Parallel()
-
-	lnk := link.Link{
-		Key: "foo",
-		URL: "https://new.link",
-	}
-
-	shortener := NewShortener(DialTestDB(t))
-
-	// Shortens a link
-	key, err := shortener.Shorten(t.Context(), lnk)
-	if err != nil {
-		t.Fatalf("got err = %v, want nil", err)
-	}
-	if key != "foo" {
-		t.Errorf(`got key %q, want "foo"`, key)
-	}
-
-	// Disallows shortening a link with a duplicate key
-	_, err = shortener.Shorten(t.Context(), lnk)
-	if !errors.Is(err, link.ErrConflict) {
-		t.Fatalf("\ngot err = %v\nwant ErrConflict for duplicate key", err)
-	}
-}
-```
-
-## Retrieve a single row
-
-This function checks whether the shortened keyis valid and then queries the `links` table for a key to get the original URL.
-- Use QueryRowContext and Scan to fetch a value from the database
+This function takes a key for the shortened link and returns the original link:
+1. `QueryRowContext` takes a context, query string, and any amount of arguments to inject in the placeholder variables in the query string.
+2. `Scan` copies data from a database row into your variables. Here, it copies the value returned from the query string into `uri`. It takes a variable because it modifies your variables.
 
 ```go
 func (s *Shortener) Resolve(ctx context.Context, key link.Key) (link.Link, error) {
@@ -236,7 +196,7 @@ func (s *Shortener) Resolve(ctx context.Context, key link.Key) (link.Link, error
 	}
 
 	// Retrieve the link from the db
-	var uri string
+	var uri base64String
 	err := s.db.QueryRowContext(ctx, `SELECT uri FROM links WHERE short_key = $1`, key).Scan(&uri)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -247,10 +207,12 @@ func (s *Shortener) Resolve(ctx context.Context, key link.Key) (link.Link, error
 		return link.Link{}, fmt.Errorf("retrieving: %w: %w", err, link.ErrInternal)
 	}
 
-	return link.Link{Key: key, URL: uri}, err
+	return link.Link{
+		Key: key,
+		URL: uri.String(),
+	}, err
 }
 ```
-
 
 ## Valuer and Scanner
 
@@ -338,6 +300,20 @@ func (s *Shortener) Resolve(ctx context.Context, key link.Key) (link.Link, error
 
 ## Service interface
 
+The `rest` package defines two small interfaces:
+
+- `Shortener` with `Shorten(context.Context, link.Link) (link.Key, error)`
+- `Resolver` with `Resolve(context.Context, link.Key) (link.Link, error)`
+
+The handlers depend on these interfaces, not on concrete storage types:
+
+- `Shorten(lg, links Shortener)` accepts anything that can shorten links.
+- `Resolve(lg, links Resolver)` accepts anything that can resolve keys.
+
+This means the transport layer (`rest`) asks for only the behavior it needs. It does not know whether the implementation is SQLite, in-memory, or a test fake.
+
+In this project, `sqlite.Shortener` satisfies both interfaces because it has methods with matching signatures. The in-memory `link.Shortener` does as well. No extra registration code is required:
+
 ```go
 type Shortener interface {
 	Shorten(context.Context, link.Link) (link.Key, error)
@@ -345,24 +321,7 @@ type Shortener interface {
 
 // Shorten handles HTTP requests to create a shortened link.
 func Shorten(lg *slog.Logger, links Shortener) http.Handler {
-	with := newResponder(lg)
-
-	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
-		var lnk link.Link
-		err := hio.DecodeJSON(r.Body, &lnk)
-		hio.MaxBytesReader(w, r.Body, 4_096)
-		if err != nil {
-			return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
-		}
-		key, err := links.Shorten(r.Context(), lnk)
-		if err != nil {
-			return with.Error("shortening: %w ", err)
-		}
-
-		return with.JSON(http.StatusCreated, map[string]link.Key{
-			"key": key,
-		})
-	})
+	// ...
 }
 
 type Resolver interface {
@@ -371,19 +330,23 @@ type Resolver interface {
 
 // Resolve handles HTTP requests to redirect from a key to its full URL.
 func Resolve(lg *slog.Logger, links Resolver) http.Handler {
-	with := newResponder(lg)
-
-	return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
-		lnk, err := links.Resolve(r.Context(), link.Key(r.PathValue("key")))
-		if err != nil {
-			with.Error("resloving: %w", err)
-		}
-		return with.Redirect(http.StatusFound, lnk.URL)
-	})
+	// ...
 }
 ```
 
+Go interfaces are implicit. A type implements an interface automatically when it has the required methods. You do not write `implements` declarations.
+
+That gives you a consumer-first model:
+
+- The consumer package (`rest`) defines the minimal contract it needs.
+- Producer packages (`sqlite`, `link`, test fakes) adapt by implementing methods with matching signatures.
+- Dependencies stay pointed inward to behavior, not outward to concrete packages.
+
+This approach lowers coupling and improves testability. You can swap implementations at wiring time in `cmd/linkd` without changing handler code.
+
 ## Wire the db into main
+
+First, add the database to your applicaiton configuration:
 
 ```go
 // config holds application configuration and logger dependencies.
@@ -397,6 +360,8 @@ type config struct {
 }
 ```
 
+Next, add a flag so the user can define a custom DSN. If one isn't provided, data is persisted in a `linksdb` file in the same directory as the program. `rwc` mode creates the file if it doesn't exist:
+
 ```go
 func main() {
 	var cfg config
@@ -407,14 +372,19 @@ func main() {
 
 	// ...
 }
+```
+Next, add the database to the configuration:
+1. Connect to the database.
+2. Get a new SQL-backed shortener service.
 
-// run configures and starts the HTTP server using the provided configuration.
+
+```go
 func run(ctx context.Context, cfg config) error {
-	db, err := sqlite.Dial(ctx, cfg.db.dsn)
+	db, err := sqlite.Dial(ctx, cfg.db.dsn)						// 1
 	if err != nil {
 		return fmt.Errorf("dialing database: %w", err)
 	}
-	shortener := sqlite.NewShortener(db)
+	shortener := sqlite.NewShortener(db) 						// 2
 
 	lg := slog.New(traceid.NewLogHandler(cfg.lg.Handler()))
 
