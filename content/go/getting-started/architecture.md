@@ -7,6 +7,23 @@ draft = false
 
 ![architecture](/images/architecture.svg)
 
+
+## Claude
+
+**Domain layer** (`link.go`, `shortener.go`, `error.go`): Core types (`Link`, `Key`), key generation via SHA256 (first 6 bytes → base64url = ~8 char key), validation, and the `Shortener` interface. The in-memory implementation in `shortener.go` is for testing/reference; the real one is in `sqlite/`.
+
+**REST layer** (`rest/`): HTTP handlers for `POST /shorten`, `GET /r/{key}`, and `GET /health`. Uses the `rest.Shortener` and `rest.Resolver` interfaces to decouple from storage.
+
+**Storage layer** (`sqlite/`): SQLite-backed `Shortener` implementation. URLs are stored base64-encoded. Schema is in `sqlite/schema.sql`. Tests use `DialTestDB()` for in-memory SQLite.
+
+**Kit** (`kit/`): Reusable utilities — `hio` provides a composable handler chain pattern and JSON/response helpers; `hlog` provides request logging middleware; `traceid` provides trace ID generation and propagation through context and `slog`.
+
+**Entry point** (`cmd/linkd/linkd.go`): Wires dependencies, configures routes and middleware, starts the HTTP server. CLI flags: `-http.addr`, `-http.timeouts.read`, `-http.timeouts.idle`, `-db.dsn`.
+
+The custom `hio.Handler` type enables functional middleware composition — handlers wrap each other rather than using a mux-based middleware stack.
+
+## Robot
+
 This project is a small URL shortener service built with clear package boundaries. It follows a layered style:
 
 - Composition root in `cmd/linkd`
