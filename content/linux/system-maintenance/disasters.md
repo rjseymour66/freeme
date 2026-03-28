@@ -10,66 +10,71 @@ You need a plan in case things break, because they will.
 
 ## General guidance
 
-- Network shares: Set these to read-only, by default.
+Set network shares to read-only by default.
 
-## Configuration file management with git
+## `git` for configuration files
 
-The config files control the behavior of your apps and services, so tracking changes and backing them up is important:
-- Configuration is almost as important as the data you store on your server
-- Git can keep track of server configurations
-- Git uses OpenSSH by default
+Configuration files control the behavior of your apps and services. Tracking and backing them up is nearly as important as backing up your data. Git can track server configurations and uses OpenSSH by default.
 
-Overview steps:
-Server:
-1. Create /git dir
-2. Give git admin privs to /git
-3. Init /git/<repo> as a bare repo
+### Set up the server
 
-Client:
-1. Create /git dir
-2. Clone /git/<repo>
-3. Make a backup of config files
-4. Move files to /git/<repo>
-5. Delete original config file dir
-6. Give root ownership of all files in /git/<repo> except for `.git`
-7. Make changes a push to remote as needed
+The server hosts the bare repository that clients push to. Run these steps on the machine that will act as your central config store:
 
+1. Create the `/git` directory.
+2. Give an admin user ownership of `/git`.
+3. Initialize `/git/<repo>` as a bare repository.
+
+The following commands walk through each step:
 
 ```bash
-apt install git                 # install package
-apt install tig                 # helps browse through commits
+apt install git                         # install Git
+apt install tig                         # browse commits interactively
+sudo mkdir /git                         # create the git directory
+chown <admin>:<admin> /git              # give admin user ownership
+cd /git
+git init --bare apache2                 # initialize a bare repository
+```
 
-# git server
-sudo mkdir /git                         # 1. Create git dir in root
-chown <admin>:<admin> /git              # 2. Change owner to admin w/SSH privs
-cd /git                                 # 3. Change to git dir
-git init --bare apache2                 # 4. Create bare git repo
+### Set up the client
 
-# go to webserver (client)
-sudo mkdir /git                         # 1. Create git dir in root
-git clone <ip-addr>:/git/apache2        # 2. Clone repo
-cp -rp /etc/apache2 /etc/apache2.bak    # 3. Back up apache config dir
-mv /etc/apache2/* /git/apache2          # 4. Move config files to git repo
-rmdir /etc/apache2                      # 5. Remove original apache dir
-find /git/apache2 -name '.?*' -prune -o -exec chown root:root {} +      # 7. root owns apache2/ dir, except .git/
-sudo ln -s /git/apache2 /etc/apache2    # 8. Create symlink in /etc so apache2 daemon can find config files
-systemctl reload apache2                # 9. Reload apache and confirm it works
-git add .                               # 10. Add all files to staging area
-git commit -am 'message'                # 11. Commit the changes
-git push origin master                  # 12. Push to remote
+The client is the machine whose config files you want to track. For example, you might run these steps on a web server running Apache to move its config files into the repo and keep Apache pointing at the right location:
 
-# --- Revert changes --- #
-git checkout <commit-hash>              # 1. Checkout the commit BEFORE the bad commit
+1. Create the `/git` directory.
+2. Clone `/git/<repo>`.
+3. Back up your existing config files.
+4. Move the config files into `/git/<repo>`.
+5. Delete the original config file directory.
+6. Give root ownership of all files in `/git/<repo>` except `.git`.
+7. Push changes to the remote as needed.
+
+The following commands walk through each step:
+
+```bash
+sudo mkdir /git                                                         # create the git directory
+git clone <ip-addr>:/git/apache2                                        # clone the repo from the server
+cp -rp /etc/apache2 /etc/apache2.bak                                    # back up the config directory
+mv /etc/apache2/* /git/apache2                                          # move config files into the repo
+rmdir /etc/apache2                                                      # remove the original directory
+find /git/apache2 -name '.?*' -prune -o -exec chown root:root {} +     # give root ownership, excluding .git
+sudo ln -s /git/apache2 /etc/apache2                                    # symlink so the daemon finds the config
+systemctl reload apache2                                                # reload to confirm it works
+git add .
+git commit -am 'message'
+git push origin master
+
+# revert a bad change
+git checkout <commit-hash>              # check out the commit before the bad one
 ```
 
 ## Backup plan
 
-`rsync` is the best tool - lets you create backup files and then save the differentials for incremental backups:
-- Create an external backup drive with these three folders:
-  - `current/`: current snapshot of files on server
-  - `archive/`: set this as the `--backup-dir=/path/to/archive` to store deleted/replaced files
-  - `logs/`: logs from each backup. Redirect `rsync` output to a file here. Ex: `rsync -avb ... > /logs/$CURDATE.log`
-- 
+`rsync` is the best tool for creating backups. It takes a full snapshot on the first run, then saves only the differences on subsequent runs. To get started, create an external backup drive with three directories:
+
+- `current/` contains the current snapshot of files on the server.
+- `archive/` stores files that were deleted or replaced. Pass this path to `--backup-dir`.
+- `logs/` holds one log file per backup run. Redirect `rsync` output here using `$CURDATE` as the filename.
+
+The following example backs up `/src` to the `current/` directory, moves replaced files to a dated folder in `archive/`, and logs the output:
 
 ```bash
 # --backup-dir: copy files that would be deleted/replaced to a directory
