@@ -119,6 +119,211 @@ Why it is separated:
 
 - Gives end-to-end request correlation without coupling to application logic.
 
+## The HTTP server and handlers
+
+### Configuring the server
+
+`run` builds an `http.Server` directly rather than calling `http.ListenAndServe`. This matters because it lets you set timeouts.
+
+```go
+srv := &http.Server{
+    Handler:     traceid.Middleware(loggerMiddleware(mux)),
+    Addr:        cfg.http.addr,
+    ReadTimeout: cfg.http.timeouts.read,
+    IdleTimeout: cfg.http.timeouts.idle,
+}
+```
+
+Without `ReadTimeout`, a slow or malicious client can hold a connection open indefinitely. Without `IdleTimeout`, keep-alive connections linger. Both timeouts default to zero in Go, which means no limit—always set them.
+
+`ListenAndServe` returns `http.ErrServerClosed` on a graceful shutdown. The code checks for that explicitly:
+
+```go
+if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+    return fmt.Errorf("server closed unexpectedly: %w", err)
+}
+```
+
+This lets you distinguish a clean stop from an actual failure.
+
+### Registering routes
+
+Go 1.22 added method+path patterns to `http.ServeMux`. You can match on HTTP method and capture path segments without a third-party router:
+
+```go
+mux.Handle("POST /shorten", rest.Shorten(lg, shortener))
+mux.Handle("GET /r/{key}",  rest.Resolve(lg, shortener))
+mux.HandleFunc("/health",   rest.Health)
+```
+
+`{key}` is a named path segment. Handlers retrieve it with `r.PathValue("key")`. For most CRUD APIs, the standard library router is sufficient.
+
+`/health` omits a method prefix, so it matches any method. That's intentional—health checks should respond to whatever the load balancer sends.
+
+### Handler constructors
+
+Handlers in `rest` are constructor functions, not plain `http.HandlerFunc` values. Each constructor accepts its dependencies and returns an `http.Handler`:
+
+```go
+func Shorten(lg *slog.Logger, links Shortener) http.Handler {
+    with := newResponder(lg)
+    return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+        // ...
+    })
+}
+```
+
+This pattern keeps handlers testable. You call `rest.Shorten(lg, fakeStore)` in a test with whatever dependencies you need. No global state, no `init` functions.
+
+Notice that `Shortener` is an interface defined inside the `rest` package—not the concrete `*sqlite.Shortener` type. This is the key decision: the handler depends on the behavior it needs, not on where the data comes from. You can swap SQLite for Postgres, or a real database for a test fake, without touching handler code.
+
+### The `hio.Handler` type
+
+The most distinctive pattern in this codebase is the `hio.Handler` type:
+
+```go
+type Handler func(w http.ResponseWriter, r *http.Request) Handler
+
+func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    next := h(w, r)
+    if next != nil {
+        next.ServeHTTP(w, r)
+    }
+}
+```
+
+A `Handler` is a function that returns a `Handler`. When `ServeHTTP` is called, it runs the function, gets back the next step, and calls that step too.
+
+This makes response dispatch explicit. Instead of writing to `w` and returning, a handler returns a `Handler` that describes what should happen next:
+
+```go
+return hio.Handler(func(w http.ResponseWriter, r *http.Request) hio.Handler {
+    var lnk link.Link
+    err := hio.DecodeJSON(r.Body, &lnk)
+    if err != nil {
+        return with.Error("decoding: %w: %w", err, link.ErrBadRequest)
+    }
+    key, err := links.Shorten(r.Context(), lnk)
+    if err != nil {
+        return with.Error("shortening: %w", err)
+    }
+    return with.JSON(http.StatusCreated, map[string]link.Key{"key": key})
+})
+```
+
+Each early return hands off to a specific response handler rather than writing directly to `w`. This separates the decision ("what should happen") from the execution ("write the bytes"). It also ensures only one path writes a response—no accidental double-writes.
+
+### The `Responder` type
+
+`hio.Responder` centralizes response formatting:
+
+```go
+type Responder struct {
+    err func(error) Handler
+}
+```
+
+The error handler is injected at construction time. This lets the caller decide how errors map to HTTP responses without baking that logic into the response utilities. In `rest`, `newResponder` supplies an error function that calls `httpError`, which maps domain errors to status codes:
+
+```go
+func httpError(w http.ResponseWriter, r *http.Request, lg *slog.Logger, err error) {
+    code := http.StatusInternalServerError
+    switch {
+    case errors.Is(err, link.ErrBadRequest): code = http.StatusBadRequest
+    case errors.Is(err, link.ErrConflict):   code = http.StatusConflict
+    case errors.Is(err, link.ErrNotFound):   code = http.StatusNotFound
+    }
+    if code == http.StatusInternalServerError {
+        lg.ErrorContext(r.Context(), "internal", "error", err)
+        err = link.ErrInternal  // hide internal details from the client
+    }
+    http.Error(w, err.Error(), code)
+}
+```
+
+All error translation lives here. When you add a new domain error, you add one `case`. Handlers never inspect error types themselves.
+
+### Middleware
+
+Middleware in `hlog` follows the standard Go pattern: a function that wraps an `http.Handler` and returns an `http.Handler`.
+
+```go
+type MiddlewareFunc func(http.Handler) http.Handler
+```
+
+Using a named type makes the intent explicit and prevents accidentally passing any `func(http.Handler) http.Handler` where only logging middleware belongs.
+
+The middleware stack wraps from outside in:
+
+```go
+srv := &http.Server{
+    Handler: traceid.Middleware(loggerMiddleware(mux)),
+}
+```
+
+A request flows through `traceid.Middleware` first, then `loggerMiddleware`, then into the mux. The outermost middleware runs first on the way in and last on the way out. Order matters: the trace ID must be in context before the logger reads it.
+
+`hlog.Middleware` uses `RecordResponse` to capture the status code and duration before logging:
+
+```go
+func Middleware(lg *slog.Logger) MiddlewareFunc {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            rr := RecordResponse(next, w, r)
+            lg.LogAttrs(r.Context(), slog.LevelInfo, "request",
+                slog.Any("path", r.URL),
+                slog.String("method", r.Method),
+                slog.Duration("duration", rr.Duration),
+                slog.Int("status", rr.StatusCode))
+        })
+    }
+}
+```
+
+The logger logs after the handler completes, so it can include both duration and status code in a single log line. This is more useful than logging on arrival.
+
+### Capturing the status code
+
+`http.ResponseWriter` has no method to read the status code after it's written. `hlog` solves this with an interceptor:
+
+```go
+type Interceptor struct {
+    http.ResponseWriter
+    OnWriteHeader func(code int)
+}
+
+func (ic *Interceptor) WriteHeader(code int) {
+    if ic.OnWriteHeader != nil {
+        ic.OnWriteHeader(code)
+    }
+    ic.ResponseWriter.WriteHeader(code)
+}
+```
+
+The interceptor embeds `http.ResponseWriter` so it satisfies the interface. It overrides only `WriteHeader`, storing the code via a callback before delegating. The handler under test never knows the interceptor is there.
+
+This pattern—embed the interface, override the methods you need—is a standard Go technique for wrapping types you don't own.
+
+### Trace IDs in context
+
+`traceid.Middleware` attaches a unique ID to each request's context before any handler sees it:
+
+```go
+func Middleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if _, ok := FromContext(r.Context()); !ok {
+            ctx := WithContext(r.Context(), New())
+            r = r.WithContext(ctx)
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+The check prevents overwriting an ID that's already present—useful in tests where you supply a known ID. The ID propagates automatically to all log calls that pass `r.Context()`, since `traceid.NewLogHandler` injects it into every `slog` record.
+
+This is idiomatic context use: attach request-scoped values at the boundary, read them deeper in the stack, never pass them as function arguments.
+
 ## How the program works at runtime
 
 1. `main` parses configuration flags and creates a base logger.
