@@ -11,69 +11,54 @@ You need to know where to start troubleshooting, and some common techniques.
 
 ## Evaluating the scope
 
-Determine where the problem is and how many systems and services are affected:
-- Easy if you can reproduce the problem, but not easy if you can't
-- How does each component in a network contribute to the problem?
+Determine where the problem is and how many systems and services are affected. Reproducing the problem makes this easier. If you can't reproduce it, trace how each network component contributes to the symptoms.
 
-Questions to ask:
-- What are the symptoms?
-- When did the problem start?
-- Where there network changes?
-  - Check DNS or DHCP server
-- Has this happened before?
-- What servers are impacted?
-  - Single machine? Check login logs, then `.bash_history` for all commands executed. Or use `history` command after logging in as user
-  - Use `w` to see who is logged into the system to get IP addr
-- What users are impacted?
+Start by asking: What are the symptoms? When did the problem start? Has this happened before? Were there recent network changes? If so, check the DNS or DHCP server. Identify which servers and users are impacted.
+
+If the problem affects a single machine, check the login logs and `.bash_history` for recently executed commands, or run `history` after logging in as the affected user. Run `w` to see who is currently logged in and their IP addresses.
   
 ## Root cause analysis
 
-After you resolve a problem, figure out how the problem started and how to prevent it from happening again:
-- RCA is a learning experience
-- details events that led to issue
-  - which app or hardware it happened to
-  - data and time first noticed
-  - events, configurations, or faults that caused the issue
-- List of steps to correct the issue
-- Root cause analysis is often imperfect - you might be able to resolve the issue but never be 100% positive about why it happened
+After you resolve a problem, figure out how it started and how to prevent it from happening again. Root cause analysis (RCA) is a learning experience. Document the events that led to the issue: which app or hardware was affected, the date and time the problem was first noticed, and the events, configurations, or faults that caused it. Include a list of steps taken to correct the issue.
+
+RCA is often imperfect. You may resolve the issue without knowing with certainty why it happened.
 
 ## System logs
 
-Logs are a great first step in figuring out what happened:
-- Two methods of viewing logs
-  - systemd logs: `journalctl -u <service>` start with this
-  - `/var/log/<file>.log` for services that don't use systemd
-    - application logs are created by an app and not the distro
-    - system logs are created by distro
-- Some daemons have their own log files in `/var/log`, others use `/var/syslog`
-  - DHCP server logs to `/var/log/syslog`
-  - `grep` the contents of `/var/syslog`
-- Use follow mode with `tail` (`tail -f`) while you reproduce any issues
+Logs are a great first step in figuring out what happened. There are two ways to view them:
+
+- For services managed by systemd, use `journalctl -u <service>`.
+- For services that don't use systemd, check `/var/log/<file>.log`. Application logs are created by the app; system logs are created by the distro.
+
+Some daemons write to dedicated files in `/var/log` — for example, Apache writes to `/var/log/apache2/`. Daemons without a dedicated log file write to `/var/log/syslog` instead. Cron jobs, `dhclient`, and the `systemd` init daemon all log there. Use `grep` to filter syslog contents:
+
+```bash
+cat /var/log/syslog | grep <pattern>
+```
+
+When reproducing an issue, run `tail -f` to follow log output in real time.
 
 ### Important log files
 
-Authorization Log - `/var/log/auth.log` for security issues:
-- root access only
-- includes authentication attempts from server and SSH
-- lot of auth attempts might signal intrusion attempt
+`/var/log/auth.log`
+: Records security-related events. Requires root access and includes authentication attempts from the server and SSH. A high volume of auth attempts may signal an intrusion attempt.
 
-System Log - `/var/log/syslog` contains lots of different logging info
-- If daemon doesn't have dedicated log file, uses syslog
-- cron jobs are written here
-- `dhclient` logs here (gets IP from DHCP server)
-- `systemd init` daemon logs here
+`/var/log/syslog`
+: A catch-all for daemons that don't have a dedicated log file. Cron jobs, `dhclient`, and the `systemd init` daemon all write here.
 
-Packages - `/var/log/dpkg.log` contains info about installing and upgrading packages
-- view if server acts weird after installs or updates
+`/var/log/dpkg.log`
+: Records package installation and upgrade activity. Check it if the server behaves unexpectedly after an install or update.
 
 ### Compressed logs
 
-Log files are rotated by `logrotate`:
-- Files with `.gz` extension are log files that were compressed and renamed
-- `zcat` to view compressed log files. Doesn't make you uncompress and open them
-- `zless` to page through compressed file contents
+`logrotate` compresses and renames old log files, giving them a `.gz` extension. Use these commands to work with compressed logs without extracting them:
+
+- `zcat` — view file contents directly.
+- `zless` — page through file contents.
 
 ### Commands
+
+Common log viewing commands:
 
 ```bash
 # --- two methods to view logs --- #
@@ -98,89 +83,83 @@ dmesg --follow
 
 ## Network issues
 
-### Connectivity
+Linux recognizes all network cards and connects your machine to a network if it can reach a DHCP server. Network problems generally fall into four categories.
 
-Linux recognizes all network cards and will connect your machine to a network if it can access a DHCP server:
-- Routing issues: test each destination endpoint one-by-one
-  - First, check your routing table with `ip route`
-  - Maybe can't access a device in another subnet
-  - Cannot connect to the internet - check default gateway
-- DNS issues: you can tell this is the issue if a host cannot access an internal or external host by name
-  - If its internal, its your DNS. External, ISP DNS
-  - ping your router, then `nslookup` a domain
-  - `resolvectl status` to find DNS server
-  - to see if it is your internal DNS, switch your DNS server to use Google's DNS (`8.8.8.8` or `8.8.4.4`)
-    - edit the forwarders section of the `bind9` config daemon - this is where it sends traffic if it can't resolve your request based on an internal list of hosts
-  - `dig` command resturns info about the address (A) record of the DNS zone file
-- Hardware issues: Linux should support your hardware, and each point release adds support for new hardware features
-  - Might be missing critical kernel module/driver. To fix, google "<hardware-name> Ubuntu". Get <hardware-name> with `lspci | grep -i net`
-- DHCP might be the issue:
-  - Always check `/var/log/syslog` for `dhcpd` events
-    - Look for logs about an exhausted pool
-    - Look for attempts for machines to get an IP address
-    - `tail -f /var/log/syslog` can be helpful
-  - Common DHCP issues
-    - Ran out of IP addresses - maybe because lease time is too generous. Lease time of 1 day is enough
-    - `isc-dhcp-server` daemon is not running
-    - invalid config
-    - host clocks out of sync - DHCP requests are timestamped. If clocks are off by a lot, the DHCP server might be confused
+### Routing issues
+
+Test each destination endpoint one by one. Start by checking your routing table with `ip route`. If you can't reach a device in another subnet, check your routes. If you can't reach the internet, check the default gateway:
 
 ```bash
-# --- Routing issues --- #
-ip route                                # 1. view routing table to see default gateway
-apt install traceroute      
-traceroute <ip>                         # 2. trace the hops to different ips in routing table
+ip route                # view routing table to see default gateway
+apt install traceroute
+traceroute <ip>         # trace the hops to different IPs in the routing table
+```
 
-# --- DNS issues --- #
-nslookup <domain-name|ip-addr>          # if you can't resolve by domain name, it might be DNS
-resolvectl status                       # get DNS server name and IP
-cat /etc/netplan/<file>.yaml            # static IP - check netplan config
-dig <hostname | ip-addr>                # get the A record for the domain
+### DNS issues
 
-# --- Hardware issues --- #
-lspci | grep -i net                     # get name of hardware that might require kernel driver
+If a host can't reach an internal or external host by name, DNS is likely the problem. Ping your router, then run `nslookup` on a domain. Run `resolvectl status` to identify your DNS server. If you suspect your internal DNS, switch to Google's DNS (`8.8.8.8` or `8.8.4.4`) to test. If that works, edit the forwarders section of the `bind9` config — this controls where it sends traffic it can't resolve from its internal host list. Use `dig` to retrieve the address (A) record from a DNS zone file:
 
-# --- DHCP issues --- #
-cat /var/log/syslog | grep dhcpd        # search syslog for daemon issues
-tail -f /var/log/syslog                 # follow syslog while you try to get an IP
+```bash
+nslookup <domain-name|ip-addr>      # if you can't resolve by domain name, DNS may be the issue
+resolvectl status                   # get DNS server name and IP
+cat /etc/netplan/<file>.yaml        # check netplan config for static IP issues
+dig <hostname | ip-addr>            # get the A record for the domain
+```
+
+### Hardware issues
+
+Linux supports most hardware, with each point release adding new driver support. If your network card isn't working, you may be missing a kernel module or driver. Get the hardware name with `lspci | grep -i net`, then search for it online to find the correct driver:
+
+```bash
+lspci | grep -i net     # get the hardware name to search for the correct driver
+```
+
+### DHCP issues
+
+Always check `/var/log/syslog` for `dhcpd` events. Look for logs about an exhausted address pool or failed IP lease attempts. Run `tail -f /var/log/syslog` while reproducing the issue. Common causes include:
+
+- Running out of IP addresses due to an overly generous lease time. One day is usually enough.
+- The `isc-dhcp-server` daemon is not running.
+- An invalid configuration.
+- Host clocks out of sync. DHCP requests are timestamped, so large clock skew can confuse the server.
+
+Use these commands to investigate:
+
+```bash
+cat /var/log/syslog | grep dhcpd    # search syslog for DHCP daemon events
+tail -f /var/log/syslog             # follow syslog while reproducing the issue
 ```
 
 ## Resource issues
 
-Resources include CPU, memory, disk, IO, etc:
-- too many files, process hogging CPU, server running out of memory
-- Storage: check the disk usage and inode count
-  - Too many log files or mail daemon might use too many inodes
-  - `ncdu` command to pinpoint storage issues with interactive screen
-  - use `du` if you can't use `ncdu`
-  - Manually force a filesystem check at the next boot. Can detect fs corruptions. Just create empty file `forcefsk` in root dir of the fs you want to check and server will detect the file and check the fs at the next boot
-- Memory: check how much memory and swap are available
-  - `free -m` is best bet
-  - Very hard to troubleshoot defective RAM, usually first thing you troubleshoot because its hard to detect
-  - **Memtest86+** is a memory test available during boot. Can take hours, depending on how much memory you have
-    - Errors usually show up within the first 15 minutes
-    - If you get errors, you need to pinpoint which memory module is at fault
-  - If you get memory errors, its best to erase the hard disk and start over bc it can lead to corrupted data
-- CPU: Check to see what is consuming CPU time, and then maybe add more memory to the server or tune the app to use less memory
-  - `htop` helps view CPU usage, such as PERCENT_CPU and PERCENT_MEM
-  - `iotop` shows how much data is written to or read from your disks. Good to troubleshoot if your CPU load average is high but there is no specific process consuming too much CPU
-    - bottleneck in data reads or writes can slow everything down
-    - use left and right buttons on keyboard to sort by column
-  - for both tools, press F9 to kill the processes
+Resource issues include storage, memory, and CPU problems — too many files, a process hogging CPU time, or a server running out of memory.
+
+### Storage
+
+Check disk usage and inode count. Too many log files or a mail daemon can exhaust inodes. Use `ncdu` to pinpoint storage issues interactively, or `du` if `ncdu` isn't available. To force a filesystem check at the next boot, create an empty `forcefsk` file in the root directory of the filesystem you want to check. The server detects the file and checks the filesystem on startup:
 
 ```bash
-# --- Storage --- #
-df -h                               # disk usage - human readable
+df -h                               # disk usage, human-readable
 df -i                               # inode count
-ncdu -x /home                       # inspect home dir. -x limits command to one fs
-du -cksh * | sort -hr | head -15    # top 15 larges directories in cwd
-sudo touch /forcefsk                # check root fs
-sudo touch /partition-a             # check fs on partitiona
+ncdu -x /home                       # inspect home directory, limited to one filesystem
+du -cksh * | sort -hr | head -15    # top 15 largest directories in current directory
+sudo touch /forcefsk                # force check on root filesystem at next boot
+sudo touch /partition-a             # force check on a specific partition at next boot
+```
 
-# --- Memory/RAM --- #
-free -m                             # view memory and swap usage
+### Memory
 
-# --- CPU --- #
-htop                                # view processes hogging CPU
-sudo iotop                          # view reads and writes
+Check how much memory and swap are available with `free -m`. Defective RAM is hard to detect but should be one of the first things you rule out. **Memtest86+** is a memory diagnostic available at boot. It can take hours, but errors usually appear within the first 15 minutes. If you find errors, identify the faulty memory module. Memory errors can corrupt data, so it's best to wipe the disk and start over:
+
+```bash
+free -m     # view memory and swap usage
+```
+
+### CPU
+
+Check what is consuming CPU time, then consider adding more memory or tuning the app. Use `htop` to view per-process CPU and memory usage. If the load average is high but no single process stands out, run `iotop` — a bottleneck in disk reads or writes can slow everything down. Use the left and right arrow keys to sort by column. In both tools, press **F9** to kill a process:
+
+```bash
+htop            # view processes by CPU and memory usage
+sudo iotop      # view disk reads and writes by process
 ```
