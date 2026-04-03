@@ -1,79 +1,65 @@
 +++
 title = 'Logs'
 date = '2025-09-07T18:49:22-04:00'
-weight = 10
+weight = 80
 draft = false
 +++
 
 
 ## syslog
 
-Now, logging is done with `journald`, but historically it was done with `syslogd`:
-- `syslogd` collected log messages from system data sources and sent it to the `/dev/log` pseudo device
-- then, it read metadata and headers to direct the log messages to the correct plain text log in `/var/log/`
+Logging is now handled by `journald`, but historically it was done by `syslogd`. The `syslogd` daemon collected log messages from system data sources and sent them to the `/dev/log` pseudo device. It then read the metadata and headers to route each message to the correct plain text log file in `/var/log/`.
+
+### Example rules
+
+The following example shows the default rsyslog distribution rules:
 
 ```bash
-# logging distribution in rsyslog.d
-cat /etc/rsyslog.d/50-default.conf 
-#  Default rules for rsyslog.
-#
-#			For more information see rsyslog.conf(5) and /etc/rsyslog.conf
+# view logging distribution rules
+cat /etc/rsyslog.d/50-default.conf
 
-#
-# First some standard log files.  Log by facility.
-#
-auth,authpriv.*			/var/log/auth.log
-*.*;auth,authpriv.none		-/var/log/syslog
-#cron.*				/var/log/cron.log
-#daemon.*			-/var/log/daemon.log
-kern.*				-/var/log/kern.log
+# routes log messages by facility
+auth,authpriv.*             /var/log/auth.log       # auth events
+*.*;auth,authpriv.none      -/var/log/syslog         # everything except auth
+#cron.*                     /var/log/cron.log
+kern.*                      -/var/log/kern.log
 ...
+```
 
-############### Explained:
-# log kernel events critical or higher
-kern.crit
+### Syntax reference
 
-# log only critical kernel events
-kern.=crit
-
-# log all events with emergency serverity
-*.emerg
-
-# separate multiple facility types with comma
-auth,authpriv.*
-
-# (.none) all events except security
-# (-) do not sync file after each write to increase perfomance
-authpriv.none   -/var/log/syslog
-
-# send all emergency events to all users on system
-*.emerg         :omusrmsg:*
-# ---
+```bash
+kern.crit                       # kernel events at critical severity or higher
+kern.=crit                      # kernel events at critical severity only
+*.emerg                         # all facilities at emergency severity
+auth,authpriv.*                 # separate multiple facilities with a comma
+authpriv.none -/var/log/syslog  # .none excludes a facility; - skips sync after write
+*.emerg :omusrmsg:*             # send all emergency events to all logged-in users
 ```
 
 ### log rotation
 
-Rotate your logs so they don't consume too much disk space:
+Log rotation prevents logs from consuming too much disk space. Three locations control how rotation works:
 
-- `/etc/logrotate.conf`: logrotation config file, provides defaults if not defined for each service in `/etc/logroate.d/`
-- `/etc/logrotate.d/`: contains all logrotate files--these are merged to create the full configuration
-- `/etc/cron.daily/logrotate`: actual logrotate script
+| Location | Description |
+| :--- | :--- |
+| `/etc/logrotate.conf` | Main configuration file. Provides defaults for any service not configured in `/etc/logrotate.d/`. |
+| `/etc/logrotate.d/` | Per-service configuration files. Merged with `logrotate.conf` to build the full configuration. |
+| `/etc/cron.daily/logrotate` | The cron script that triggers rotation daily. |
 
 
+
+The following example shows the logrotate configuration for `apt` and how rotated files are named:
 
 ```bash
-# config file for logrotation
-cat /etc/logrotate.conf 
-
-# ---
-# uncompressed files are most recent in case they are needed
+# uncompressed files are the most recent, in case they are needed immediately
 ls /var/log/ | grep auth
 auth.log
 auth.log.1
 auth.log.2.gz
 auth.log.3.gz
 
-# service or application log rotation configs
+# per-service log rotation configs
 ll /etc/logrotate.d/
 total 76
 drwxr-xr-x.   2 root root  4096 Nov 23 21:11 ./
@@ -84,8 +70,7 @@ drwxr-xr-x. 116 root root 12288 Nov 24 22:28 ../
 -rw-r--r--.   1 root root   173 Mar 22  2024 apt
 ...
 
-# Example
-cat /etc/logrotate.d/apt 
+cat /etc/logrotate.d/apt
 /var/log/apt/term.log {
   rotate 12     # rotate 12 times, then delete
   monthly       # rotate once per month
@@ -93,75 +78,89 @@ cat /etc/logrotate.d/apt
   missingok
   notifempty
 }
-...
+```
+
+To view the main logrotate configuration file:
+
+```bash
+cat /etc/logrotate.conf
 ```
 
 ### Example settings
 
+The following reference shows all available options for a logrotate configuration block:
+
 ```bash
-# size
 /var/log/filename.log
 {
-    size 1k                     # Run logrotate if log file >= 1k (bytes default, k, M, G)
-    weekly                      # rotate logs either weekly, monthly, or yearly (not all at once)
+    size 1k                     # rotate if log file is >= 1k (bytes by default; supports k, M, G)
+    weekly                      # rotate weekly, monthly, or yearly (use one at a time)
     monthly
     yearly
-    create 700 <user> <group>   # Permissions for log file
-    extension <ext>             # 
-    rotate 4                    # How many times a log is rotated before old logs are rm'd
-                                # keep 4 most recent logfiles
-    mail user@example.com       # Logs emailed and removed (req's mail transfer agent)
-    dateext                     # Add date to rotated log files in YYYYMMDD
-                                # ONLY daily rotation bc of date format
-    compress                    # Compress rotated files
-    compresscmd /bin/bzip2      # Specify compression algo
-    compressext .bz2            # Ext for compressed files
-    delaycompress               # Delay compression if you need to do something else
-    notifempty                  # Do not rotate if empty
-    missingok                   # Do not generate error if log file is not present
-    prerotate                  # Run custom scripts before rotation
+    create 700 <user> <group>   # permissions for the new log file after rotation
+    extension <ext>             # extension to use for rotated files
+    rotate 4                    # rotate 4 times before deleting; keeps 4 most recent files
+    mail user@example.com       # email logs before removing (requires a mail transfer agent)
+    dateext                     # add date suffix in YYYYMMDD format; daily rotation only
+    compress                    # compress rotated files
+    compresscmd /bin/bzip2      # specify the compression program
+    compressext .bz2            # extension for compressed files
+    delaycompress               # delay compression until the next rotation cycle
+    notifempty                  # do not rotate if the log file is empty
+    missingok                   # do not generate an error if the log file is missing
+    prerotate                   # run a custom script before rotation
       /path/to/script.sh
-    postrotate                  # Run custom scripts after rotation
+    postrotate                  # run a custom script after rotation
       /path/to/script.sh
-    maxage 100                  # Remove files after X days
-    copytruncate                # Copy active log file for rotation, truncate active log file
-                                # makes sure logs aren't lost if rotated during writing
+    maxage 100                  # remove rotated files older than X days
+    copytruncate                # copy the active log before truncating; prevents lost writes
 }
 ```
 ### Manually create log file and rotate
 
-```bash
-# create test config
-cat /etc/logrotate.d/logtest 
-/var/log/logtest {
-        rotate 1
-        compress
-        compresscmd /usr/bin/bzip2
-        compressext .yay
-        dateext
-        maxage 30
-        size 2         # rotate after 2 bytes
-        notifempty
-        missingok
-        copytruncate
-}
+Manually testing a logrotate configuration lets you verify that rotation, compression, and file naming work as expected before relying on the daily cron job. To test a logrotate configuration manually:
 
-# write to log file
-echo "Write anything to logtest so it will rotate" > /var/log/logtest
+1. Create a test configuration file.
 
-# manually call logrotate bc its configured to run daily
-logrotate /etc/logrotate.conf
+    ```bash
+    cat /etc/logrotate.d/logtest
+    /var/log/logtest {
+            rotate 1
+            compress
+            compresscmd /usr/bin/bzip2
+            compressext .yay
+            dateext
+            maxage 30
+            size 2         # rotate after 2 bytes
+            notifempty
+            missingok
+            copytruncate
+    }
+    ```
 
-# verify rotation
-ls -l /var/log/ | grep logtest
--rw-r--r--  1 root      root                 0 Dec 17 10:27 logtest
--rw-r--r--  1 root      root               103 Dec 17 10:22 logtest-20241217.yay
+2. Write to the log file to give logrotate something to rotate.
 
-```
+    ```bash
+    echo "Write anything to logtest so it will rotate" > /var/log/logtest
+    ```
+
+3. Trigger rotation manually. Logrotate is configured to run daily, so call it directly.
+
+    ```bash
+    logrotate /etc/logrotate.conf
+    ```
+
+4. Verify the rotation occurred.
+
+    ```bash
+    ls -l /var/log/ | grep logtest
+    -rw-r--r--  1 root      root                 0 Dec 17 10:27 logtest
+    -rw-r--r--  1 root      root               103 Dec 17 10:22 logtest-20241217.yay
+    ```
 
 ### syslogd files
 
-Describes the common `syslogd` log files and the types of events they log:
+The following table describes common `syslogd` log files and the events each one records:
 
 | File       | Events                      |
 | :--------- | :-------------------------- |
@@ -175,15 +174,14 @@ Describes the common `syslogd` log files and the types of events they log:
 
 ## journald
 
-`journald` is `systemd`'s logging implementation
-- `journalctl` command line utility
-- stores log data in binary format, not plain text
+`journald` is `systemd`'s logging implementation. It stores log data in binary format rather than plain text, and exposes logs through the `journalctl` command line utility.
 
 ### Configuration
 
+To view the journald configuration file:
+
 ```bash
-# configure journald
-cat /etc/systemd/journald.conf 
+cat /etc/systemd/journald.conf
 #  This file is part of systemd.
 #
 #  systemd is free software; you can redistribute it and/or modify it under the
@@ -196,66 +194,96 @@ cat /etc/systemd/journald.conf
 ...
 #RuntimeMaxUse=
 ...
+```
 
-# create persistent journald log file (/run/log/journal is destroyed during shutdown)
-mkdir -p /var/log/journal   # if doesn't already exist
+### Persist between reboots
+
+By default, journald writes logs to `/run/log/journal`, which is destroyed on shutdown. To persist logs across reboots, create `/var/log/journal` so journald writes there instead:
+
+```bash
+mkdir -p /var/log/journal
 systemd-tmpfiles --create --prefix /var/log/journal
 ```
 
 ### journalctl
 
-Retrieve journald logs with filters:
+`journalctl` retrieves journald logs with filters. The following reference covers common options, matches, and usage examples:
 
 ```bash
 journalctl [options] [matches]
--a # display all data fields
--e # jump to end of journal and use pager to display entries
--f # follow - watch logs as they occur
--l # displayall printable data fields
--n N # show the N most recent number of journal entries
--p <priority # debug, info, notice, warning, err, crit, alear, emerg (syslog levels)
--r # reverses order of journal entries in the output
---since # logs beginning at this time
---until # logs ending at this time
+-a          # display all data fields
+-e          # jump to end of journal and use pager to display entries
+-f          # follow logs as they occur
+-l          # display all printable data fields
+-n N        # show the N most recent journal entries
+-p <level>  # filter by priority: debug, info, notice, warning, err, crit, alert, emerg
+-r          # reverse order of journal entries
+--since     # show logs starting at this time
+--until     # show logs ending at this time
 
 # available matches
-Fields
-Kernel
 PRIORITY=<val>
 _UID=<userid>
 _HOSTNAME=<host>
 _TRANSPORT=<trans>
-_UDEV_SYSNAME=<de
+_UDEV_SYSNAME=<device>
+```
 
-# 20 most recent logs
+#### View recent entries
+
+To quickly check what the system has been doing, view the most recent log entries:
+
+```bash
 journalctl -n 5
 Nov 26 20:39:31 ubuntu-24 systemd[1]: phpsessionclean.service: Deactivated successfully.
 Nov 26 20:39:31 ubuntu-24 systemd[1]: Finished phpsessionclean.service - Clean php session files.
 Nov 26 20:40:14 ubuntu-24 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
 Nov 26 20:40:14 ubuntu-24 systemd[1]: sysstat-collect.service: Deactivated successfully.
 Nov 26 20:40:14 ubuntu-24 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+```
 
-# by priority
+#### Filter by priority
+
+To investigate alerts or errors, filter logs by severity level. This is useful when checking for failed sudo attempts or other security events:
+
+```bash
 journalctl -p alert
 Nov 24 22:24:15 ubuntu-24 sudo[1744]: otheruser : user NOT in sudoers ; TTY=pts/0 ; PWD=/home/linuxuser/groups-least-privs ; USER=root ; COMMAND=/usr/sbin/groupadd app-data-group
 Nov 24 23:24:09 ubuntu-24 sudo[2211]: otheruser : user NOT in sudoers ; TTY=pts/0 ; PWD=/home/otheruser ; USER=root ; COMMAND=/usr/bin/netstat -npl
+```
 
-# view logs as they happen
+#### Follow logs in real time
+
+To watch logs as they are written, useful when reproducing an issue or monitoring a service restart:
+
+```bash
 journalctl -f
+```
 
-# filter by date and time
+#### Filter by date and time
+
+To narrow down logs to a specific window, useful when investigating an incident at a known time:
+
+```bash
 journalctl --since 03:40:00 --until 03:50:00
 Nov 26 03:40:03 ubuntu-24 systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
 Nov 26 03:40:03 ubuntu-24 systemd[1]: fwupd.service: Deactivated successfully.
 Nov 26 03:40:03 ubuntu-24 systemd[1]: fwupd.service: Consumed 1.232s CPU time.
 Nov 26 03:40:03 ubuntu-24 systemd[1]: sysstat-collect.service: Deactivated successfully.
 Nov 26 03:40:03 ubuntu-24 systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
-
 ```
 
 ## Searching logs
 
+Linux provides three tools for searching and processing log files. Each serves a different purpose:
+
+- `grep` finds lines that match a pattern. Use it to locate specific events quickly.
+- `awk` processes log lines and applies conditions, counts, or extractions. Use it when you need to compute or summarize data across multiple lines.
+- `sed` transforms text streams with substitutions and filters. Use it to reformat log output or strip unwanted content before saving or further processing.
+
 ### grep
+
+`grep` searches log files for matching patterns. It is the fastest way to find specific events in a log file. The following examples search `auth.log` for authentication failures:
 
 ```bash
 # search for authentication failures
@@ -267,6 +295,8 @@ cat /var/log/auth.log | grep -B 1 -A 1 failure
 
 ### awk
 
+`awk` processes log files line by line and applies conditions or transformations. Use it when you need to count, extract, or compute values from log output. The following example counts warning messages in a log file:
+
 ```bash
 # return number of warning messages in logs
 cat error.log | awk '$3 ~/[Warning]/ | wc
@@ -275,8 +305,7 @@ cat error.log | awk '$3 ~/[Warning]/ | wc
 
 ### sed
 
-Can make complex substitutions on text streams
-- redirect to a file to save output
+`sed` makes substitutions and applies filters to text streams. Redirect the output to a file to save the result. The following examples demonstrate common log processing patterns:
 
 ```bash
 # p - print

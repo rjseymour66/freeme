@@ -1,19 +1,17 @@
 +++
 title = 'Backups'
 date = '2025-09-07T18:49:31-04:00'
-weight = 10
+weight = 90
 draft = false
 +++
 
 
-Backup Rule of Three: always have 3 copies:
-- 1 remote system in case of disaster
-- 2 local copies, on different media
+Follow the Backup Rule of Three: always keep three copies of your data:
 
-A backup is sometimes called an _archive_. An archive is a group of files with associated metadata. It is a copy of data that can be restored sometime in the future if the data becomes corrupted. You need to consider the following:
-- Backup type
-- Compression methods
-- Utilities that will help the most
+- Two local copies on different media.
+- One remote copy in case of disaster.
+
+A backup is sometimes called an archive. An archive is a group of files with associated metadata that can be restored if the data becomes corrupted. When planning a backup strategy, consider the backup type, compression method, and tools best suited to your needs.
 
 ## Understanding backup types
 
@@ -24,17 +22,15 @@ _Full_
 : Copy of all data, ignoring its modification date. Quickly restores system data, but takes a long time to create the backup.
 
 _Incremental_
-: Copy of data that has been modified since the last backup operation, by comparing timestamps. This method is quick, but might take a long time to actually restore.
+: Copy of data modified since the last backup, compared by timestamp. The initial backup is a full copy. Each subsequent backup captures only what changed since the previous one — for example, B captures changes since A, C captures changes since B, and so on. Quick to create, but can take longer to restore.
 
 _Differential_
-: Copy of all data that changed since last full backup. Good balance between full and incremental backup.
+: Copy of all data that changed since the last full backup. The initial backup is a full copy. Each subsequent backup captures everything that changed since that initial backup — for example, B captures changes since A, C also captures all changes since A, and so on. A good balance between full and incremental backups.
 
 _Snapshot_
-: Hybrid approach - a full (usually read-only) copy of data is made to backup media. Then pointers (ex: hard links) are employed to create a reference table linking the backup data with the original data. During next backup, only modified files are copied to backup media, and the pointer reference table is copied and updated.
- 
-  You can go back to any point in time (restore point) and restore the data from there. Very efficient and takes less space and processing power.
+: A hybrid approach. The first backup creates a full, usually read-only, copy on the backup media. Hard links then build a reference table connecting the backup data to the original. On each subsequent backup, only modified files are copied and the reference table is updated. This lets you restore from any point in time and is efficient in both storage and processing.
 
-  `rsync` uses the snapshot approach.
+  `rsync` takes the snapshot approach.
 
 _Snapshot clone_
 : After a snapshot is created, it is cloned. Useful in high I/O environments. It is modifiable and mountable, so you can use it as disaster recovery.
@@ -42,29 +38,20 @@ _Snapshot clone_
 
 ## Backup files
 
-`/var/backups`:
+Linux stores default backup files in `/var/backups`. Common files include:
+
 - `passwd.bak`
 - `group.bak`
 - `shadow.bak`
 - `fstab.bak`
 
-## Types of backups
-
-A _differential backup_ takes an initial backup, and all subsequent backups are the diff between the current and initial backups. For example, backup A is the initial backup, then backup B is the diff between A and B, backup C is the diff between A and C, and so on.
-
-An _incremental backup_ takes an initial backup, and all subsequent backups are the diff between the previous backup. For example, backup A is the initial backup, then B is the diff between A and B, backup C is the diff between B and C, and so on. 
-
 ## Partition/filesystem backups
 
-- Run `df -h` to figure out which partitions are real and which are pseudo. Pseudo partitions use 0 storage.
-
-## Object backup
-
-## Compression
+Run `df -h` to identify real partitions versus pseudo partitions. Pseudo partitions consume no storage.
 
 ## Backup config files
 
-This script backs up any configuration files provided as arguments to the `for` loop. It compares the files in `/var/backups/` with the files in `/etc`. If the files are not identical, they are copied to `/var/backups/`:
+This script backs up configuration files by comparing each file in `/etc` against its counterpart in `/var/backups/`. If the files are not identical, it copies the `/etc` version to `/var/backups/`. Add the filenames to back up as arguments to the `for` loop:
 
 ```bash
 #!/bin/sh
@@ -81,7 +68,9 @@ done
 
 ## rsync
 
-Remote sync. Copies large files quickly over the network. It copies file updates, and files that do not exist in the destination directory.
+`rsync` syncs files over the network. It copies new files and updated files to the destination, skipping anything already up to date. Use it for large file transfers and incremental backups.
+
+The following examples demonstrate common options and transfer patterns:
 
 ```bash
 rsync [OPTION]... SOURCE DEST
@@ -124,63 +113,53 @@ total size is 23  speedup is 0.07
 
 ```
 
-## tar full and incremental backups
-
-`tar` views full and incremental backups in levels:
-- level 0 includes all files
-- level 1 is first incremental backup
-- level 2 is second incremental backup, etc...
+## tar
 
 ```bash
 tar [OPTIONS...] [FILENAME]...
--d # compare tar archive file members with external files 
+-d # compare tar archive file members with external files
 -t # display tar archive file's contents (members)
 -W # verify each file as it is processed. Can't use with compression.
-
-# 1. creates snapshot .snar file w timestamp metadata to create backups
-tar -g FullArchive.snar -Jcvf Project42.txz Project4?.txt
-Project42.txt
-Project43.txt
-Project44.txt
-Project45.txt
-Project46.txt
-
-# 2. verify created
-ls FullArchive.snar Project42.txz
-FullArchive.snar  Project42.txz
-
-# 3. Update file
-echo 'Answer to everything' >> Project42.txt 
-
-# 4. create incremental backup. Project42_Inc.txz contains only Project42.txt
-#    because its the only file that was modified since the previous backup.
-tar -g FullArchive.snar -Jcvf Project42_Inc.txz Project4?.txt
-Project42.txt
-
-# view tarball files/members
-tar -tf Project4x.tar.gz 
-Project42.txt
-Project43.txt
-Project44.txt
-Project45.txt
-Project46.txt
-
-# compare archive files against current files
-$ tar -df Project4x.tar.gz 
-Project42.txt: Mod time differs
-Project42.txt: Size differs
-
-# verify backup after archive is created. can't compress, must
-# be in next step.
-tar -Wcvf ProjectVerify.tar Project4?.txt
-Project42.txt
-...
-Verify Project42.txt
-...
 ```
-## tar restore
 
-Basically same as compress command, but sub the `-c` for `-x`:
+### Full and incremental backups
+
+`tar` organizes backups in levels. Level 0 is a full backup containing all files. Level 1 is the first incremental backup, level 2 is the second, and so on.
+
+
+
+To create a full backup and add an incremental backup:
+
+1. Create a full archive. `tar` generates a `.snar` snapshot file that records timestamp metadata for tracking changes.
+
+    ```bash
+    tar -g FullArchive.snar -Jcvf Project42.txz Project4?.txt
+    ...
+    ```
+
+2. Verify the archive and snapshot file were created.
+
+    ```bash
+    ls FullArchive.snar Project42.txz
+    FullArchive.snar  Project42.txz
+    ```
+
+3. Modify a file to simulate a change.
+
+    ```bash
+    echo 'Answer to everything' >> Project42.txt
+    ```
+
+4. Create an incremental backup. `tar` compares timestamps against the `.snar` file and archives only the files that changed since the last backup.
+
+    ```bash
+    tar -g FullArchive.snar -Jcvf Project42_Inc.txz Project4?.txt
+    Project42.txt
+    ...
+    ```
+### Restore
+
+Restoring from a tar archive follows the same pattern as creating one. Replace the `-c` flag with `-x` to extract:
 
 ```bash
 tar [OPTIONS...] [FILENAME]...
@@ -197,20 +176,18 @@ Project44.txt
 Project45.txt
 Project46.txt
 ```
-## dd
-
 ## Schedule backups
 
 ### cron
 
-Cron schedules jobs and tasks:
-- `cron.[hourly|daily|weekly|monthly|yearly]`: files in these directories run at times specified by dir name.
-- `cron.d`: files in this dir have time that defines when the job runs. Add files here to run at specified times.
-- `crontab` is overwritten during upgrades, so don't update.
-- User crontabs are stored in `/var/spool/cron`  
-- Remove old files with `find ... -delete` cron jobs
-  
-  > Do not add files in `cron.d`--they are overwritten during upgrades.
+Cron schedules recurring jobs and tasks. It reads from several directories and files, each serving a different purpose:
+
+- `cron.[hourly|daily|weekly|monthly|yearly]` — files in these directories run at the interval indicated by the directory name.
+- `cron.d` — files here define their own schedule. Add files to this directory to run jobs at specific times. Files in `cron.d` are overwritten during upgrades.
+- `crontab` — the system crontab. Do not edit this file directly, as it is overwritten during upgrades.
+- `/var/spool/cron` — stores per-user crontab files.
+
+The following examples show time formatting and common crontab commands:
 
 ```bash
 ls -lF | grep cron
@@ -258,11 +235,9 @@ crontab -r
 
 ### anacron
 
-Schedule irregular jobs for a machine--such as your laptop--that doesn't run 24/7.
-- runs relative to most recent boot time, not absoulte time
-- might have to install
-- has priority over `cron`
-- saves job status info to `/var/spool/anacron/`
+`anacron` schedules irregular jobs on machines that do not run 24/7, such as a laptop. Unlike `cron`, it schedules jobs relative to the most recent boot time rather than absolute time. It takes priority over `cron` and may need to be installed separately. Job status information is saved to `/var/spool/anacron/`.
+
+The following example shows the anacrontab format and a sample entry:
 
 ```bash
 # install, creates /etc/anacrontab
@@ -286,31 +261,28 @@ LOGNAME=root
 ```
 
 
-## at
+### at
 
-Lets you specify a time when the linux system runs a script. You have to submit each job that you want to run, you don't schedule recurring jobs:
-- The system adds the job to a queue with directions about when the shell should run the job.
-- The `atd` daemon runs in the background (starting at boot) and checks the queue for jobs to run
-  - `/var/spool/at` contains the job queue
-  - There are 26 different job queues available for different priority levels, using lowercase `a` - `z`
+`at` runs a script at a specified time. Unlike `cron`, it does not schedule recurring jobs. Each job must be submitted individually. When you submit a job, the system adds it to a queue with instructions for when to run it.
 
-Uses `/etc/at.allow` and `/etc/at.deny` files to manage access:
-- If `at.allow` exists, only users in that file can use `at`
-- If `at.deny` exists, users that are not in this file can use `at`
-- If neither exist, then only root can use `at`
+The `atd` daemon starts at boot and monitors the queue, executing jobs at the scheduled time. The queue is stored in `/var/spool/at`, and 26 priority levels are available using the letters `a` through `z`.
 
+Access is controlled by `/etc/at.allow` and `/etc/at.deny`. If neither file exists, only root can submit jobs.
 
-<time> accepts following formats:
-  - 10:15
-  - 10:15 p.m.
-  - now, noon, midnight, or teatime (4 p.m.)
-  - MMDDYY, MM/DD/YY, DD.MM.YY
-  - Jul 4 or Dec 25
-  - Now + 25 minutes
-  - 10:15 p.m. tomorrow
-  - 22:15 tomorrow
-  - 10:15 + 7 days
-- 
+- If `/etc/at.allow` exists, only users listed in that file can submit jobs.
+- If `/etc/at.deny` exists, any user not listed in that file can submit jobs.
+
+The `<time>` argument accepts several formats:
+
+- `10:15` or `10:15 p.m.`
+- `now`, `noon`, `midnight`, or `teatime` (4 p.m.)
+- `MMDDYY`, `MM/DD/YY`, or `DD.MM.YY`
+- `Jul 4` or `Dec 25`
+- `now + 25 minutes`
+- `10:15 p.m. tomorrow` or `22:15 tomorrow`
+- `10:15 + 7 days`
+
+The following examples show how to check and manage the job queue:
 
 ```bash
 at [-f <filename>] <time>
