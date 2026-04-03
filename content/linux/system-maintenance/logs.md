@@ -1,7 +1,7 @@
 +++
 title = 'Logs'
 date = '2025-09-07T18:49:22-04:00'
-weight = 10
+weight = 80
 draft = false
 +++
 

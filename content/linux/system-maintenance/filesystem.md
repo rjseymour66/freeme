@@ -1,7 +1,7 @@
 +++
 title = 'Filesystem'
 date = '2025-09-07T18:49:12-04:00'
-weight = 10
+weight = 30
 draft = false
 +++
 
