@@ -103,6 +103,12 @@ main {
   @include sticky-nav;
 }
 
+@media (max-width: 75rem) {
+  .content-toc {
+    display: none;
+  }
+}
+
 div > pre {
   max-width: 100%;
   overflow-x: auto;
