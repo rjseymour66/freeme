@@ -5,47 +5,66 @@ weight = 10
 draft = false
 +++
 
-- After user authenticates to the system and before the bash shell prompt displays, the user environment is configured.
-- When you start a bash shell, bash checks several files for configuration, called environment files (also called startup files)
-- Can start a shell in 3 ways:
-  - Default login (login to server w no GUI)
-  - Interactive shell spawned as subshell (such as from a GUI)
-  - non-interactive shell, such as when running a script
+## Shell environment
+
+When you log in, bash configures your environment before displaying the prompt. It reads a series of configuration files called environment files or startup files. Bash starts in one of three ways:
+
+- Default login: a text-only login with no GUI
+- Interactive shell: a subshell spawned from a GUI terminal
+- Non-interactive shell: a shell started to run a script
 
 ### Environment variables
 
-Store info about the current shell session
+Environment variables store information about the current shell session, such as the current user, home directory, and default editor. View them with any of the following commands:
 
-```bash
-# user less pager
-set
-env
-printenv
-# view what is stored in env var
-$ENVVARNAME
-```
+| Command    | Description                                                   |
+| :--------- | :------------------------------------------------------------ |
+| `set`      | Display all shell variables and functions (uses `less` pager) |
+| `env`      | Display all exported environment variables                    |
+| `printenv` | Display all or specific environment variables                 |
+| `$VARNAME` | Print the value of a specific variable                        |
 ### Environment files
 
-- Generally populated from the `/etc/skel` file. Users can edit these files after they are in their user account.
-- The first file found in the following order is ran, and the rest are ignored:
-  - `.bash_profile`
-  - `.bash_login`
-  - `.profile`
-    > `.bashrc` is run from a file in the preceding list. It is also always run when there is a non-interactive shell started
+User environment files are copied from `/etc/skel` at account creation. Users can edit them afterward. Bash reads these files in order and stops at the first one it finds:
+
+1. `.bash_profile`
+2. `.bash_login`
+3. `.profile`
+
+`.bashrc` is not read directly by bash at login. Instead, one of the files above sources it explicitly. For example, a typical `.bash_profile` contains:
+
+```bash
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+```
+
+This means `.bashrc` runs at every interactive login. It also runs automatically when a non-interactive shell starts, making it the right place for aliases, functions, and environment settings you want available in every session.
 
 ### Global files
 
-Global files:
-- `/etc/profile`
-- `/etc/profile.d` files
-- `/etc/bash` or `/etc/bash.bashrc` file (depends on distro)
+Global environment files apply to all users on the system:
 
-> Do not change global files. You can create a custom env file with an `.sh` extension and place it in `/etc/profile.d`. Files in this directory are run during bash login.
+- `/etc/profile`
+- `/etc/profile.d/` (individual `.sh` files, run during login)
+- `/etc/bash` or `/etc/bash.bashrc` (varies by distribution)
+
+{{< admonition "Do not edit global files directly" warning >}}
+Editing `/etc/profile` or `/etc/bash.bashrc` directly risks breaking the environment for all users if you introduce a syntax error. Instead, create a custom file with a `.sh` extension in `/etc/profile.d/`. All `.sh` files in that directory are sourced automatically during bash login, so your settings apply system-wide without touching the base files. This also makes it easy to remove your customizations by deleting the file.
+
+For example, create a file to set a custom PATH for all users:
+
+```bash
+sudo vim /etc/profile.d/custom-path.sh
+
+export PATH="$PATH:/opt/myapp/bin"
+```
+{{< /admonition >}}
 
 
 ## Set default text editor
 
-Ubuntu uses `nano` by default, change it to `vim`:
+Ubuntu sets `nano` as the default editor. Run `update-alternatives` to select a different one. The command presents a numbered list of installed editors. Enter the number for your preferred editor and press Enter:
 
 ```bash
 sudo update-alternatives --config editor
@@ -59,17 +78,16 @@ There are 4 choices for the alternative editor (providing /usr/bin/editor).
 * 3            /usr/bin/vim.basic   30        manual mode
   4            /usr/bin/vim.tiny    15        manual mode
 
-Press <enter> to keep the current choice[*], or type selection number: 
+Press <enter> to keep the current choice[*], or type selection number:
 ```
 
 ## Enable bash completion globally
 
-Uncomment some lines in the global `bash.bashrc` file:
+Bash completion is often disabled by default in `/etc/bash.bashrc`. To enable it for all users, uncomment the following block in that file:
 
 ```bash
-sudo vim /etc/bash.bashrc 
+sudo vim /etc/bash.bashrc
 
-# opened file - uncomment if lines
 # enable bash completion in interactive shells
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
@@ -78,11 +96,12 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-
 ```
 
 
 ## Change hostname
+
+`hostnamectl` sets the system hostname. The change takes effect immediately and persists across reboots:
 
 ```bash
 hostnamectl set-hostname mylittlecloudbox
@@ -90,26 +109,32 @@ hostnamectl set-hostname mylittlecloudbox
 
 ## Set timezone
 
-This is important for scheduling tasks and the timestamps for logs under `/var/log`:
+The system timezone affects scheduled tasks and timestamps in `/var/log`. Use `timedatectl` to view and change it.
+
+View the current timezone:
 
 ```bash
-# view current timezone
 timedatectl
                Local time: Sun 2024-12-01 17:15:21 UTC
            Universal time: Sun 2024-12-01 17:15:21 UTC
                  RTC time: Sun 2024-12-01 17:15:21
-                Time zone: Etc/UTC (UTC, +0000)             # current tz
+                Time zone: Etc/UTC (UTC, +0000)
 System clock synchronized: yes
               NTP service: active
           RTC in local TZ: no
+```
 
-# get list of available timezones
+List available timezones:
+
+```bash
 timedatectl list-timezones
+```
 
-# set new timezone
+Set a new timezone and verify:
+
+```bash
 sudo timedatectl set-timezone America/New_York
 
-# verify
 timedatectl
                Local time: Sun 2024-12-01 12:15:57 EST
            Universal time: Sun 2024-12-01 17:15:57 UTC
@@ -120,27 +145,34 @@ System clock synchronized: yes
           RTC in local TZ: no
 ```
 
-## dot files
+## Dot files
 
-Dot files are hidden config files. The personal config files are hidden in `/home/`:
+Dot files are hidden configuration files stored in your home directory. Their names begin with `.`, which causes them to be hidden from standard directory listings. Run `ls -a` to view them. Common dot files:
+
+| File         | Description                                             |
+| :----------- | :------------------------------------------------------ |
+| `.bashrc`    | Runs every time you open a bash terminal                |
+| `.profile`   | Loads OS-specific settings and other dot files at login |
+| `.aliases`   | Dedicated file for shell aliases                        |
+| `.exports`   | Sets environment variables                              |
+| `.vimrc`     | Configuration file for vim                              |
+| `.gitignore` | Specifies files to exclude from git tracking            |
 
 ### `.bashrc`
 
-Runs every time you open a bash terminal.
+`.bashrc` runs every time you open an interactive bash terminal. A common pattern is to source `.profile` from `.bashrc`, then load other dot files from `.profile` to keep each file focused on one concern.
 
-You can source `.profile` from this file. In `.profile`, you can load other dot config files to keep your env clean.
+Source `.profile` only when an interactive terminal is present:
 
 ```bash
-# if you have a terminal prompt, load profile
 [ -n "$PS1" ] && source ~/.profile
 ```
 
 ### `.profile`
 
-Load OS-specific settings or other dot files:
+`.profile` runs at login and is a good place to load OS-specific settings or source other dot files. The following pattern sources each dot file only if it exists and is readable:
 
 ```bash
-# if file exists and is readable, source it
 for file in ~/.{exports,aliases,functions,extra}; do
     [ -r "$file" ] && source "$file"
 done
@@ -149,10 +181,9 @@ unset file
 
 ### `.aliases`
 
-File dedicated to aliases only:
+`.aliases` keeps all shell aliases in one place, separate from `.bashrc`. It is sourced by `.profile` at login. For example, a set of git shorthand aliases:
 
 ```bash
-# git aliases
 alias gs="git status"
 alias gb="git branch"
 alias gc="git commit -am"
@@ -161,235 +192,133 @@ alias gp="git push"
 
 ### `.exports`
 
-Set environment variables:
+`.exports` stores environment variable definitions, keeping them separate from other configuration. It is sourced by `.profile` at login. For example, set the Go workspace path:
 
 ```bash
-# set GOPATH
 export GOPATH="$HOME/go-workspace"
 ```
 
 ### `.vimrc`
 
-vim configuration file. For more info, open vim and enter `:help vimrc-intro`:
+`.vimrc` stores your personal vim configuration. Settings here apply every time you open vim. For a full reference, open vim and run `:help vimrc-intro`. See the [vim](../vim) page for common settings.
 
 ### `.gitignore`
 
-Ignore files from git tracking.
+`.gitignore` lists file patterns that git should not track. Place it in the root of a repository. For example, ignore compiled binaries and environment files:
+
+```bash
+*.out
+.env
+```
+
+### Chain dot files together
+
+At login, bash reads `.bashrc`, which sources `.profile`. `.profile` then sources each specialized dot file if it exists. This keeps each file focused on one concern.
+
+`.bashrc` sources `.profile`:
+
+```bash
+# ~/.bashrc
+[ -n "$PS1" ] && source ~/.profile
+```
+
+`.profile` sources the specialized dot files:
+
+```bash
+# ~/.profile
+for file in ~/.{exports,aliases,functions,extra}; do
+    [ -r "$file" ] && source "$file"
+done
+unset file
+```
+
+`.exports` defines environment variables:
+
+```bash
+# ~/.exports
+export GOPATH="$HOME/go-workspace"
+export PATH="$PATH:$GOPATH/bin"
+```
+
+`.aliases` defines shorthand commands:
+
+```bash
+# ~/.aliases
+alias gs="git status"
+alias gb="git branch"
+alias gc="git commit -am"
+alias gp="git push"
+```
 
 ## Prompt Statement (PS)
 
-Add customizations to `.bashrc` to make them permanent.
+The Prompt Statement variables control how bash displays prompts. Add customizations to `.bashrc` to make them permanent across sessions.
 
 ### PS1
 
-Default interactive prompt. See this [phoenixNap](https://phoenixnap.com/kb/change-bash-prompt-linux) page for a complete list of options.
+`PS1` is the default interactive prompt displayed before every command. It supports escape sequences for dynamic content such as the username, hostname, and current directory. For a complete list of options, see the [phoenixNap bash prompt guide](https://phoenixnap.com/kb/change-bash-prompt-linux).
 
 ### PS2
 
-Continuation interactive prompt. This is the prompt displayed when you enter a multi-line command:
+`PS2` is the continuation prompt displayed when a command spans multiple lines. The default value is `>`. Set a custom value to make multi-line input easier to read:
 
 ```bash
 export PS2="continue-> "
 ls /etc/ \
-continue -> line 2 \
-continue -> line 3 \
-continue -> end;
+continue-> line 2 \
+continue-> line 3 \
+continue-> end;
 ```
 
 ### PS3
 
-For `select` command prompts, it lets you replace the `#?`. I don't see a good reason to use this often.
-
-Read this [Geek Stuff](https://www.thegeekstuff.com/2008/09/bash-shell-take-control-of-ps1-ps2-ps3-ps4-and-prompt_command/) article for an example.
+`PS3` customizes the prompt shown by the `select` command, replacing the default `#?`. For a practical example, see the [Geek Stuff bash prompt guide](https://www.thegeekstuff.com/2008/09/bash-shell-take-control-of-ps1-ps2-ps3-ps4-and-prompt_command/).
 
 
 ### PS4
 
-Customize the debug mode (`set -x`) output for shell scripts. By default, it outputs `++` beside each line of the script. You can customize it to output the script name and line number:
+`PS4` customizes the prefix printed by debug mode. Debug mode runs a script with `set -x`, which causes bash to print each command before executing it. This is useful for tracing what a script does line by line. The default prefix is `+`. Set `PS4` to include the line number to make the output easier to follow.
+
+Default output:
 
 ```bash
-# default PS4
 + echo 'PS4 demo script'
 PS4 demo script
 + ls -l /etc
 + wc -l
 229
-+ du -sh /home/linuxuser
-1.4G	/home/linuxuser
+```
 
-# custom PS4: export PS4='Line: $LINENO++ '
+Set a custom `PS4` and compare the output:
+
+```bash
+export PS4='Line: $LINENO++ '
+
 Line: 7++ echo 'PS4 demo script'
 PS4 demo script
 Line: 8++ ls -l /etc
 Line: 8++ wc -l
 229
-Line: 9++ du -sh /home/linuxuser
-1.4G	/home/linuxuser
 ```
 
 ### PROMPT_COMMAND
 
-Executed right before displaying `PS1`:
+`PROMPT_COMMAND` holds a command that bash runs before displaying `PS1`. Use it to show dynamic information such as the current time before every prompt.
+
+Print the time before each prompt on its own line:
 
 ```bash
-export PROMPT_COMMAND="date +%k:%m:%S"
+export PROMPT_COMMAND="date +%k:%M:%S"
 11:12:35
-# next command
-ls -1
-find-files
+user@machine:~$ ls
 ...
 11:12:43
-
-# display on same line as PS1
-export PROMPT_COMMAND="echo -n [$(date +%k:%m:%S)]"k:%m:%S)]"
-[11:12:35]user@machine:~$ 
-
 ```
 
-## vim
-
-There are two modes: "normal" and "insert".
-- Pres ESC twice to return to normal mode
-
-### Editing
-
-| Command | Description         |
-| ------- | ------------------- |
-| `i`     | insert mode         |
-| `w`     | write               |
-| `u`     | undo                |
-| `wq`    | write and quit      |
-| `q`!    | quit without saving |
-
-### Basic Navigation
-
-| Command    | Description                                |
-| ---------- | ------------------------------------------ |
-| `h`        | Move left                                  |
-| `j`        | Move down                                  |
-| `k`        | Move up                                    |
-| `l`        | Move right                                 |
-| `w`        | Move to the beginning of the next word     |
-| `3w`       | move to the 3rd word to the right          |
-| `3wd`      | delete the 3 words to the right            |
-| `b`        | Move to the beginning of the previous word |
-| `3b`       | move to the 3rd word to the left           |
-| `e`        | Move to the end of the current word        |
-| `0`        | Move to the beginning of the line          |
-| `$`        | Move to the end of the line                |
-| `gg`       | Go to the first line of the file           |
-| `G`        | Go to the last line of the file            |
-| `Ctrl + u` | Move up half a screen                      |
-| `Ctrl + d` | Move down half a screen                    |
-| `(`        | next sentence beginning                    |
-| `)`        | prev sentence beginning                    |
-
-### Editing
-
-| Command    | Description                                                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `i`        | Insert mode at the cursor                                                                                                     |
-| `I`        | Insert mode at the beginning of the line                                                                                      |
-| `a`        | Append mode after the cursor                                                                                                  |
-| `A`        | Append mode at the end of the line                                                                                            |
-| `o`        | Open a new line below the current line                                                                                        |
-| `O`        | Open a new line above the current line                                                                                        |
-| `r`        | replace current char with next char you enter                                                                                 |
-| `x`        | Delete the character under the cursor                                                                                         |
-| `X`        | Delete the character before the cursor                                                                                        |
-| `dd`       | Delete the current line                                                                                                       |
-| `99dd`     | Delete 99 lines                                                                                                               |
-| `dw`       | Delete from the cursor to the end of the word                                                                                 |
-| `3wd`      | Delete the 3 words to the right                                                                                               |
-| `db`       | Delete word to the left                                                                                                       |
-| `3db`      | Delete the 3 words to the left                                                                                                |
-| `d$`       | Delete from the cursor to the end of the line                                                                                 |
-| `d0`       | Delete from the cursor to the beginning of the line                                                                           |
-| `das`      | Delete current sentence                                                                                                       |
-| `yy`       | Copy (yank) the current line                                                                                                  |
-| `3yy`      | copy three lines, starting from the line where the cursor is positioned.                                                      |
-| `yw`       | Copy (yank) the current word                                                                                                  |
-| `yiw`      | copy the current word.                                                                                                        |
-| `y$`       | Copy (yank) to the end of the line                                                                                            |
-| `y%`       | copy to the matching character. By default supported pairs are (), {}, and []. Useful to copy text between matching brackets. |
-| `y^`       | copy everything from the cursor to the start of the line.                                                                     |
-| `p`        | Paste after the cursor                                                                                                        |
-| `5p`       | paste 5 times                                                                                                                 |
-| `P`        | Paste before the cursor                                                                                                       |
-| `u`        | Undo                                                                                                                          |
-| `Ctrl + r` | Redo                                                                                                                          |
-
-
-### Visual Mode
-
-| Command    | Description                                             |
-| ---------- | ------------------------------------------------------- |
-| `v`        | Start visual mode                                       |
-| `V`        | Start visual line mode                                  |
-| `vjjj`     | highlight current line and 3 lines below (number of js) |
-| `vjjjyy`   | hightlight and copy three lines                         |
-| `Ctrl + v` | Start visual block mode                                 |
-| `y`        | Yank (copy) the selected text                           |
-| `d`        | Delete the selected text                                |
-| `>`        | Indent the selected text                                |
-| `<`        | Un-indent the selected text                             |
-
-
-### Search and Replace
-
-| Command          | Description                                                |
-| ---------------- | ---------------------------------------------------------- |
-| `/pattern`       | Search for pattern                                         |
-| `?pattern`       | Search backward for pattern                                |
-| `n`              | Repeat the search in the same direction                    |
-| `N`              | Repeat the search in the opposite direction                |
-| `:%s/old/new/g`  | Replace all occurrences of old with new in the entire file |
-| `:%s/old/new/gc` | Replace all occurrences with confirmation                  |
-
-### Working with Multiple Files
-
-| Command       | Description               |
-| ------------- | ------------------------- |
-| `:e filename` | Open a file               |
-| `:w`          | Save the current file     |
-| `:w filename` | Save as filename          |
-| `:q`          | Quit Vim                  |
-| `:wq`         | Save and quit             |
-| `:q!`         | Quit without saving       |
-| `:bn`         | Go to the next buffer     |
-| `:bp`         | Go to the previous buffer |
-| `:bd`         | Delete a buffer           |
-
-### Useful Commands
-
-| Command             | Description                       |
-| ------------------- | --------------------------------- |
-| `:set nu`           | Show line numbers                 |
-| `:set nonu`         | Hide line numbers                 |
-| `:syntax on`        | Enable syntax highlighting        |
-| `:syntax off`       | Disable syntax highlighting       |
-| `:set paste`        | Enable paste mode                 |
-| `:set nopaste`      | Disable paste mode                |
-| `:set tabstop=4`    | Set tab width to 4 spaces         |
-| `:set expandtab`    | Convert tabs to spaces            |
-| `:set shiftwidth=4` | Set indentation width to 4 spaces |
-
-### Exiting Vim
-
-| Command       | Description         |
-| ------------- | ------------------- |
-| `:w`          | Save the file       |
-| `:q`          | Quit Vim            |
-| `:wq` or `ZZ` | Save and quit       |
-| `:q!`         | Quit without saving |
-
-
-### .`vimrc`
-
-Config file for `vim`:
-- In `/home/.vimrc`, but there is also a system-wide `/etc/vimrc`
+Print the time on the same line as `PS1`:
 
 ```bash
-# Start vim without reading .vimrc
-vim -u NONE
+export PROMPT_COMMAND="echo -n [$(date +%k:%M:%S)]"
+[11:12:35]user@machine:~$
 ```
+

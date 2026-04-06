@@ -1,143 +1,143 @@
 +++
 title = 'Regex'
 date = '2025-09-07T18:57:18-04:00'
-weight = 10
+weight = 60
 draft = false
 +++
 
 
-## Links
+Regular expressions (regex) let you search, validate, and transform text using a compact pattern syntax. You write a pattern, and the regex engine matches it against a string to find specific characters, words, or structures.
 
-- [PRACTICE SITE](https://regexr.com/)
-- [Regex101 (practice)](https://regex101.com/)
+Practice tools:
+- [regexr.com](https://regexr.com/)
+- [regex101.com](https://regex101.com/)
 
-Regex is a way to search through the text to validate text, find and replace, etc.
+## How regex patterns work
 
-## Format
-
-Start and end with a `/`. Everything within the forward slash is the regex:
+Wrap your pattern in forward slashes. Everything between them is the pattern:
 
 ```
 /cat/g
 ```
 
+The `g` after the closing slash is a flag. Flags control how the match runs. The next section covers them in detail.
+
 ## Expression flags
 
-The `g` in `/cat/g` is an _expression flag_. An expression flag defines the scope of the regex search. The expression flags are listed below:
-- `g`: global
-- `i`: case insensitive
-- `m`: multiline
-- `s`: single line
-- `u`: unicode
-- `y`: sticky
+A flag follows the closing slash and controls how the pattern applies. By default, regex returns only the first match it finds. Use `g` most often:
 
-
-Generally, you will use the `g` flag the most.
-
-> By default, a regex pattern returns only the first result that it finds. To return all, use the `/g` expression flag.
+| Flag | Name             | Description                             |
+| :--- | :--------------- | :-------------------------------------- |
+| `g`  | Global           | Returns all matches, not just the first |
+| `i`  | Case insensitive | Matches uppercase and lowercase         |
+| `m`  | Multiline        | Treats each line as a separate string   |
+| `s`  | Single line      | Makes `.` match newline characters      |
+| `u`  | Unicode          | Enables full Unicode character matching |
+| `y`  | Sticky           | Matches only at the current position    |
 
 ## Character sets
 
-`[bcf]at` matches the following:
-- bat
-- cat
-- fat
+A character set matches any one character from a defined list. Place the options inside square brackets.
+
+`[bcf]at` matches:
+- `bat`
+- `cat`
+- `fat`
 
 ## Ranges
 
-Ranges match any single character, digit, or symbol within the range. `[a-z]at` matches any word that begins with a lowercase letter and ends with `at`.
+A range matches any single character within a span. `[a-z]at` matches any word that begins with a lowercase letter and ends with `at`:
 
-| Range type  | Example        |
-| :---------- | :------------- |
-| Partial     | [a-f] or [g-p] |
-| Capitalized | [A-Z]          |
-| Digit       | [0-9]          |
-| Symbol      | [#$%&@]        |
-| Mixed       | [a-zA-Z0-9]    |
+| Range type | Example             |
+| :--------- | :------------------ |
+| Partial    | `[a-f]` or `[g-p]`  |
+| Uppercase  | `[A-Z]`             |
+| Digit      | `[0-9]`             |
+| Symbol     | `[#$%&@]`           |
+| Mixed      | `[a-zA-Z0-9]`       |
 
 ## Repeating characters
 
-Specify the number of repeating characters with the `{val}` syntax:
+Control how many times a character or set repeats using `{n}` syntax:
 
-| Expression    | Match                                                       |
-| :------------ | :---------------------------------------------------------- |
-| `a{5}`        | `aaaaa`                                                     |
-| `[a-z]{4}`    | any four-letter lowercase word                              |
-| `[a-z]{6,}`   | any lowercase word with 6 or more letters                   |
-| `[a-z]{8,11}` | any lowercase word with between 8 or 11 letters (inclusive) |
-| `[0-9]{11}`   | 11-digit number                                             |
+| Expression    | Description                                      |
+| :------------ | :----------------------------------------------- |
+| `a{5}`        | `aaaaa`                                          |
+| `[a-z]{4}`    | Any four-letter lowercase word                   |
+| `[a-z]{6,}`   | Any lowercase word with 6 or more letters        |
+| `[a-z]{8,11}` | Any lowercase word with between 8 and 11 letters |
+| `[0-9]{11}`   | Any 11-digit number                              |
 
 
 ## Metacharacters
 
-Write compact regex with metacharacters:
+Metacharacters are shorthand for common character classes:
 
-| Expression | Match                                                |
-| :--------- | :--------------------------------------------------- |
-| `\d`       | any digit, equal to `[0-9]`                          |
-| `\w`       | any word character, such as a letter or digit.       |
-| `\W`       | any character that is not a word character or digit. |
-| `\s`       | any whitespace                                       |
-| `\S`       | anything other than a whitespace character.          |
-| `\t`       | tab character                                        |
+| Expression | Description                                       |
+| :--------- | :------------------------------------------------ |
+| `\d`       | Any digit, equivalent to `[0-9]`                  |
+| `\w`       | Any word character (letter, digit, or underscore) |
+| `\W`       | Any non-word character                            |
+| `\s`       | Any whitespace character                          |
+| `\S`       | Any non-whitespace character                      |
+| `\t`       | A tab character                                   |
 
-Combine these with repeating characters:
-
-- `\w{5}`: five-letter word or number
-- `\d{11}`
+Combine metacharacters with repeating character syntax:
+- `\w{5}` matches any five-character word or number sequence
+- `\d{11}` matches any 11-digit number
 
 
 ## Special characters
 
-| Character | Description                                                                   | Example                                   |
-| :-------- | :---------------------------------------------------------------------------- | :---------------------------------------- |
-| `+`       | One or more of the previous characters.                                       | `c+at` matches `cat` or `ccccat`          |
-| `?`       | Zero or one of the previous characters.                                       | `c?at` matches `cat` or `at`              |
-| `*`       | Zero or more of the previous characters.                                      | `c*at` matches `at` or `cat` or `cccat`   |
-| `\`       | Escape character.                                                             | `\d*` matches `d*`                        |
-| `[^]`     | Negate notation. Do not match the characters after the `^` within the braces. | `b[^a]ld` matches `bold` but not `bald`   |
-| `.`       | Match any digit, letter, or symbol except newline.                            | `.{8}` matches any eight-character token. |
+Special characters extend what a pattern can match:
 
-For example:
-- `.+` matches one or more unlimited number of characters.
-- `[a-z]+` matches all lowercase words.
+| Character | Description                                              | Example                                  |
+| :-------- | :------------------------------------------------------- | :--------------------------------------- |
+| `+`       | One or more of the preceding token                       | `c+at` matches `cat` and `ccccat`        |
+| `?`       | Zero or one of the preceding token                       | `c?at` matches `cat` and `at`            |
+| `*`       | Zero or more of the preceding token                      | `c*at` matches `at`, `cat`, and `cccat`  |
+| `\`       | Escapes the next character                               | `\.` matches a literal period; `\d*` matches the literal string `d*` |
+| `[^]`     | Negation: matches any character not listed after the `^` | `b[^a]ld` matches `bold` but not `bald`  |
+| `.`       | Matches any character except a newline                   | `.{8}` matches any eight-character token |
+
+For example, `.+` matches one or more of any character, and `[a-z]+` matches any sequence of consecutive lowercase characters.
 
 
 ## Groups
 
-Groups apply pattern matching to a section of the expression. `book(ing)?` matches `book` and `booking`.
+Parentheses group part of a pattern so you can apply a quantifier to the whole group.
+
+For example, `book(ing)?` matches both `book` and `booking`. The `?` makes the entire group optional.
+
+Groups also capture their match for reuse. Most regex tools number captured groups from left to right starting at `$1`, so you can reference them in a replacement string.
 
 ## Alternate characters
 
-Use the pipe (`|`) character to match one or the other option. For example:
+Use the pipe character (`|`) to match either option. For example, `bat|bit` matches `bat` or `bit`.
 
-- `bat|bit`
-
-You can match the same values by enclosing the options in parentheses:
-- `b(a|i)t`
+Enclose the alternating portion in parentheses to keep the pattern compact. For example, `b(a|i)t` matches the same values as `bat|bit`.
 
 ## Starting and ending characters
 
-> **REVISIT THIS**
+Anchors match a position in the string, not a character. Use `^` and `$` together to match an exact string with nothing before or after it. For example, `^cat$` matches only `cat` and does not match `the cat`, `cats`, or `cat sat`:
 
-| Character | Description                                                                             | Example |
-| :-------- | :-------------------------------------------------------------------------------------- | :------ |
-| `^`       | Matches pattern at the start of the string. Place this at the beginning of the pattern. |         |
-| `$`       | Matches pattern at the end of the string. Place this at the end of the pattern.         |         |
-
-## Quantifiers
-
-Quantifiers define how many 
-- `+`: match one or more of the preceding token.
-- `?`: optional. Optionally, you want to match the preceding token.
-- `*`: match zero or more of the preceding token. Wildcard.
-- `.`: match anything except a newline.
-- `\.`: search for a period.
-- `{min,max}`: match any characters between min and max. So `/\w{4,5}\/g` matches any 4 or 5 consequtive word characters.
-- `[bc]at`: matches bat or cat. 
-- `[a-zA-Z]`: any word that ends in `at` and starts with an uppercase or lowercase letter. Works with numbers too (`[0-9]`)
-- `()`: groups
+| Character | Description                     | Example                                              |
+| :-------- | :------------------------------ | :--------------------------------------------------- |
+| `^`       | Matches the start of the string | `^cat` matches `cat` in `cat sat` but not `the cat` |
+| `$`       | Matches the end of the string   | `cat$` matches `cat` in `the cat` but not `cat sat` |
 
 ## Lookaheads
 
-Read this [Sitepoint article](https://www.sitepoint.com/demystifying-regex-with-practical-examples/).
+A lookahead matches a pattern only when it is followed (or not followed) by another pattern. The lookahead condition is not included in the match result.
+
+A positive lookahead (`?=`) matches the preceding pattern only when followed by the lookahead condition. For example, the following pattern matches `100` in `100 dollars` but not in `100 euros`:
+
+```bash
+\d+(?= dollars)
+```
+
+A negative lookahead (`?!`) matches the preceding pattern only when it is not followed by the lookahead condition. For example, the following pattern matches `100` in `100 euros` but not in `100 dollars`:
+
+```bash
+\d+(?! dollars)
+```

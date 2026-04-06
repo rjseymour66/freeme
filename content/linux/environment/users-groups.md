@@ -1,183 +1,181 @@
 +++
-title = 'Users Groups'
+title = 'Users and groups'
 date = '2025-09-07T18:57:06-04:00'
-weight = 10
+weight = 40
 draft = false
 +++
 
 
-There are three types of Linux users:
-- root
-- sudoers
-- regular users
+Linux organizes users into three types based on the level of access they have:
+- `root`: Has unrestricted access to the entire system
+- Sudo user: A regular user granted permission to run commands with root privileges
+- Regular user: Has access only to their own files and explicitly granted resources
 
 ## sudo
 
-Stands for "substitute user"
-- Do not log in as `root` - assign superuser privileges to a regular user and perform root operations with `sudo`.
-- `sudo` lets you restrict which commands a user can run as `root`
+`sudo` stands for "superuser do." It lets you run individual commands with elevated privileges without logging in as `root`.
+
+Best practices for using `sudo`:
+- Do not log in as `root`. Assign superuser privileges to a regular user and run root operations with `sudo` instead.
+- Restrict which commands each user can run as `root` to limit the blast radius of mistakes or compromised accounts.
 
 ### Common commands
 
-```bash
-usermod -aG sudo <username>     # add user to sudoers (Ubuntu)
-sudo !!                         # run previous command as sudo
-sudo -i                         # interactive mode - root shell env
-sudo -s                         # sudo shell - regular user shell env and bashrc
-journalctl -e /usr/bin/sudo     # check sudo usage history
-sudo lastb                      # failed root login attempts
-```
+Common `sudo` commands:
+
+| Command                       | Description                                          |
+| :---------------------------- | :--------------------------------------------------- |
+| `usermod -aG sudo <username>` | Add a user to the sudo group (Ubuntu)                |
+| `sudo !!`                     | Run the previous command as sudo                     |
+| `sudo -i`                     | Open a root shell with the root environment          |
+| `sudo -s`                     | Open a shell with your own environment and `.bashrc` |
+| `journalctl -e /usr/bin/sudo` | View sudo usage history                              |
+| `sudo lastb`                  | View failed root login attempts                      |
 
 ### visudo
 
-Command that lets you configure `sudo` privileges per user
-- sudoers are maintained in the `/etc/sudoers` file. Edit it with `visudo`
-- `visudo` ensures that there are no errors in the `/etc/sudoers` file
-- group names are preceded by `%`, user names are not
-- use groups to manage `sudo` because you can add/remove users from a group rather than the `/etc/sudoers` file
-- use full path (`/usr/bin/apt`) in command rules to prevent malicious scripting
+References:
+- [How to edit the sudoers file](https://www.digitalocean.com/community/tutorials/how-to-edit-the-sudoers-file)
+- [Sudo - An advanced how-to](https://centoshelp.org/security/sudo-an-advanced-howto/)
+
+`visudo` opens the `/etc/sudoers` file in a safe editing mode that validates syntax before saving. Always use `visudo` to edit `/etc/sudoers`. Editing it directly risks locking yourself out if you introduce a syntax error.
+
+Key rules for `/etc/sudoers`:
+- Group names are preceded by `%`. Usernames are not.
+- Use groups to manage `sudo` access so you can add or remove users from a group instead of editing `/etc/sudoers` directly
+- Use the full path to commands (for example, `/usr/bin/apt`) in command rules to prevent privilege escalation through malicious scripts
+
+#### Syntax
+
+Run `sudo visudo` to open the file:
 
 ```bash
 sudo visudo
-
-# group names start with %, users do not
-root ALL=(ALL:ALL) ALL
-%admin ALL=(ALL) ALL
-
-
-# --- Explanation --- #
-root ALL=(ALL:ALL) ALL
-# root  - users that this rule applies to
-# ALL=  - hosts where the sudo command can be executed - root can use sudo from any terminal
-# (ALL: - which users the user (root) can act as
-# ALL)  - which groupss the user (root) can act as
-# ALL   - commands that the user (root) can run
-# In plain English: "root can execute all commands as all suers from all places"
-
-
-# Allow user "fred" to run "sudo reboot" from any terminal
-# ...and don't prompt for a password
-#
-fred ALL = NOPASSWD:/sbin/reboot
-fred ALL=(ALL) ALL                                  # run all commands from any terminal as root
-fred ALL=(ALL) NOPASSWD:ALL                         # run all commands w/o passwd prompt
-fred ALL=(ALL) /usr/bin/apt,/sbin/mount             # run specified commands any terminal as root
-fred ALL=(ALL) /usr/bin/apt, NOPASSWD:/sbin/mount   # run apt any terminal, mount anywhere w/o passwd
 ```
 
-### Set time between sudo password
+Each rule follows this format:
 
-Set how long (in seconds) before you have to reenter the sudo password to execute sudo commands. Add `timestamp_timeout=<seconds>` to the `env_reset` line.
+```bash
+<user_or_group> <hosts>=(<run_as_user>:<run_as_group>) <commands>
+```
 
-Set to `0` to prompt every time, and `-1` to never prompt:
+For example, `root ALL=(ALL:ALL) ALL` breaks down as:
+
+| Field        | Value  | Meaning                     |
+| :----------- | :----- | :-------------------------- |
+| User         | `root` | The user this rule applies to |
+| Hosts        | `ALL`  | Any terminal or host        |
+| Run as user  | `ALL`  | Can act as any user         |
+| Run as group | `ALL`  | Can act as any group        |
+| Commands     | `ALL`  | Can run any command         |
+
+#### Examples
+
+```bash
+fred ALL=(ALL) ALL                                 # run all commands as root from any terminal
+fred ALL=(ALL) NOPASSWD:ALL                        # run all commands without a password prompt
+fred ALL=(ALL) /usr/bin/apt,/sbin/mount            # run only apt and mount as root
+fred ALL=(ALL) /usr/bin/apt, NOPASSWD:/sbin/mount  # run apt as root; mount without a password prompt
+fred ALL = NOPASSWD:/sbin/reboot                   # run reboot without a password prompt
+%admins ALL=(ALL) ALL                              # all members of the admins group can run any command
+```
+
+### Set the sudo password timeout
+
+By default, `sudo` caches your password for a period of time before prompting again. Add `timestamp_timeout=<seconds>` to the `Defaults env_reset` line in `/etc/sudoers` to control this interval.
+
+Special values:
+- `0`: Prompt for a password every time
+- `-1`: Never prompt again after the first authentication
 
 ```bash
 sudo visudo
 
-#
-# This file MUST be edited with the 'visudo' command as root.
-...
-Defaults        env_reset,timestamp_timeout=90      # ask for passwd after 90s
+Defaults        env_reset,timestamp_timeout=90      # re-prompt after 90 seconds
 Defaults        mail_badpass
 Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
-...
-
-## Change password
-
-```bash
-passwd
-Changing password for <username>.
-Current password: 
-New password: 
-Retype new password: 
-passwd: password updated successfully
-
 ```
-
-### References
-
-- [How to edit the sudoers file](https://www.digitalocean.com/community/tutorials/how-to-edit-the-sudoers-file)
-- [Sudo - An Advanced Howto](https://centoshelp.org/security/sudo-an-advanced-howto/)
 
 ## Account files
 
-A few files are used to create accounts (files on the same line are not linked):
+Linux uses several files during and after account creation. The files in each phase are independent of one another.
 
-| Account creation files  | Build or mod after acct creation |
-| ----------------------- | -------------------------------- |
-| `/etc/default/useradd`  | `/home/userid`                   |
-| `/etc/login.defs`       | `/etc/passwd`                    |
-| -**user acct created**- | -**user acct created**-          |
-| `/etc/skel`             | `/etc/shadow`                    |
-| admin input             | `/etc/group`                     |
+**Before account creation:**
+- `/etc/default/useradd`
+- `/etc/login.defs`
+- `/etc/skel`
+- Admin input
+
+**After account creation:**
+- `/home/<username>`
+- `/etc/passwd`
+- `/etc/shadow`
+- `/etc/group`
 
 
 ### Creation files
 
 #### /etc/login.defs
 
-Config file that contains directives for various shadow password suite commands. These settings are created after the OS installation.
+`/etc/login.defs` is the configuration file for the shadow password suite. It defines default settings for account-related commands such as `useradd`, `userdel`, and `passwd`. Linux applies these settings after the OS installation.
 
-_shadow password suite_: commands that deal with account credentials, including:
-- `useradd`
-- `userdel`
-- `passwd`
+Common directives:
 
+| Directive         | Description                                                           |
+| :---------------- | :-------------------------------------------------------------------- |
+| `PASS_MAX_DAYS`   | Number of days before a password change is required                   |
+| `PASS_MIN_DAYS`   | Number of days after a password change before it can be changed again |
+| `PASS_MIN_LENGTH` | Minimum number of characters required in a password                   |
+| `PASS_WARN_AGE`   | Number of days before password expiration that a warning is issued    |
+| `CREATE_HOME`     | Whether to create a home directory for new accounts. Default is `no`. |
+| `ENCRYPT_METHOD`  | Password hashing method                                               |
 
-Directives include passwd length, how long before you have to change passwd, whether home dir is created by default, etc. Common directives include:
+Linux assigns a User Identification Number (UID) to every account. Humans use account names. Linux uses UIDs internally. System accounts provide services (daemons) or perform special tasks. The `root` account always has UID `0`.
 
-| Name              | Description                                                         |
-| ----------------- | ------------------------------------------------------------------- |
-| `PASS_MAX_DAYS`   | Num of days before passwd change is required.                       |
-| `PASS_MIN_DAYS`   | Num of days after a passwd is changed that it can be changed again. |
-| `PASS_MIN_LENGTH` | Min chars requried in password.                                     |
-| `PASS_WARN_AGE`   | Num of days prior to passwd expiration that a warning is issued.    |
-| `CREATE_HOME`     | Create user acct home directory. Default is 'no'.                   |
-| `ENCRYPT_METHOD`  | passwd hash method.                                                 |
+View active directives in `/etc/login.defs`:
 
 ```bash
-# lines that do not begin (-v) with $ or # (comment and blanks)
 grep -v ^$ /etc/login.defs | grep -v ^\#
 MAIL_DIR        /var/mail
 ...
-UID_MIN			 1000   # lowest UID allowed for user accts (sometimes 500)
-UID_MAX			60000
-GID_MIN			 1000   # lowest GID allowed for group accts
-GID_MAX			60000
-LOGIN_RETRIES		5
-LOGIN_TIMEOUT		60
+UID_MIN          1000   # lowest UID allowed for user accounts (sometimes 500)
+UID_MAX         60000
+GID_MIN          1000   # lowest GID allowed for group accounts
+GID_MAX         60000
+LOGIN_RETRIES       5
+LOGIN_TIMEOUT      60
 ...
+```
 
-# root is always 0
+View all UIDs sorted numerically:
+
+```bash
 gawk -F: '{print $3, $1}' /etc/passwd | sort -n
 0 root
 1 daemon
 2 bin
 ```
-- UID: User Identification Number (UID) is assigned to a _user account_ or _normal account_.
-  - Humans use account names, Linux uses UIDs.
-- System accounts proide services (daemons) or perform special tasks.
-- root always has UID = 0.
 
 #### /etc/default/useradd
 
-Contains default values for `useradd` command:
+`/etc/default/useradd` stores the default values applied when you run `useradd`. View all active directives with `useradd -D`:
 
 ```bash
-# list all active directives
 useradd -D
 GROUP=100
 HOME=/home              # Must set CREATE_HOME in /etc/login.defs to 'yes'
-INACTIVE=-1             # Num of days after passwd expiration that the acct is deactivated
+INACTIVE=-1             # Number of days after password expiration before the account is deactivated
 EXPIRE=
-SHELL=/bin/sh           # default shell program
-SKEL=/etc/skel          # skeleton directory
+SHELL=/bin/sh           # Default shell
+SKEL=/etc/skel          # Skeleton directory
 CREATE_MAIL_SPOOL=no
 ```
 
 #### /etc/skel
 
-Contains files. If you set up users to have a HOME directory, these files are copied to `/user/home/`:
+`/etc/skel` contains template files that Linux copies into every new user's home directory at account creation. Add files to `/etc/skel` to distribute default configurations, such as an editor config or a welcome file, to every new user at account creation.
+
+View the default contents:
 
 ```bash
 ls -laog /etc/skel/
@@ -197,11 +195,18 @@ These files are built or modified after a user account is created. Does not incl
 
 #### /etc/passwd
 
-Stores account information. When account is created, it is added to this file.
-- Security riskb bc its world-readable bc other commands use it. For example, `ls` uses it to display ownership
+{{< admonition "Passwords in /etc/passwd" warning >}}
+`/etc/passwd` should not contain passwords. If it does, run `pwconv` to migrate them to `/etc/shadow`.
+{{< /admonition >}}
 
-> This file does not hold passwords due to security concerns. If it does, you can migrate passwords to the correct `/etc/shadow` file with the `pwconv` command.
+`/etc/passwd` stores account information. When you create an account, Linux adds an entry to this file. The file is world-readable because commands like `ls` use it to display ownership information:
 
+```bash
+ls -l /etc/passwd
+-rw-r--r-- 1 root root 1826 Dec 29 00:14 /etc/passwd
+```
+
+Each entry follows the format `username:password:UID:GID:comment:home:shell`:
 
 ```bash
 cat /etc/passwd
@@ -211,20 +216,20 @@ bin:x:2:2:bin:/bin:/usr/sbin/nologin
 sys:x:3:3:sys:/dev:/usr/sbin/nologin
 ```
 
-| Field num | Description                                                                                                                                                                                                                                                                                                      |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1         | username                                                                                                                                                                                                                                                                                                         |
-| 2         | password field. `x` indicates there is a passwd in `/etc/shadow`                                                                                                                                                                                                                                                 |
-| 3         | UID                                                                                                                                                                                                                                                                                                              |
-| 4         | GID                                                                                                                                                                                                                                                                                                              |
-| 5         | Comment field, traditionally contains user's full name                                                                                                                                                                                                                                                           |
-| 6         | user HOME dir                                                                                                                                                                                                                                                                                                    |
-| 7         | user default shell. `/sbin/nologin` and `/bin/false` prevents an acct from logging in to shell, usually for system service accounts. If you attempt to login, you get a message and the session terminates. Edit/create `/etc/nologin.txt` to customize the message. `/bin/false` just logs you out, no message. |
+| Field | Description                                                                                                                                                                      |
+| :---- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Username                                                                                                                                                                         |
+| 2     | Password field. `x` indicates the password is stored in `/etc/shadow`                                                                                                           |
+| 3     | UID                                                                                                                                                                              |
+| 4     | GID                                                                                                                                                                              |
+| 5     | Comment field, traditionally the user's full name                                                                                                                                |
+| 6     | Home directory                                                                                                                                                                   |
+| 7     | Default shell. `/sbin/nologin` displays a message and ends the session. `/bin/false` ends the session silently. Both prevent interactive log in, typically for service accounts. |
 
 
 #### /etc/shadow
 
-Contains info about account's password, even if one does not yet exist. Root accessible only:
+`/etc/shadow` stores password information for every account, even accounts that have no password set. Only `root` can read this file.
 
 ```bash
 sudo cat /etc/shadow
@@ -235,114 +240,156 @@ sys:*:19773:0:99999:7:::
 ...
 <username>:$y$j9T$qQNRlSwnLVRW/liifd7HW/$w22t73yRHnNvpqsSgDChfEucV825MollmauAvtbeYp9:19804:0:99999:7:::
 ```
-| Field num | Description                                                                                                                                                        |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1         | username. Only field shared with `/etc/passwd`                                                                                                                     |
-| 2         | passwd, salted and hashed. `!` or `!!` indicates no password. `*` indicates account cannot log in with a password. `!<password-hash>` indicates account is locked. |
-| 3         | Date of passwd change in Unix Epoch time                                                                                                                           |
-| 4         | Num of days after a passwd is changed that it can be changed again.                                                                                                |
-| 5         | Num of days before passwd change is required. Password expiration date                                                                                             |
-| 6         | Num of days prior to passwd expiration that a warning is issued.                                                                                                   |
-| 7         | Num of days after a passwd expires that the account is deactivated                                                                                                 |
-| 8         | Date account expired in Unix Epoch time                                                                                                                            |
-| 9         | _special flag_ field for a special future use. It is blank.                                                                                                        |
 
-> Unix Epoch time is the number of seconds since Jan 1, 1970. `etc/shadow` expresses it in days, not seconds.
+Date fields use Unix Epoch time expressed in days since January 1, 1970 (not seconds):
+
+| Field | Description                                                                                                                                                              |
+| :---- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Username. The only field shared with `/etc/passwd`                                                                                                                       |
+| 2     | Password, salted and hashed. `!` or `!!` means no password. `*` means the account cannot log in with a password. `!<hash>` means the account is locked.                 |
+| 3     | Date of last password change in Unix Epoch days                                                                                                                          |
+| 4     | Number of days after a password change before it can be changed again                                                                                                    |
+| 5     | Number of days before a password change is required                                                                                                                      |
+| 6     | Number of days before expiration that a warning is issued                                                                                                                |
+| 7     | Number of days after expiration before the account is deactivated                                                                                                        |
+| 8     | Date the account expires in Unix Epoch days                                                                                                                              |
+| 9     | Reserved for future use                                                                                                                                                  |
 
 ### Restrict shell access
 
-Accounts for mail servers (POP3 or SMTP) or FTP/SFTP don't need shell access. You can assign them the `nologin` shell to restrict access.
+Service accounts for mail servers (POP3 or SMTP) or FTP/SFTP do not need shell access. Assign them `/usr/sbin/nologin` to prevent interactive log in.
 
-```bash
-# existing users
-cat /etc/shells                                             # 1. Check /etc/shells for /usr/sbin/nologin (ubuntu)
-sudo vim /etc/shells                                        # 2. Add if necessary
-cat /etc/shells                                             # 3. Verify
-...
-/usr/sbin/nologin
+#### Restrict an existing user
 
-grep '^neverlogin' /etc/passwd                              # 4. Check current shell
-neverlogin:x:1003:1003:,,,:/home/neverlogin:/bin/bash
+1. Check that `/usr/sbin/nologin` is listed in `/etc/shells`:
 
-usermod -s /usr/sbin/nologin neverlogin                     # 5. Modify user shell
-usermod -s /usr/sbin/nologin neverlogin                     # 6. Verify changes
+   ```bash
+   cat /etc/shells
+   ```
 
-# new users - must have /usr/sbin/nologin available in /etc/shells
-useradd -s /usr/sbin/nologin neverlogin                     # 1. Create user
+2. If it is not listed, add it:
 
-getent passwd neverlogin                                    # 2. Verify
-neverlogin:x:1003:1003::/home/neverlogin:/usr/sbin/nologin
+   ```bash
+   sudo vim /etc/shells
+   ```
 
-# assign shell to nologin user
-chsh -s /usr/bin/bash neverlogin                            # 1. Change shell
-getent passwd neverlogin                                    # 2. Verify
-neverlogin:x:1003:1003::/home/neverlogin:/usr/bin/bash
+3. Check the user's current shell:
 
-```
+   ```bash
+   grep '^neverlogin' /etc/passwd
+   neverlogin:x:1003:1003:,,,:/home/neverlogin:/bin/bash
+   ```
+
+4. Set the shell to `nologin`:
+
+   ```bash
+   usermod -s /usr/sbin/nologin neverlogin
+   ```
+
+5. Verify the change:
+
+   ```bash
+   getent passwd neverlogin
+   neverlogin:x:1003:1003::/home/neverlogin:/usr/sbin/nologin
+   ```
+
+#### Create a new user with no shell access
+
+1. Create the user with `nologin` as the shell:
+
+   ```bash
+   useradd -s /usr/sbin/nologin neverlogin
+   ```
+
+2. Verify:
+
+   ```bash
+   getent passwd neverlogin
+   neverlogin:x:1003:1003::/home/neverlogin:/usr/sbin/nologin
+   ```
+
+#### Restore shell access
+
+1. Assign a valid shell:
+
+   ```bash
+   chsh -s /usr/bin/bash neverlogin
+   ```
+
+2. Verify:
+
+   ```bash
+   getent passwd neverlogin
+   neverlogin:x:1003:1003::/home/neverlogin:/usr/bin/bash
+   ```
 
 ## Users
 
-- User accounts represent the actual people that use the server and have access to what they need the server for
-  - Users do not have to be people, they can be "system users" that run system tasks
-- To create multiple users on the same system, create all their home directories in `/home`:
-  ```bash
-  la -l /home/
-  total 8
-  drwxr-x--- 2 jdoe       jdoe       4096 Dec 28 23:51 jdoe
-  drwxr-x--- 4 normaluser normaluser 4096 Dec 27 21:44 normaluser
-  ```
+A user account represents an identity on the system. Users can be people or service accounts that run automated tasks. All user home directories are stored under `/home`:
+
+```bash
+ls -l /home/
+total 8
+drwxr-x--- 2 jdoe       jdoe       4096 Dec 28 23:51 jdoe
+drwxr-x--- 4 normaluser normaluser 4096 Dec 27 21:44 normaluser
+```
 
 ### root
 
-- `root` is the most powerful user and can perform any task or access any file or directory in the system
-- After installation, you have the `root` user and the administrator user account you created
-  - The admin should have their own account and use `sudo` to switch to `root` when needed
-  - The admin user is really just a regular user that has `sudo` access by default
-  - You have to explicitly grant other user accounts access to `sudo`
-- Ubuntu locks out the `root` account after installation. You should run individual commands that require elevated privileges with `sudo`
-- You must create the `root` password after installation
+The `root` account has unrestricted access to every file and command on the system. After installation, you have the `root` user and the administrator account you created during setup. The administrator is a regular user with `sudo` access. You must explicitly grant `sudo` access to other accounts.
+
+Ubuntu locks the `root` account after installation. Run commands that require elevated privileges with `sudo` instead of logging in as `root`. You must set the `root` password after installation.
+
+Switch to `root` from an account that has root access:
 
 ```bash
-sudo su -           # switch to root from account that has root access
+sudo su -
 ```
 ### adduser vs useradd
 
-- `adduser` is easier to use because it has an interactive menu that helps create users.
-- `useradd` is a low-level utility with more options during account creation.
+Use either command to create a user account:
+
+| Command   | Description |
+| :-------- | :---------- |
+| `adduser` | Interactive prompt that guides you through account creation, including setting a password. Easier to use but not available on all distributions. |
+| `useradd` | Low-level utility with more flags and options. Available on all Linux distributions. |
+
+Create a user and assign them to a group at creation:
 
 ```bash
-# create user and add to group
 adduser --ingroup <group-name> <username>
 ```
 
 ### useradd
 
-Lets you add user accounts only. You need to create a password, specify home dir, etc.:
+`useradd` creates a user account. It does not set a password or create a home directory by default. You must specify those explicitly. Common options:
+
+| Option | Description |
+| :----- | :---------- |
+| `-c` | Comment field, traditionally the user's full name |
+| `-d` | Home directory path |
+| `-D` | Display directives from `/etc/default/useradd` |
+| `-e` | Account expiration date (`EXPIRE` directive) |
+| `-f` | Days after password expiration before the account is deactivated. `-1` means never deactivate (`INACTIVE` directive) |
+| `-g` | Primary group |
+| `-G` | Additional group memberships |
+| `-m` | Create a home directory (`CREATE_HOME` directive) |
+| `-M` | Do not create a home directory |
+| `-r` | Create a system account instead of a user account |
+| `-s` | Default shell (`SHELL` directive) |
+| `-u` | UID |
+
+Create a user with a home directory:
 
 ```bash
-useradd <username>
--c # comment field, traditionally includes user's full name
--d # home dir specification
--D # display directives in /etc/default/useradd
--e # acct expirtaion date, set by EXPIRE directive
--f # num of days passwd expired before acct deactivated. -1 means never deactivate. INACTIVE directive
--g # group membership
--G # additional group membership
--m # create user acct /home. CREATE_HOME directive
--M # do NOT create /home
--s # acct shell. SHELL directive
--u # UID
--r # create system acct, not user acct
-
-# create user with home directory in /home
-useradd -d /home/jdoe -m jdoe      
+useradd -d /home/jdoe -m jdoe
 ```
 
 ### adduser
 
-Interactive alternative to `useradd` that lets you assign a password upon creation and provides verbose output.
-- A Perl script that calls `useradd` under the hood.
-- Not available on all Linux distros, so learn `useradd` and its options as well
+`adduser` is a Perl script that calls `useradd` under the hood. It prompts you for a password and user details at creation and prints verbose output. It is not available on all distributions.
+
+Create a new user:
 
 ```bash
 sudo adduser seconduser
@@ -369,177 +416,155 @@ info: Adding user `seconduser' to group `users' ...
 
 ### usermod
 
-Utility to modify accounts, useful when you forget to check the distro’s account creation directives:
+`usermod` modifies an existing user account. Use it to update group membership, shell, home directory, or lock and unlock accounts. Common options:
+
+| Option | Description |
+| :----- | :---------- |
+| `-a` | Append user to a group (use with `-G`) |
+| `-c` | Modify the comment field |
+| `-d` | Set a new home directory |
+| `-e` | Modify account expiration date |
+| `-f` | Days after password expiration before account is deactivated |
+| `-g` | Change primary group |
+| `-G` | Update additional group memberships |
+| `-l` | Change the account username |
+| `-L` | Lock the account |
+| `-m` | Move home directory contents to new location (use with `-d`) |
+| `-s` | Change the default shell |
+| `-u` | Change the UID |
+| `-U` | Unlock the account |
+
+#### Add a user to a group
 
 ```bash
--a # append user to group
--c # modify comment field
--d # set new home dir. use -m option to move contents of current /home to new /home
--e # modify acct expiration date
--f # modify num of days for acct to become inactive after passwd expiration
--g # modify default group
--G # update additional group membership
--l # modify account username (login)
--L # lock acct, (!) in shadow file
--m # move home dir to new location
--s # change acct shell
--u # change UID
--U # Unlock acct, rm (!) in shadow file
+usermod -aG <group> <username>    # add as secondary group
+usermod -g <group> <username>     # set as primary group
+```
 
-usermod -aG <group> <username>          # add <username> to <group> as secondary group
-usermod -g <group> <username>           # add <username> to <group> as primary group
+#### Lock and unlock an account
 
-
-# --- Lock user account --- #
+```bash
 sudo usermod -L linuxuser               # lock account
 sudo passwd -S linuxuser                # display status
 linuxuser L 03/31/2024 0 99999 7 -1
 
-sudo getent shadow linuxuser            # display shadow file entry- (!)
+sudo getent shadow linuxuser            # verify lock in shadow file
 linuxuser:!$y$...:19813:0:99999:7:::
 
 sudo usermod -U linuxuser               # unlock
-sudo passwd -S linuxuser                # display status again
+sudo passwd -S linuxuser                # display status
 linuxuser P 03/31/2024 0 99999 7 -1
 ```
 
 ### userdel
 
-Deletes a user account:
-- Verify that you do not need any of the user's files before you delete it
-- Does not remove contents of user's `/home` directory by default
+`userdel` removes a user account. Verify that you do not need any of the user's files before deleting the account. By default, it does not remove the user's home directory. Use `-r` when you are certain the account and its data are no longer needed:
 
-```bash
-userdel <username>      # delete user only
-userdel -r <username>   # delete user, /home dir, and mail spool
-```
+| Command | Description |
+| :------ | :---------- |
+| `userdel <username>` | Delete the user account only |
+| `userdel -r <username>` | Delete the user account, home directory, and mail spool |
 
-### /etc/skel default files and configs
-
-Files in this dir are copied into all new user `/home` directories:
-- Create default files for recommended text editor or a 'welcome' file w important info
-- Add files or edit existing as needed
-
-```bash
-ls -la /etc/skel/
-total 20
-drwxr-xr-x   2 root root 4096 Aug 27 14:18 .
-drwxr-xr-x 108 root root 4096 Dec 29 00:49 ..
--rw-r--r--   1 root root  220 Mar 31  2024 .bash_logout
--rw-r--r--   1 root root 3771 Mar 31  2024 .bashrc
--rw-r--r--   1 root root  807 Mar 31  2024 .profile
-
-```
 
 ### chsh
-> Maybe `usermod` instead?
 
+`chsh` changes the default shell for a user account. Run `cat /etc/shells` first to see which shells are available on the system.
 
-Change the user's default shell:
+Change a user's shell:
 
 ```bash
-cat /etc/shells                         # 1. Get available shells
-# /etc/shells: valid login shells
-/bin/sh
-/usr/bin/sh
-/bin/bash
-/usr/bin/bash
-/bin/rbash
-/usr/bin/rbash
-/usr/bin/dash
-/usr/bin/screen
-/usr/bin/tmux
-
-grep ^jdoe /etc/passwd                  # 2. Check current shell
+cat /etc/shells                 # list available shells
+grep ^jdoe /etc/passwd          # check current shell
 jdoe:x:1001:1001::/home/jdoe:/bin/sh
 
-sudo chsh -s /bin/bash jdoe             # 3. Change shell to /bin/bash
+sudo chsh -s /bin/bash jdoe     # change shell
 
-grep ^jdoe /etc/passwd                  # 4. Verify change
+grep ^jdoe /etc/passwd          # verify
 jdoe:x:1001:1001::/home/jdoe:/bin/bash
-```
-
-Restrict user's shell access with `/usr/sbin/nologin`:
-
-```bash
-cat /etc/shells             # 1. Check if /usr/sbin/nologin is available
-...
-sudo vim /etc/shells        # 2. Add to file, if needed
 ```
 
 ### Switching users
 
-Switch user accounts with `su`:
+`su` switches your session to another user account. The `-` flag loads the target user's environment, including their shell profile and home directory:
+
+| Command | Description |
+| :------ | :---------- |
+| `sudo su -` | Switch to root using your own password |
+| `su - <username>` | Switch to another account using that account's password |
+| `sudo su - <username>` | Switch to another account using your own password |
+
+### Lock and unlock accounts
+
+`passwd` can lock and unlock a user account. A locked account has `L` in the status output. An unlocked account has `P`.
+
+Lock an account:
 
 ```bash
-sudo su -               # switch to root from acct that has root access
-su - <username>         # switch to <username> acct with <username> passwd
-sudo su - <username>    # switch to <username> acct with your passwd 
+passwd -l jdoe
+passwd: password changed.
+
+sudo passwd -S jdoe
+jdoe L 2024-12-29 0 99999 7 -1
 ```
 
-### Lock and unlock accts
-
-Use `passwd` to lock and unlock accounts:
+Unlock an account:
 
 ```bash
-passwd -l jdoe                      # lock acct
+passwd -u jdoe
 passwd: password changed.
 
-sudo passwd -S jdoe                 # verify locked (L)
-jdoe L 2024-12-29 0 99999 7 -1
-
-passwd -u jdoe                      # unlock acct
-passwd: password changed.
-
-sudo passwd -S jdoe                 # verify unlocked (P)
+sudo passwd -S jdoe
 jdoe P 2024-12-29 0 99999 7 -1
 ```
 
-### Rocky
+### Rocky Linux
+
+On Rocky Linux, `/etc/login.defs` creates home directories by default and sets the shell to `/bin/bash`. Create a user with:
 
 ```bash
-# check directive settings
-grep CREATE_HOME /etc/login.defs 
+grep CREATE_HOME /etc/login.defs
 CREATE_HOME     yes
 useradd -D | grep -i shell
 SHELL=/bin/bash
-# create user
+
 sudo useradd <username>
 ```
 
 ### Ubuntu
 
-You have to add more options in Ubunutu bc `/etc/login.defs` does not have the same defaults as other distros:
+On Ubuntu, `/etc/login.defs` does not create home directories by default and sets the shell to `/bin/sh`. Specify both options explicitly:
 
 ```bash
-# check directive settings
-grep CREATE_HOME /etc/login.defs 
+grep CREATE_HOME /etc/login.defs
 useradd -D | grep -i shell
 SHELL=/bin/sh
-# create user with home dir and bash shell
+
 sudo useradd -md /home/linuxuser -s /bin/bash linuxuser
-# check user files were created
+
 grep ^linuxuser /etc/passwd
 linuxuser:x:1001:1001::/home/linuxuser:/bin/bash
+
 sudo grep ^linuxuser /etc/shadow
-linuxuser:!:19813:0:99999:7:::  # no password yet
+linuxuser:!:19813:0:99999:7:::
+
 sudo ls -a /home/linuxuser/
-.  ..  .bash_logout  .bashrc  .profile
-sudo ls -a /etc/skel/
 .  ..  .bash_logout  .bashrc  .profile
 ```
 
 ### getent
 
-Get entries from Name Service switch libraries which are configured in `/etc/nsswitch.conf`:
+`getent` retrieves entries from Name Service Switch (NSS) libraries, which are configured in `/etc/nsswitch.conf`. Unlike `cat /etc/passwd`, it honors security settings. For example, reading `/etc/shadow` requires root privileges even through `getent`.
+
+Look up a user entry:
 
 ```bash
-getent <filename> <username>
-
 getent passwd linuxuser
 linuxuser:x:1001:1001::/home/linuxuser:/bin/bash
-# honors security settings on /etc/shadow
-getent shadow linuxuser
+```
+
+Look up a shadow entry (requires root):
+
+```bash
 sudo getent shadow linuxuser
 linuxuser:!:19813:0:99999:7:::
 ```
@@ -547,11 +572,11 @@ linuxuser:!:19813:0:99999:7:::
 
 ## Querying users
 
-You can audit user access history and other account information.
+These commands let you audit active sessions, account details, and login history.
 
 ### whoami
 
-Displays current user name:
+`whoami` prints the username of the currently logged-in user:
 
 ```bash
 whoami
@@ -559,7 +584,7 @@ whoami
 
 ### who
 
-Displays info about every account on the system:
+`who` lists every user currently logged into the system, along with their terminal and login time:
 
 ```bash
 who
@@ -568,13 +593,13 @@ who
 
 ### w
 
-Like `who`, but more verbose:
+`w` extends `who` with additional detail about each logged-in user. The header line shows the current time, system uptime, number of users, and load averages for the past 1, 5, and 15 minutes. Key output columns:
+
+- `JCPU`: Total CPU time the account has used
+- `PCPU`: CPU time the current command has used
+- `WHAT`: The command the account is currently running
 
 ```bash
-# load average: 1m, 5m, 15m
-# JCPU: total CPU time acct has used
-# PCPU: CPU time current command has used
-# WHAT: what the acct is currently running
 w
  08:59:08 up 14:54,  1 user,  load average: 0.19, 0.13, 0.10
 USER       TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
@@ -583,419 +608,434 @@ USER       TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
 
 ### id
 
-Useful in shell scripts.
+`id` displays the UID, primary group GID, and all group memberships for a user. It is commonly used in shell scripts to check identity or group membership. Common options:
 
-Gather various data about the current user process or info about the provided user id:
+| Option | Description |
+| :----- | :---------- |
+| `-g` | Display the current group's GID |
+| `-G` | Display all group membership GIDs |
+| `-n` | Display the account name instead of UID |
+| `-u` | Display the account UID |
+
+Look up the current user:
 
 ```bash
-id [username|UID]
--g # Display acct's current group's GID
--G # Display all grou membership GIDs
--n # Display acct name instead of UID
--u # Display acct UID
-
-# current user
 id
 uid=1000(<current-user>) gid=1000(<current-user>) groups=1000(<current-user>),27(sudo),999(vboxsf)
-# specified user
-id linuxuser 
+```
+
+Look up a specific user:
+
+```bash
+id linuxuser
 uid=1001(linuxuser) gid=1001(linuxuser) groups=1001(linuxuser)
-# specified user
+```
+
+Look up a user by UID:
+
+```bash
 id -un 1001
 linuxuser
+```
 
-# script example
+`id` is also used in shell scripts to resolve the current username. For example, `/etc/profile` uses it to set the `USER` variable:
+
+```bash
 grep USER /etc/profile
 USER="`/usr/bin/id -un`"
 ```
 
 ### last
 
-Pulls info from the `/var/log/wtmp` file and shows a list of accounts and the last login/logout times:
+`last` reads `/var/log/wtmp` and displays a list of user logins, logouts, and system reboots. Use `-f` to read from a specific log file:
 
 ```bash
-# pull from /var/log/wtmp
 last
 <username> tty2         tty2             Sun Mar 24 16:48    gone - no logout
 reboot     system boot  6.5.0-26-generic Sun Mar 24 16:47   still running
 <username> tty2         tty2             Sat Mar 23 09:19 - crash (1+07:27)
 reboot     system boot  6.5.0-26-generic Sat Mar 23 09:04   still running
-<username> tty2         tty2             Thu Mar 21 23:09 - down   (00:05)
-reboot     system boot  6.5.0-26-generic Thu Mar 21 23:07 - 23:14  (00:06)
-reboot     system boot  6.5.0-26-generic Thu Mar 21 23:07 - 23:07  (00:00)
-<username> tty2         tty2             Thu Mar 21 23:06 - down   (00:00)
-reboot     system boot  6.5.0-26-generic Thu Mar 21 23:05 - 23:06  (00:01)
 ...
+```
 
-# pull from specific file (wtmp.1):
+Read from a specific log file:
+
+```bash
 last -f /var/log/wtmp.1
 ```
 
 
 ## Passwords
 
+Password data is stored in `/etc/passwd` and `/etc/shadow`. Both files are described in [Account files](#account-files).
+
 ### passwd
 
-Set password for a user:
+`passwd` sets or updates a user's password. Common options:
+
+| Option | Description |
+| :----- | :---------- |
+| `-d` | Remove the account password |
+| `-e` | Expire the password immediately, forcing a change at next login |
+| `-i` | Days after password expiration before the account is deactivated |
+| `-l` | Lock the account by placing `!` before the password in `/etc/shadow` |
+| `-n` | Minimum days before the user can change the password again |
+| `-S` | Display password status (`P` = usable, `NP` = no password, `L` = locked) |
+| `-u` | Unlock the account by removing `!` from `/etc/shadow` |
+| `-w` | Days before expiration that a warning is issued |
+| `-x` | Days until a password change is required |
+
+Change the current user's password:
 
 ```bash
-password <username>
--d # rm acct passwd
--e # set passwd as expired, must change it at next login
--i # sets num of days for acct to become inactive after passwd expiration
--l # lock, places '!' in front of passwd in /etc/shadow
--n # num of days after passwd change that user can change passwd again
--S # display password status
--u # unlock, rm '!' in front of passwd in /etc/shadow
--w # num of days to issue warning before password expiration
--x # num of days until a passwd change is required
+passwd
+```
 
-# get passwd status
-# P usable
-# NP no password
-# L locked
+Change another user's password (requires root):
+
+```bash
+sudo passwd <username>
+```
+
+Display password status:
+
+```bash
 sudo passwd -S linuxuser
 linuxuser P 03/31/2024 0 99999 7 -1
 ```
 
 
-#### get passwd status
-
-
-Fields:
-1. Username
-2. Password status
-   - `P`: set and usable
-   - `NP`: no password
-   - `L`: locked
-3. Date of last password change
-4. Min number of days that must pass before the user can change password again. Prevents users from changing password back to previous passwords too quickly.
-5. Max number of days that can pass between password changes.
-6. Num days before expiration date that the user is warned to change password
-7. Num days after expiration that account is disabled if password not changed
-8. Num days since Unix epoch that will elapse before acct is disabled
-
-```bash
-# get info for each page
-man shadow
-man passwd
-
-sudo passwd -S linuxuser
-linuxuser P 03/31/2024 0 99999 7 -1
-
-passwd                  # change password for current logged in user
-sudo passwd <username>  # change password for <username>
-```
 
 ### chage
 
-Same as `passwd -S <username>` but more human readable:
+`chage` displays and updates password aging information. Its output is more readable than `passwd -S`:
 
-```bash
-# view acct passwd status
-sudo chage -l <username>
-# interactively update passwd settings
-sudo chage <username>
-```
+| Command | Description |
+| :------ | :---------- |
+| `sudo chage -l <username>` | Display password aging details |
+| `sudo chage <username>` | Interactively update password settings |
 
 ### Set password expiration
 
-`chage` - change user password account information.
+View the current password aging settings for an account:
 
 ```bash
-# --- View password info (/etc/shadow) --- #
 chage -l normaluser
-Last password change					: Dec 27, 2024
-Password expires					: never
-Password inactive					: never
-Account expires						: never
-Minimum number of days between password change		: 0
-Maximum number of days between password change		: 99999
-Number of days of warning before password expires	: 7
-
-
-sudo chage -d 0 <username>          # force passwd change on first login
-sudo chage -M 90 <username>         # require passwd change after 90 days
-sudo chage -m 10 <username>         # can't change password within 10 days of change
+Last password change          : Dec 27, 2024
+Password expires              : never
+Password inactive             : never
+Account expires               : never
+Minimum number of days between password change    : 0
+Maximum number of days between password change    : 99999
+Number of days of warning before password expires : 7
 ```
+
+Common `chage` commands for setting expiration policy:
+
+| Command | Description |
+| :------ | :---------- |
+| `sudo chage -d 0 <username>` | Force a password change at next login |
+| `sudo chage -M 90 <username>` | Require a password change every 90 days |
+| `sudo chage -m 10 <username>` | Prevent password changes within 10 days of the last change |
 
 ### Set password policy
 
-> When making authentication changes, always keep a root shell open where you make the changes, and test the changes in another shell with the privilges or user that you are making the changes for.
+{{< admonition "Test authentication changes safely" warning >}}
+When making authentication changes, keep a root shell open in a separate terminal. Test your changes from a second shell before closing the root session.
+{{< /admonition >}}
 
+Password policy is managed through Pluggable Authentication Modules (PAM). PAM packages extend authentication features and are configured in `/etc/pam.d/common-password`.
 
-A password policy determines the password requirements:
-- Pluggable Authentication Modules (PAM) - packages that you can install that give more control over auth and lets us extend auth features
-- Set in `/etc/pam.d/common-password`
+Install the `libpam-passwdqc` package to enforce password quality requirements:
 
 ```bash
 sudo apt install libpam-passwdqc
+```
 
+Edit `/etc/pam.d/common-password` to configure policy. For example, configure the system to remember previous passwords:
+
+```bash
 sudo vim /etc/pam.d/common-password
 ...
-# system remembers previous passwords
-password	required			pam_pwhistory.so remember=99 use_authok
+password    required    pam_pwhistory.so remember=99 use_authok
 ```
-### /etc/passwd
-
-Stores account information:
-- When you create an account, it gets an entry in `/etc/passwd`
-- World-readable because commands like `ls` use it for info
-- System assigns the next available UID, which it uses to reference the account
-- When the second field has an `x`, that means there is a password stored for that user in the `/etc/shadow` file
-
-```bash
-ls -l /etc/passwd
--rw-r--r-- 1 root root 1826 Dec 29 00:14 /etc/passwd    # world readable
-
-cat /etc/passwd
-...
-# username:password:UID:GID:username:home dir:default shell
-normaluser:x:1000:1000:ryan:/home/normaluser:/bin/bash
-```
-
-### /etc/shadow
-
-Contains account password information, requires `root` privileges:
-- UID is stored in `/etc/passwd`, so no need to duplicate here
-- Hashed password is second field, after username
-- `*` or `!` in second field means account is locked. You can't log into this account through shell or network, you must log in as normal user and switch users
-- Third col is number of days since Unix epoch (Jan 1, 1970) that the password was last changed
-
-```bash
-sudo cat /etc/shadow
-...
-normaluser:$6$nYwtntKtT8/Cngzp$lIY0yPSFcc/tofKENzxGsFDry7DDvorh5eoLvVSSu.c63ammowy.rthykd7bX5vpehIR.BUa7MVgJRwchpb501:20084:0:99999:7:::
-jdoe:$y$j9T$8LuhOxanK6eCw78R.yFK50$D3VM0AEQ7dNzIM9J.X8ap0Sl7uA28JDwE7fgkhGELI9:20085:0:99999:7:::
-
-# root is locked
-grep root /etc/shadow
-root:*:19962:0:99999:7:::
-```
-
 
 ## Groups
 
-Groups let you categorize and manage users in bulk:
-- What resources a user can access
-- Every file and directory has an assigned user and group
-- Each user is a member of a group named with their username
-- Groups are part of Linux's discretionary access control (DAC).
-- DAC: Traditional Linux security control where access to a file or any object is based on the user's identity and current group membership.
-- _Default group_: When you create a user, it is given a _default group_.
-  - A process can have only one group at a time
-  - Users can be members of many groups but have only one default
-  - Default group is the acct's current group when first logged in
-  - If default group is not designated when a user acct is created, a new group is created with same name as username and new GID
-- Have name and group identification number (GID). Names are for humans to read, GIDs are for linux to read
-- tracked in `/etc/group`
-- Group passwds stored in `/etc/gshadow` file
+{{< admonition "Do not use group passwords" warning >}}
+Grant group access through membership, not passwords. Set passwords on user accounts instead.
+{{< /admonition >}}
 
-> DO NOT allow access to groups with group passwords. Set user acct passwords, and grant access to groups via membership, not passwords.
+Groups let you control which resources users can access. Every file and directory has an assigned user and group. Groups are part of Linux's discretionary access control (DAC), where access to an object is determined by the user's identity and group membership.
+
+Each user belongs to a default group, which is their active group at login. A process can have only one active group at a time, but a user can be a member of many groups. If no default group is specified at account creation, Linux creates a new group with the same name as the username. Groups are tracked in `/etc/group`. Group passwords are stored in `/etc/gshadow`.
 
 ### View group membership
 
+`/etc/group` stores all group definitions. Each entry follows the format `name:password:GID:members`, where `members` is a comma-separated list of users in the group:
+
 ```bash
-groups                  # which groups logged in user belongs to
-groups <username>       # which groups <username> belongs to
-cat /etc/group          # view all groups on the system
-root:x:0:               #   1. group name
-...                     #   2. group passwd (do not set bc security)
-plugdev:x:46:normaluser #   3. GID
-...                     #   4. Comma-separated list of users in group
+cat /etc/group
+root:x:0:
+...
+plugdev:x:46:normaluser
+...
 normaluser:x:1000:
 testuser:x:1002:
 ```
 
+Check group membership for a user:
+
+| Command | Description |
+| :------ | :---------- |
+| `groups` | List groups the current user belongs to |
+| `groups <username>` | List groups a specific user belongs to |
+
 ### groupadd
 
-Create group:
-- Tracked in `/etc/group`
-- Group must exist before you add user to it
+`groupadd` creates a new group and adds it to `/etc/group`. A group must exist before you can add users to it. Use `-g` to specify a GID:
 
 ```bash
-groupadd admins                 # add group
-grep admins /etc/group          # verify
+sudo groupadd admins
+grep admins /etc/group
 admins:x:1003:
 
-sudo groupadd -g 1966 cream     # -g specifies group number
-
-getent group cream              # view group
+sudo groupadd -g 1966 cream
+getent group cream
 cream:x:1966:
+```
 
-grep cream /etc/group           # <groupname>:<password-in-/etc/gshadow>:GID:<group-members>
-cream:x:1966:
+Verify that no group password is set:
 
-sudo getent gshadow cream       # check for passwd
+```bash
+sudo getent gshadow cream
 cream:!::
 ```
 
 ### gpasswd
 
-Lets you administer the `/etc/group` and `/etc/gshadow` files:
+`gpasswd` administers `/etc/group` and `/etc/gshadow`. Use it to add and remove users from groups:
+
+| Command | Description |
+| :------ | :---------- |
+| `gpasswd -a <username> <group>` | Add a user to a group |
+| `gpasswd -d <username> <group>` | Remove a user from a group |
+
+For example, add and remove `jdoe` from the `admins` group:
 
 ```bash
-gpasswd -d <username> <group>           # Remove user from group
-Removing user jdoe from group admins
-
-gpasswd -a <username> <group>           # Add user to group
+gpasswd -a jdoe admins
 Adding user jdoe to group admins
+
+gpasswd -d jdoe admins
+Removing user jdoe from group admins
 ```
 
 ### groupmod
 
-Modifies a group:
+`groupmod` modifies an existing group. Common options:
 
-```bash
-groupmod [OPTIONS...] <groupname>
--g # modify GID
--n # modify name
+| Option | Description |
+| :----- | :---------- |
+| `-g` | Change the GID |
+| `-n` | Rename the group |
 
-# view group info
-getent group cream
-cream:x:1966:linuxuser
-# change group name
-sudo groupmod -n Cream cream
-# confirm /etc/group was updated
-getent group Cream
-Cream:x:1966:linuxuser
-```
+Rename a group:
+
+1. View the current group entry:
+
+   ```bash
+   getent group cream
+   cream:x:1966:linuxuser
+   ```
+
+2. Rename the group:
+
+   ```bash
+   sudo groupmod -n Cream cream
+   ```
+
+3. Confirm the change in `/etc/group`:
+
+   ```bash
+   getent group Cream
+   Cream:x:1966:linuxuser
+   ```
 
 ### groupdel
 
-Deletes a group:
+`groupdel` removes a group. After deleting a group, check the filesystem for files that were owned by that group and reassign them:
 
-```bash
-groupdel <group>                    # deletes <group>
-getent group <group>                # check /etc/group cleanup
-sudo find / -gid <GID> 2>/dev/null   # check fs for files associated with deleted group
-```
+1. Delete the group:
+
+   ```bash
+   groupdel <group>
+   ```
+
+2. Confirm the group was removed from `/etc/group`. [`getent`](#getent) queries the Name Service Switch libraries and returns no output if the group no longer exists:
+
+   ```bash
+   getent group <group>
+   ```
+
+3. Find any files still associated with the deleted GID:
+
+   ```bash
+   sudo find / -gid <GID> 2>/dev/null
+   ```
 ### newgrp
 
-Logs you into a new group.
-- You can only be logged into one group at a time during a session
-- When you switch groups, all files and dirs that you create belong to that group
+`newgrp` switches your active group for the current session. You can only have one active group at a time. Files you create after switching belong to the new group.
 
-```bash
-newgrp [GROUP]
+Switch to the `plugdev` group and create a file:
 
-# logged in group is listed first
-id
-uid=1000(linuxuser) gid=1000(linuxuser) groups=1000(linuxuser),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),101(lxd)
+1. Check your current active group (listed first in `id` output):
 
-newgrp plugdev      # change group
-id                  # view groups
-uid=1000(linuxuser) gid=46(plugdev) groups=46(plugdev),4(adm),24(cdrom),27(sudo),30(dip),101(lxd),1000(linuxuser)
-touch plugdevfile   # create file
-ls -l plugdevfile   # view group
--rw-r--r-- 1 linuxuser plugdev 0 Dec 14 19:28 plugdevfile
-```
+   ```bash
+   id
+   uid=1000(linuxuser) gid=1000(linuxuser) groups=1000(linuxuser),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),101(lxd)
+   ```
+
+2. Switch to `plugdev`:
+
+   ```bash
+   newgrp plugdev
+   ```
+
+3. Verify the active group has changed:
+
+   ```bash
+   id
+   uid=1000(linuxuser) gid=46(plugdev) groups=46(plugdev),4(adm),24(cdrom),27(sudo),30(dip),101(lxd),1000(linuxuser)
+   ```
+
+4. Create a file and confirm group ownership:
+
+   ```bash
+   touch plugdevfile
+   ls -l plugdevfile
+   -rw-r--r-- 1 linuxuser plugdev 0 Dec 14 19:28 plugdevfile
+   ```
 
 ## Permissions
 
-| Permission | File                              | Directory                  |
-| :--------: | :-------------------------------- | :------------------------- |
-|    `r`     | File can be read                  | Can view contents of dir   |
-|    `w`     | File can be written to            | Can change contents of dir |
-|    `x`     | File can be executed as a program | Can `cd` into dir          |
+Linux permissions control what users and groups can do with files and directories. Three permission types apply to three categories: owner, group, and world (everyone else):
 
+| Permission | File | Directory |
+| :--------: | :--- | :-------- |
+| `r` | File can be read | Can view directory contents |
+| `w` | File can be written to | Can change directory contents |
+| `x` | File can be executed as a program | Can `cd` into the directory |
+
+Each file listing shows the permission string, link count, owner, group, size, date, and filename:
 
 ```bash
 ls -l file.1
 -rw-rw-r-- 1 linuxuser linuxuser 23 Nov  9 14:50 file.1
- |   |  |       |         |     \_____________/   |
-owner| world  owner     group         |        filename
-   group                         Most recent edit
+ |   |  |       |         |
+owner| world  owner     group
+   group
+```
 
-# first dash is object type
+The first character of the permission string indicates the object type:
+
+- `-`: regular file
+- `d`: directory
+- `l`: symbolic link
+
+The `-logh` flags combine long format (`-l`) with human-readable sizes (`-h`) while omitting the owner (`-o`) and group (`-g`) columns, which is useful for comparing object types at a glance:
+
+```bash
 ls -logh
 drwxrwxr-x 2 4.0K Dec 30 00:59 directory
 -rw-rw-r-- 1    0 Dec 30 00:59 file
 lrwxrwxrwx 1    4 Dec 30 01:00 link -> file
+```
 
-# view permissions in octal form
+View permissions in octal form:
+
+```bash
 stat -c %a chownSample.txt
 ```
 
 ### chmod
 
-Change file or directory permissions based on the specified mode:
-- for greater control, use `find` to recursively set file and dir permissions
+`chmod` changes the permissions on a file or directory. Specify permissions using numeric (octal) or string notation. For recursive changes across mixed file and directory trees, use `find` to apply different permissions to each type.
 
-Set permissions with one of the following systems:
-- string 
-- numeric (octal)
-- umask
+Permissions are represented as:
 
-#### Shortcuts
+| Permission | Character | Octal |
+| :--------- | :-------: | :---: |
+| read | `r` | `4` |
+| write | `w` | `2` |
+| execute | `x` | `1` |
 
-| Permission | Character | Number |
-| :--------: | :-------: | :----: |
-|    read    |    `r`    |   4    |
-|   write    |    `w`    |   2    |
-|  execute   |    `x`    |   1    |
+String notation uses operators to modify permissions:
 
-#### String actions
+| Action | Operator |
+| :----- | :------: |
+| Add | `+` |
+| Remove | `-` |
+| Set as only permission | `=` |
 
-|         Action         | Operator |
-| :--------------------: | :------: |
-|          add           |   `+`    |
-|         remove         |   `-`    |
-| set as only permission |   `=`    |
+Set permissions using octal notation:
 
 ```bash
-# --- numeric perms --- #
 chmod 771 perms.sh
-ll perms.sh 
+ll perms.sh
 -rwxrwx--x 1 linuxuser linuxuser 0 Nov 10 22:41 perms.sh*
+```
 
-# --- string --- #
-chmod u-x perms.sh 
-ll perms.sh 
+Remove execute permission from the owner using string notation:
+
+```bash
+chmod u-x perms.sh
+ll perms.sh
 -rw-rwx--x 1 linuxuser linuxuser 0 Nov 10 22:41 perms.sh*
+```
 
-chmod g-x perms.sh 
-ll perms.sh 
--rw-rw---x 1 linuxuser linuxuser 0 Nov 10 22:41 perms.sh*
+Set world permission to read-only:
 
-# --- string set as only --- #
-chmod o=r perms.sh 
-ll perms.sh 
+```bash
+chmod o=r perms.sh
+ll perms.sh
 -rw-rw-r-- 1 linuxuser linuxuser 0 Nov 10 22:41 perms.sh
+```
 
-# --- Recursive with find --- #
+Apply permissions recursively with `find`:
 
+```bash
+find /path/to/dir -type f -exec chmod 644 {} \;
+find /path/to/dir -type d -exec chmod 755 {} \;
 ```
 
 ### chown
 
-Change owner or group of file or directory:
+`chown` changes the owner or group of a file or directory. Common options:
 
-```bash
-chown [options] newowner[:newgroup] [ filenames | directories ]
--h # change symlink owner (not original object owner)
--R # recursively changes the owner for all files in a directory
+| Option | Description |
+| :----- | :---------- |
+| `-h` | Change the symlink owner instead of the target file |
+| `-R` | Recursively change ownership for all files in a directory |
 
-chown newowner:newgroup filenames...                           # change owner and group
-chown helen chownDir/                                          # change owner
-chown :accounting chownSample.txt                              # change group only
-chown linuxuser:testgroup cat.txt counts.txt tar_tests/        # change multiple files and dirs
-chown -R helen:accounting TestPermissions/                     # recursively change all files and dirs
-chown -h helen symlinkname                                     # change symlink owner
-```
+Common usage:
+
+| Command | Description |
+| :------ | :---------- |
+| `chown <owner>:<group> <file>` | Change owner and group |
+| `chown <owner> <dir>/` | Change owner only |
+| `chown :<group> <file>` | Change group only |
+| `chown -R <owner>:<group> <dir>/` | Recursively change owner and group |
+| `chown -h <owner> <symlink>` | Change symlink owner |
 
 ### chgrp
 
-Changes the group because originally, `chown` could not set the group, only the user.
-- `chown :group` is not portable or standard
-- `chown user:` is not standard
+`chgrp` changes the group ownership of a file or symlink. It predates group support in `chown`, which is not portable across all systems. Use `chgrp` when you need to change only the group:
 
-```bash
-chgrp [options] newgroup filenames
-
-chgrp testgroup alphabet.txt        # change group on file
-chgrp -h accounting mysymlink       # change group on symlink
-```
+| Command | Description |
+| :------ | :---------- |
+| `chgrp <group> <file>` | Change the group on a file |
+| `chgrp -h <group> <symlink>` | Change the group on a symlink |
 
 
 
@@ -1003,73 +1043,67 @@ chgrp -h accounting mysymlink       # change group on symlink
 
 ### Check password
 
+Verify that a user account is configured correctly and has a valid password. A `!` at the start of the password field in `/etc/shadow` means the account is locked:
+
 ```bash
-# check password
-sudo getent passwd linuxuser 
+sudo getent passwd linuxuser
 linuxuser:x:1001:1001::/home/linuxuser:/bin/bash
 
-# check shadow file, make sure no '!'
 sudo getent shadow linuxuser
 linuxuser:$y$j9T$f4O7G12v7ecON6j8SAfiQ.$7kRt7qYpxngkDPaHATTNBlDGc6hHQc7sPuAW9iMKAJ.:19813:0:99999:7:::
 ```
 
 ### last, lastlog, and lastb
 
-`last` and `lastlog` check when an account was last accessed:
-- `last` maintains more login in `/var/log/wtmp` and `/var/log/wtmp.*` files
-- `lastlog` maintains only most recent login in `/var/log/lastlog`
-- `lastb` searches for failed login attempts in `/var/log/btmp`
+Three commands help you audit login history. Each reads from a different log file:
+
+| Command | File | Description |
+| :------ | :--- | :---------- |
+| `last` | `/var/log/wtmp`, `/var/log/wtmp.*` | All logins and reboots |
+| `lastlog` | `/var/log/lastlog` | Most recent login for each user |
+| `lastb` | `/var/log/btmp` | Failed login attempts |
+
+View all logins for a specific user:
 
 ```bash
-# all logins, specify additional files with -f option
 sudo last -f /var/log/wtmp | grep linuxus
 linuxuse pts/1        10.0.2.2         Mon Apr 22 08:31 - 08:34  (00:03)
 linuxuse pts/0        10.0.2.2         Fri Apr 19 20:44    gone - no logout
-linuxuse pts/0        10.0.2.2         Thu Apr 18 23:06 - 23:49  (00:42)
-linuxuse pts/0        10.0.2.2         Thu Apr 18 22:13 - 23:06  (00:53)
-linuxuse pts/0        10.0.2.2         Thu Apr 18 22:09 - 22:09  (00:00)
-linuxuse tty2         tty2             Thu Apr 18 22:00 - down   (00:05)
-linuxuse tty2         tty2             Thu Apr 18 21:55 - down   (00:03)
-linuxuse tty2         tty2             Sun Apr 14 10:39 - crash (4+11:15)
-linuxuse tty2         tty2             Sun Apr 14 10:34 - 10:35  (00:01)
-linuxuse tty2         tty2             Thu Apr 11 22:02 - 10:31 (2+12:28)
-linuxuse tty2         tty2             Thu Apr 11 21:53 - 22:01  (00:08)
+...
+```
 
-# most recent login
+View the most recent login for each user:
+
+```bash
 lastlog
 Username         Port     From             Latest
 root                                       **Never logged in**
 ...
-linuxuser        pts/1    10.0.2.2         Mon Apr 22 08:31:02 -0400 2024   # in last output
-...
-
-# failed login attempts
-sudo lastb -f /var/log/btmp 
-linuxuse ssh:notty    127.0.0.1        Thu Apr 18 23:04 - 23:04  (00:00)
-linuxuse ssh:notty    127.0.0.1        Thu Apr 18 23:04 - 23:04  (00:00)
-linuxuse ssh:notty    127.0.0.1        Thu Apr 18 23:04 - 23:04  (00:00)
-linuxuse ssh:notty    127.0.0.1        Thu Apr 18 23:04 - 23:04  (00:00)
-
-btmp begins Thu Apr 18 23:04:27 2024
+linuxuser        pts/1    10.0.2.2         Mon Apr 22 08:31:02 -0400 2024
 ```
 
-### Privilege issues
-
-Check to make sure the users have the correct `su` privileges:
+View failed login attempts:
 
 ```bash
-# members of admin can become su
-# members of sudoers can execute any command as any user
-sudo cat /etc/sudoers
+sudo lastb -f /var/log/btmp
+linuxuse ssh:notty    127.0.0.1        Thu Apr 18 23:04 - 23:04  (00:00)
 ...
-# Members of the admin group may gain root privileges
-%admin ALL=(ALL) ALL
-
-# Allow members of group sudo to execute any command
-%sudo	ALL=(ALL:ALL) ALL
 ```
 
-Check which groups the user belongs to with `id`:
+### sudo privileges
+
+If a user cannot run commands with `sudo`, verify their group membership and the rules in `/etc/sudoers`.
+
+Check `/etc/sudoers` for the relevant group rules:
+
+```bash
+sudo cat /etc/sudoers
+...
+%admin ALL=(ALL) ALL
+%sudo  ALL=(ALL:ALL) ALL
+```
+
+Confirm the user belongs to the correct group:
 
 ```bash
 id linuxuser
@@ -1077,10 +1111,9 @@ uid=1001(linuxuser) gid=1001(linuxuser) groups=1001(linuxuser),27(sudo)
 ```
 ### GUI status
 
-If a user can log into the terminal but cannot log into the GUI, check the GUI with `systemctl`:
+If a user can log into the terminal but cannot log into the GUI, check whether the graphical target is active:
 
 ```bash
-# check GUI status
 sudo systemctl status graphical.target
 ● graphical.target - Graphical Interface
      Loaded: loaded (/lib/systemd/system/graphical.target; static)
@@ -1092,99 +1125,100 @@ Apr 18 22:12:54 ubuntu22 systemd[1]: Reached target Graphical Interface.
 
 ### Terminal status
 
-You should check:
-- multiple users can log into the terminal
-- whether the terminal is corrupted
-- getty services are running. These services provide the login prompts for text-based terminals
+When a user cannot log in at the terminal, check three things: whether multi-user mode is active, whether the terminal device files are intact, and whether the getty services are running. Getty services provide the login prompts for text-based terminals.
+
+#### Multi-user mode
+
+Verify that multi-user mode is active:
 
 ```bash
-# verify multiple users can log in
 sudo systemctl status multi-user.target
 ● multi-user.target - Multi-User System
      Loaded: loaded (/lib/systemd/system/multi-user.target; static)
      Active: active since Thu 2024-04-18 22:12:54 EDT; 5 days ago
-       Docs: man:systemd.special(7)
+```
 
-Apr 18 22:12:54 ubuntu22 systemd[1]: Reached target Multi-User System.
+#### Terminal device files
 
-# check whether terminal is corrupted
-c # means its a character file
-- # means terminal is corrupted, rebuild with mknod command
+Each terminal device file should start with `c` (character file). A `-` indicates a corrupted terminal that must be rebuilt with `mknod`:
+
+```bash
 ls -l /dev/tty?
 crw--w---- 1 root tty 4, 0 Apr 21 09:44 /dev/tty0
 crw--w---- 1 gdm  tty 4, 1 Apr 21 09:44 /dev/tty1
 crw--w---- 1 root tty 4, 2 Apr 21 09:44 /dev/tty2
-crw--w---- 1 root tty 4, 3 Apr 21 09:44 /dev/tty3
-crw--w---- 1 root tty 4, 4 Apr 21 09:44 /dev/tty4
-crw--w---- 1 root tty 4, 5 Apr 21 09:44 /dev/tty5
-crw--w---- 1 root tty 4, 6 Apr 21 09:44 /dev/tty6
-crw--w---- 1 root tty 4, 7 Apr 21 09:44 /dev/tty7
-crw--w---- 1 root tty 4, 8 Apr 21 09:44 /dev/tty8
-crw--w---- 1 root tty 4, 9 Apr 21 09:44 /dev/tty9
+...
+```
 
-# check getty services
+#### Getty services
+
+Verify that the getty services are running:
+
+```bash
 sudo systemctl status getty.target
 ● getty.target - Login Prompts
      Loaded: loaded (/lib/systemd/system/getty.target; static)
      Active: active since Thu 2024-04-18 22:12:29 EDT; 5 days ago
-       Docs: man:systemd.special(7)
-             man:systemd-getty-generator(8)
-             http://0pointer.de/blog/projects/serial-console.html
-
-Apr 18 22:12:29 ubuntu22 systemd[1]: Reached target Login Prompts.
 ```
 
 ### Locked accounts
 
-```bash
-# check status of linuxuser. 'L' means 'locked'
-sudo passwd -S linuxuser 
-linuxuser L 03/31/2024 0 99999 7 -1
+Check the account status with `passwd -S`. An `L` in the second field means the account is locked. A `!` at the start of the password field in `/etc/shadow` confirms the lock.
 
-# verify locked w getent. '!' before passwd means its locked
-sudo getent shadow linuxuser
-linuxuser:!$y$j9T$f4O7G12v7ecON6j8SAfiQ.$7kRt7qYpxngkDPaHATTNBlDGc6hHQc7sPuAW9iMKAJ.:19813:0:99999:7:::
+1. Check the account status (`L` means locked):
 
-# unlock user
-sudo usermod -U linuxuser 
+   ```bash
+   sudo passwd -S linuxuser
+   linuxuser L 03/31/2024 0 99999 7 -1
+   ```
 
-# verify unlocked
-sudo passwd -S linuxuser 
-linuxuser P 03/31/2024 0 99999 7 -1
-```
+2. Confirm the lock in `/etc/shadow`. A `!` before the password hash confirms it:
+
+   ```bash
+   sudo getent shadow linuxuser
+   linuxuser:!$y$j9T$f4O7G12v7ecON6j8SAfiQ.$7kRt7qYpxngkDPaHATTNBlDGc6hHQc7sPuAW9iMKAJ.:19813:0:99999:7:::
+   ```
+
+3. Unlock the account:
+
+   ```bash
+   sudo usermod -U linuxuser
+   ```
+
+4. Verify the account is unlocked (`P` means the password is set and usable):
+
+   ```bash
+   sudo passwd -S linuxuser
+   linuxuser P 03/31/2024 0 99999 7 -1
+   ```
 
 ### Expired accounts
 
-Check account expiration with `chage`:
+If a user cannot log in and the account appears active, check whether the account or password has expired. `chage -l` shows all expiration settings:
 
 ```bash
-date
-Wed Apr 24 02:51:34 PM EDT 2024
-
-# view account status
 sudo chage -l linuxuser
-Last password change					: Mar 31, 2024
-Password expires					: never
-Password inactive					: never
-Account expires						: never                           # never expires
-Minimum number of days between password change		: 0
-Maximum number of days between password change		: 99999
-Number of days of warning before password expires	: 7
+Last password change          : Mar 31, 2024
+Password expires              : never
+Password inactive             : never
+Account expires               : never
+Minimum number of days between password change    : 0
+Maximum number of days between password change    : 99999
+Number of days of warning before password expires : 7
 ```
 
 ### Authentication
 
-Check or run the following:
-- PAM modules
-- `pam_tally2`
-- `faillock`
-- IdP config (LDAP, Kerberos)
-- SELinux or AppArmor
+If account status, locks, and expiration are all clear, the issue may be in the authentication stack. Check the following:
 
-You can use `sealert` for SELinux machines:
+- PAM modules and configuration in `/etc/pam.d/`
+- `pam_tally2` or `faillock` for failed login lockouts
+- Identity provider (IdP) configuration (LDAP, Kerberos)
+- SELinux or AppArmor policies
+
+On SELinux systems, check for policy violations with `sealert`:
 
 ```bash
-# checks for policy violations
 sealert -a /var/log/audit/audit.log
 100% done
 found 0 alerts in /var/log/audit/audit.log
