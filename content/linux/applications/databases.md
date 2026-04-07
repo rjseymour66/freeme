@@ -8,222 +8,293 @@ draft = false
 
 ## MariaDB
 
-The Linux community is largely migrating over to MariaDB:
-- MySQL was purchased by Oracle and many are concerned with licensing issues
-  - MariaDB was made by MySQL's original development team due to these licensing issues
-- In addition to backups, always have a secondary server for redundancy
-- Use LVM for the partition that houses db files so you can expand the fs as needed
-- Don't install MariaDB and MySQL on the same server - there might be unforeseen issues
-- Use root acct for initial setup, then create new user for admin purposes
+The Linux community has largely migrated to MariaDB. Oracle acquired MySQL in 2010,
+and concerns about licensing led the original MySQL development team to fork the
+project as MariaDB.
+
+Follow these guidelines before you install:
+
+- Use LVM for the partition that stores database files so you can expand the filesystem as needed.
+- Do not install MariaDB and MySQL on the same server — package and port conflicts can cause unexpected behavior.
+- Use the root account only for initial setup, then create a dedicated admin user.
+- Beyond backups, run a secondary server for redundancy so your database remains available if the primary fails.
 
 
 ### Installation
 
-```bash
-apt install mariadb-server              # install server package
-systemctl status mariadb                # verify service started
-mysql_secure_installation               # install security packages
+Install MariaDB and secure it:
 
-# --- Installation Q/A --- #
-root passwd
-unix_socket auth                        # n - has security benefits, answer n for test env
-Set root password                       # y
-Remove anonymous users                  # y  
-Disallow root login remotely            # y - neve allow public access to db!
-Remove test db and access               # y 
-Reload privileges table                 # y
-```
+1. Install the server package.
+   ```bash
+   apt install mariadb-server
+   ```
+2. Verify the service started.
+   ```bash
+   systemctl status mariadb
+   ```
+3. Run the security hardening script.
+   ```bash
+   mysql_secure_installation
+   ```
+
+`mysql_secure_installation` walks you through an interactive setup. Use these recommended responses:
+
+| Prompt | Answer | Notes |
+|:---|:---|:---|
+| Switch to unix_socket authentication | n | Recommended for test environments |
+| Set root password | y | |
+| Remove anonymous users | y | |
+| Disallow root login remotely | y | Never allow public access to the database |
+| Remove test database and access | y | |
+| Reload privilege tables | y | |
 
 ### Connection
 
+Use either method to connect as root. `sudo mariadb` bypasses the password prompt;
+`mariadb -u root -p` requires the root password:
+
 ```bash
-sudo mariadb                            # connect as root - bypass passwd requirement
-mariadb -u root -p                      # connect as root - requires passwd
-exit                                    # exit db shell
+sudo mariadb          # connect as root without a password
+mariadb -u root -p    # connect as root with a password
+exit                  # exit the MariaDB shell
 ```
 
 ### Configuration files
 
-Config files are in `/etc/mysql`:
-- Ubuntu's configuration is modularized. For example, `mariadb.cnf` points to config files in `conf.d/` and `mariadb.conf.d`
-- `mariadb.cnf` explains order that config files are read:
-  - `mariadb.cnf` > `conf.d/*.cnf` > `mariadb.conf.d/*` > `my.cnf`
-- Config changes that also affect MySQL: Use `.cnf` extension and place in `conf.d/`
-- Config changes for mariadb only: Use `.cnf` extension and place in `mariadb.conf.d/`
+Configuration files are in `/etc/mysql`. Ubuntu modularizes MariaDB configuration:
+`mariadb.cnf` includes files from `conf.d/` and `mariadb.conf.d/`. Files are read in
+this order: `mariadb.cnf` > `conf.d/*.cnf` > `mariadb.conf.d/*` > `my.cnf`.
+
+Place custom configuration files based on scope:
+
+| Scope | Directory |
+|:---|:---|
+| Changes that also affect MySQL | `conf.d/` |
+| Changes for MariaDB only | `mariadb.conf.d/` |
+
+Key files in `/etc/mysql`:
 
 ```bash
-conf.d/                             # 
-debian.cnf                          # client settings for daemon (user, host, socket location)
-debian-start*                       # startup script - sets default vals, reads debian.cnf
-mariadb.cnf                         # daemon config - read on startup, sets global defaults
-mariadb.conf.d/                     # 
-my.cnf -> /etc/alternatives/my.cnf  # standard file for daemon
-my.cnf.fallback                     # 
+conf.d/                             # shared MySQL/MariaDB configuration directory
+debian.cnf                          # client settings for the daemon (user, host, socket location)
+debian-start*                       # startup script - sets default values, reads debian.cnf
+mariadb.cnf                         # main daemon config - read on startup, sets global defaults
+mariadb.conf.d/                     # MariaDB-only configuration directory
+my.cnf -> /etc/alternatives/my.cnf  # standard configuration file for the daemon
+my.cnf.fallback                     # fallback configuration if my.cnf is missing
 ```
 
-### Managing dbs
+## Managing databases
 
-Always create a admin user so you don't have to run as `root`:
-- Common to capitalize reserved words to distinguish from data
-- After you add or change user perms, run `FLUSH PRIVILEGES`
-- Add admin on `localhost` for security so they have to log into the server first
-  - `%` is wildcard in `CREATE USER` commands
-- Admin can manage the db, but not users
-- Create users and assign privs as `root`
-  - Best practice to restrict users to database. Create db, then create specific user for that db
+Always create an admin user so you do not have to run as `root`. Follow these conventions when managing databases:
 
-#### Common commands
+- Capitalize SQL reserved words to distinguish them from data values.
+- After you add or change user permissions, run `FLUSH PRIVILEGES`.
+- Create admin users scoped to `localhost` so they must log into the server before accessing the database. Use `%` as a wildcard in `CREATE USER` commands to allow connections from any host.
+- The admin account can manage database objects, but cannot create or manage other users. Use `root` for user management.
+- Restrict each user to a specific database. Create the database first, then create a dedicated user for it.
+
+### Common commands
+
+Use these commands for common database management tasks:
 
 ```bash
-CREATE DATABASE mysampledb;                     # create a db
-SHOW DATABASES;                                 # verify and view all dbs on server
+CREATE DATABASE mysampledb;                     # create a database
+SHOW DATABASES;                                 # list all databases on the server
 SELECT HOST, USER, PASSWORD FROM mysql.user;    # list all users
-SHOW GRANTS FOR 'appuser'@'localhost'           # view grants for specific user
-DROP USER 'testuser'@'localhost';               # remove user from db
+SHOW GRANTS FOR 'appuser'@'localhost';          # view grants for a specific user
+DROP USER 'testuser'@'localhost';               # remove a user from the server
 ```
 
-#### User and privileges
+### Create an admin user
+
+The admin account can manage database objects but cannot manage other users. Run these commands as `root`:
+
+1. Log in as root.
+   ```bash
+   mariadb -u root -p
+   ```
+2. Create the admin user scoped to the appropriate host.
+   ```bash
+   CREATE USER 'admin'@'localhost' IDENTIFIED BY '<password>';      # localhost only
+   CREATE USER 'admin'@'%' IDENTIFIED BY '<password>';              # any host
+   CREATE USER 'admin'@'10.20.30.%' IDENTIFIED BY '<password>';     # any host on a subnet
+   ```
+3. Grant privileges and reload the privilege table.
+   ```bash
+   GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+4. Log in as admin to verify.
+   ```bash
+   mariadb -u admin -p               # prompts for password
+   mariadb -u admin -p<password>     # password inline, no space after -p
+   ```
+
+### Create additional users as root
+
+You can combine user creation and privilege grants in a single `GRANT` statement:
 
 ```bash
-# --- Create admin user --- #
-# This admin account can manage the database - NOT users
-mariadb -u root -p                                              # 1. Log in as root
-CREATE USER 'admin'@'localhost' IDENTIFIED BY '<password>';     # 2. Create admin user for localhost only
-CREATE USER 'admin'@'%' IDENTIFIED BY '<password>';             #    Let admin login from any machine
-CREATE USER 'admin'@'10.20.30.%' IDENTIFIED BY '<password>';    #    Let admin login from any machine on network
-FLUSH PRIVILEGES;                                               # 3. Reload privileges information
-GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost';             # 4. Grant admin all privs on everything on localhost
-FLUSH PRIVILEGES;
-mariadb -u admin -p                                             # 5. Log in as admin
-mariadb -u admin -p<password>                                   #    Alternate syntax - no space btwn '-p' and val
-
-# --- Create add'l users (always as root) --- #
-GRANT SELECT ON *.* TO 'readonlyuser'@'localhost' IDENTIFIED BY 'password';     # Create ro user and grants w/one command
-FLUSH PRIVILEGES;
-
-# --- Change root password --- #
-ALTER USER 'root'@'localhost' IDENTIFIED BY 'newpassword';
-FLUSH PRIVILEGES;
-
-GRANT SELECT ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password'; # ro privs on mysambledb objects
-FLUSH PRIVILEGES;
-
-GRANT ALL ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password';    # all privs on mysambledb objects
-GRANT DELETE ...    # delete rows from db tables
-GRANT CREATE ...    # add tables to db
-GRANT INSERT ...    # add rows to db table
-GRANT SELECT ...    # read info from db
-GRANT DROP   ...    # remove a db
+GRANT SELECT ON *.* TO 'readonlyuser'@'localhost' IDENTIFIED BY 'password';
 FLUSH PRIVILEGES;
 ```
 
-#### Database commands
+Restrict users to a single database rather than granting server-wide access:
 
 ```bash
-USE dbname;                                                                 # select the db to work with
-CREATE TABLE Employees (Name char(15), Age int(3), Occupation char(15));    # create db table
-SHOW TABLES;                                                                # view all db tables
-SHOW COLUMNS IN Employees;                                                  # view cols in db
-INSERT INTO Employees VALUES ('Joe Smith', '26', 'Clown');                  # add data to db
-SELECT * FROM Employees;                                                    # view all data in table
-DELETE FROM Employees WHERE Name = 'Joe Smith';                             # search for Joe Smith in table and delete row
-DROP TABLE Employees;                                                       # Delete a table from the db
-DROP DATABASE mysampledb;                                                   # Delete the db
+GRANT SELECT ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password';  # read-only access
+GRANT ALL ON mysampledb.* TO 'appuser'@'localhost' IDENTIFIED BY 'password';     # full access
+FLUSH PRIVILEGES;
 ```
 
-#### Backup and restore
-
-Run from standard linux shell, not from db:
-- `--databases` option includes `CREATE DATABASE` command in backup file
+### Common privilege types
 
 ```bash
-mysqldump -u admin -p --databases mysampledb > mysampledb.sql       # backup db
-mariadb -u admin -p < mysampledb.sql                                # restore db
+GRANT SELECT ...    # read rows from a table
+GRANT INSERT ...    # add rows to a table
+GRANT DELETE ...    # delete rows from a table
+GRANT CREATE ...    # add tables to a database
+GRANT DROP   ...    # remove a database
 ```
 
-### Secondary servers
+### Change the root password
 
-A secondary server gives you redundancy--if your first server fails, apps can still use your db:
-- Requires another system with `mariadb-server` running
-- Does not sync users, only syncs data
-- Can create a backup, but backups become stale quickly
-- Secondary server is a copy that is always up-to-date.
-- Not a replacement for backups. You still need backups
-- set up multiple secondary dbs with unique `server-id` in `/etc/mysql/conf.d/mysql.cnf`
+1. Log in as root.
+   ```bash
+   mariadb -u root -p
+   ```
+2. Update the password and reload the privilege table.
+   ```bash
+   ALTER USER 'root'@'localhost' IDENTIFIED BY 'newpassword';
+   FLUSH PRIVILEGES;
+   ```
 
-Primary config:
-- enable binary logging - binary logs record all changes to a db. You can transfer these to a secondary server
+### Database commands
+
+Use these commands to manage tables and data within a database:
 
 ```bash
-# 1. --- Primary server --- #
-vim /etc/mysql/conf.d/mysql.cnf                 # 1. Enable binary logging
-[mysql]
+USE dbname;                                                                 # switch to a database
+CREATE TABLE Employees (Name char(15), Age int(3), Occupation char(15));    # create a table
+SHOW TABLES;                                                                # list all tables in the database
+SHOW COLUMNS IN Employees;                                                  # list columns in a table
+INSERT INTO Employees VALUES ('Joe Smith', '26', 'Clown');                  # insert a row
+SELECT * FROM Employees;                                                    # view all rows in a table
+DELETE FROM Employees WHERE Name = 'Joe Smith';                             # delete a row by value
+DROP TABLE Employees;                                                       # delete a table
+DROP DATABASE mysampledb;                                                   # delete the database
+```
 
-[mysqld]
-log-bin
-binlog-do-db=mysampledb
-server-id=1
+## Backup and restore
 
-vim /etc/mysql/mariadb.conf.d/50-server.conf    # 2. Set bind-address to 0s to connect from other machines
-...                                             #    (was '127.0.0.1')
-bind-address            = 0.0.0.0
-...
+Run these commands from the Linux shell, not from the MariaDB shell. The `--databases`
+option includes a `CREATE DATABASE` statement in the backup file, which simplifies restores:
 
-mariadb -u root -p                              # 3. Get MariaDB root shell
-GRANT REPLICATION SLAVE ON *.* TO 'replicate'@'<slave-ip>' IDENTIFIED BY 'password';   # 4. Create user named replication that can connect from secondary server IP
+```bash
+mysqldump -u admin -p --databases mysampledb > mysampledb.sql       # back up a database
+mariadb -u admin -p < mysampledb.sql                                # restore a database
+```
 
-systemctl restart mariadb                       # 4. Restart daemon so changes take effect
-FLUSH TABLES WITH READ LOCK;                    # 5. Lock db and prevent changes/writes while config other server
-mysqldump -u admin -p --databases mysampledb > mysampledeb.sql  # 6. Backup primary server
-rsync -av mysampledeb.sql maria@10.20.30.41:    # 7. Transfer backup file to remote server /home dir
+## Secondary servers
 
-# 2. --- Secondary server --- #
-mariadb -u root -p < mysampledb.sql             # 1. Add db file to secondary db
-vim /etc/mysql/conf.d/mysql.cnf                 # 2. Add server ID to secondary db
-[mysql]
+A secondary server provides redundancy. If the primary server fails, applications can
+still access your database. Note that secondary servers sync data only — they do not
+sync users.
 
-[mysqld]
-server-id=2
+A secondary server is always up-to-date, but it is not a replacement for backups. Enable
+binary logging on the primary so all database changes are recorded and can be transferred
+to secondary servers.
 
-systemctl restart mariadb                       # 3. Restart service
-mariadb -u root -p                              # 4. Get root db shell
-CHANGE MASTER TO MASTER_HOST="192.168.56.52", MASTER_USER='replicate', MASTER_PASSWORD='password';  # 5. Associate this server with primary db
+Follow these guidelines before configuring replication:
 
-# 3. --- Primary server --- #
-mariadb -u root -p                              # 1. Get root db shell
-UNLOCK TABLES;                                  # 2. Unlock primary server tables
+- The secondary server must have `mariadb-server` installed and running.
+- Assign each secondary server a unique `server-id` in `/etc/mysql/conf.d/mysql.cnf`.
 
-# 4. --- Secondary server --- #
-SHOW SLAVE STATUS \G;                           # 3. Check slave status - must say 'Waiting for master to send event'
-START SLAVE;                                    #    ONLY if #3 fails
-SHOW SLAVE STATUS \G;                           #    ONLY if START SLAVE was required
+### Configure the primary server
 
+1. Enable binary logging by adding the following to `/etc/mysql/conf.d/mysql.cnf`:
+   ```ini
+   [mysqld]
+   log-bin
+   binlog-do-db=mysampledb
+   server-id=1
+   ```
+2. Set `bind-address` to `0.0.0.0` in `/etc/mysql/mariadb.conf.d/50-server.conf` so the server accepts connections from other machines (the default is `127.0.0.1`).
 
-# --- Verify setup --- #
-# primary sever
-INSERT INTO Employees VALUES ('Optimus Prime', '100', 'Transformer');   # insert new info
+3. Create a replication user in the MariaDB shell:
+   ```bash
+   mariadb -u root -p
+   GRANT REPLICATION SLAVE ON *.* TO 'replicate'@'<secondary-ip>' IDENTIFIED BY 'password';
+   ```
+4. Restart the service, lock the tables, back up the database, and transfer the backup to the secondary server:
+   ```bash
+   systemctl restart mariadb
+   FLUSH TABLES WITH READ LOCK;
+   mysqldump -u admin -p --databases mysampledb > mysampledb.sql
+   rsync -av mysampledb.sql maria@10.20.30.41:
+   ```
+
+### Configure the secondary server
+
+1. Import the backup:
+   ```bash
+   mariadb -u root -p < mysampledb.sql
+   ```
+2. Add a unique server ID to `/etc/mysql/conf.d/mysql.cnf`:
+   ```ini
+   [mysqld]
+   server-id=2
+   ```
+3. Restart the service and associate the secondary with the primary:
+   ```bash
+   systemctl restart mariadb
+   mariadb -u root -p
+   CHANGE MASTER TO MASTER_HOST="192.168.56.52", MASTER_USER='replicate', MASTER_PASSWORD='password';
+   ```
+
+### Complete setup on the primary server
+
+Unlock the tables after the secondary is configured:
+
+```bash
+mariadb -u root -p
+UNLOCK TABLES;
+```
+
+### Verify replication
+
+On the secondary server, check replication status. The output must show `Waiting for master to send event`:
+
+```bash
+SHOW SLAVE STATUS \G;
+START SLAVE;          # run only if SHOW SLAVE STATUS reports an error
+SHOW SLAVE STATUS \G; # run only if START SLAVE was required
+```
+
+To confirm data is syncing, insert a row on the primary and verify it appears on the secondary:
+
+```bash
+# primary server
+INSERT INTO Employees VALUES ('Optimus Prime', '100', 'Transformer');
 
 # secondary server
-SELECT * FROM Employees;                                                # should contain new row
+SELECT * FROM Employees;
 ```
 
-#### Troubleshooting
+### Troubleshooting
 
-Try these steps if your dbs aren't synchronized:
-- Make sure primary is listening for connections on the right addr:port
-- For `SLAVE STATUS` errors, flush privs on primary 
-- If primary and secondary won't sync, manually create the db and tables on the secondary. This should help them sync
-- On secondary, manually sync with `STOP SLAVE;`, `START SLAVE;` commands
+If your databases are not synchronized, work through these steps:
 
-```bash
-sudo ss -tulpn | grep mariadb           # verify listening for connectiosn on 0.0.0.0:3306
-                                        # then, check /etc/mysql/mariadb.conf.d/50-server.cnf file
-                                        # then, reboot if necessary
-
-# SHOW SLAVE STATUS errors
-FLUSH PRIVILEGES;                       # run again on primary server
-
-# manually sync on secondary
-STOP SLAVE;
-START SLAVE;
-```
+1. Verify the primary server is listening on `0.0.0.0:3306`:
+   ```bash
+   sudo ss -tulpn | grep mariadb
+   ```
+   If not, check `/etc/mysql/mariadb.conf.d/50-server.cnf` and restart the service.
+2. For `SHOW SLAVE STATUS` errors, run `FLUSH PRIVILEGES` again on the primary server.
+3. If the primary and secondary will not sync, manually create the database and tables on the secondary to give replication a consistent starting point.
+4. To manually resync on the secondary:
+   ```bash
+   STOP SLAVE;
+   START SLAVE;
+   ```
