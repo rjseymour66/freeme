@@ -8,98 +8,109 @@ draft = false
 
 ## Hostname
 
-The hostname gives a server its identity - it should reflect the server's purpose:
-- Also helps to distinguish servers from one another
-- Develop a naming scheme, such as `webserver-01`, `webserver-02`, etc.
-- Default `PS1` prompt displays the hostname up to the first period (`.`)
-- Hostname stored in `/etc/hostname` and `/etc/hosts` - CHANGE NAME IN BOTH!
-  - `hostnamectl` only changes `/etc/hostname`, need to manually change `/etc/hosts`
+The hostname identifies a server on a network. Choose a name that reflects the server's
+purpose and develop a consistent naming scheme, such as `webserver-01`, `webserver-02`.
+The hostname is stored in both `/etc/hostname` and `/etc/hosts`. Update both files when
+you change it: `hostnamectl` only updates `/etc/hostname`.
+
+The default shell prompt displays the hostname up to the first period (`.`). Use these
+commands to view and change the hostname:
 
 ```bash
-hostname                                    # view hostname
-hostnamectl set-hostname u24.<hostname>     # change hostname to <hostname> in /etc/hostname
-vim /etc/hostname :vs /etc/hosts            # change hostname manually in both files
+hostname                                        # view the current hostname
+hostnamectl set-hostname <hostname>             # update /etc/hostname
+vim /etc/hostname                               # edit /etc/hostname manually
+vim /etc/hosts                                  # edit /etc/hosts manually
+```
 
-# --- /etc/hosts file description --- #
+The `/etc/hosts` file maps IP addresses to hostnames for local resolution:
 
-127.0.0.1 localhost                     # lets local server reach itself through the network stack
-127.0.1.1 ubuntu-server24               # add'l local server addr and FQDN (<servername>.<org-domain-name>)
-                                        # FQDN is not required
-...
+```bash
+127.0.0.1 localhost                         # allows the server to reach itself through the network stack
+127.0.1.1 ubuntu-server24                   # additional local address and optional FQDN (<servername>.<org-domain-name>)
 ```
 
 ## Network interfaces
 
-A server uses its network interface to connect to a network:
-
+A server uses its network interface to connect to a network.
 
 ### Naming convention
 
-Ubuntu recently changed the interface naming convention to make it more predictable
-- a name like `enp0s3` can stay persistent between boots
-- New naming convention references the physical location of the network card on the system's bus - name can't change unless you physically move it on the board or in the virtual network device.
-- Ethernet (wired) network interfaces begin with `en`
-- Wireless network interfaces begin with `wl`
+Ubuntu uses a predictable naming convention for network interfaces based on the physical
+location of the hardware. A name like `enp0s3` reflects the card's position on the
+system bus and does not change between reboots unless you physically move the hardware.
 
-`enp0s3`: An ethernet card on the system's first PCI bus in PCI slot 3
-- `en`: Ethernet
-- `p0`: The bus being used - `p0` references the system's first PCI bus (0-indexed)
-- `s3`: PCI slot 3
+Ethernet interfaces begin with `en`. Wireless interfaces begin with `wl`.
+
+The name `enp0s3` identifies an Ethernet card on the system's first PCI bus in slot 3:
+
+| Segment | Meaning |
+|:---|:---|
+| `en` | Ethernet |
+| `p0` | First PCI bus (0-indexed) |
+| `s3` | PCI slot 3 |
 
 ### ip
 
-Part of `iproute2` utility suite
-- `iproute2` replaced `net-tools`
-- `net-tools` included `ifconfig`, and `ip` replaces `net-tools`
+`ip` is part of the `iproute2` utility suite, which replaced the older `net-tools`
+package and its `ifconfig` command. Use these commands to inspect and manage interfaces:
 
 ```bash
 ip addr show                # view network interfaces and current status
-ip a                        # same as ip addr show
-ip link set enp0s3 down     # bring enp0s3 interface down
-ip link set enp0s3 up       # bring enp0s3 interface up
+ip a                        # shorthand for ip addr show
+ip link set enp0s3 down     # bring the enp0s3 interface down
+ip link set enp0s3 up       # bring the enp0s3 interface up
 ```
 
 ### ifconfig
 
-Deprecated. Part of deprecated `net-tools` utility suite
+`ifconfig` is deprecated. It is part of the `net-tools` package, which `iproute2` has
+replaced. Install it only if you need to support legacy scripts:
 
 ```bash
-apt install net-tools       # install package
+apt install net-tools       # install the package
 ifconfig                    # view network interfaces
-ifconfig enp0s3 down        # bring enp0s3 interface down
-ifconfig enp0s3 up          # bring enp0s3 interface up
+ifconfig enp0s3 down        # bring the enp0s3 interface down
+ifconfig enp0s3 up          # bring the enp0s3 interface up
 ```
 
 ## Assign static IP address
 
-Your IP should remain fixed and not changed:
-- After installation, the server gets a dynamically assigned lease from the DHCP server
-  - DHCP servers have a range of IP addresses that are assigned to hosts that request an assignment
-  - Select an address OUTSIDE this range to avoid dupes
+After installation, a server receives a dynamically assigned address from the DHCP server.
+For servers that need a consistent address, choose one of these two approaches:
 
+| Method | Description |
+|:---|:---|
+| Static IP | You assign an address manually, outside the DHCP server's range. The server never requests an address from DHCP. |
+| Static lease | The DHCP server assigns the same address to the server each time it connects. The DHCP server remains the single source of truth for address assignment. This approach is recommended when possible. |
 
-Two options when assigning fixed address to network host:
-- Static IP assignment: Arbitrarily select an address outside the DHCP server's address assignment range
-  - Configuration means that your server never requests an address from the DHCP server
-- Static lease: Also called a DHCP reservation. You configure your DCHP to assign a specific address to the server each time it asks for one. Means that the DHCP server is the single source of truth for IP address assignment. This is recommended, when possible.
+When using a static IP, choose an address outside the DHCP server's assignment range to
+avoid conflicts with dynamically assigned addresses.
 
 
 ### Netplan
 
-> Review the [Configuring networks](https://ubuntu.com/server/docs/configuring-networks#static-ip-address-assignment) docs for Ubuntu 24.04.
+Netplan manages network configuration on Ubuntu Server using YAML files in `/etc/netplan/`.
+NetworkManager is available on Ubuntu Desktop only. Netplan processes configuration files
+in lexical order, so `99_config.yaml` is applied after the default `50-cloud-init.yaml`.
 
-Assign server a static IP with Netplan:
-- NetworkManager is installed by default only on Ubuntu Desktop
-- YAML config files are in `/etc/netplan/`
-- Netplan processes configuration files in lexical order based on filenames, so `99_config.yaml` is applied after the default `50-cloud-init.yaml`.
-- Often, the DNS server (`nameservers`) address is the same as the default gateway, but that is not always the case
-- When configuring networking over SSH, use tmux so your session won't end if there is an issue:
-  - `tmux` keeps commands running in the background, even if the connection to the server is dropped
-  - So start `tmux`, execute `netplan apply`, and the command will complete in the background
+The DNS server address (`nameservers`) is often the same as the default gateway, but not
+always. Check your network configuration to confirm.
+
+When configuring networking over SSH, run `netplan apply` inside a `tmux` session. If the
+connection drops during the change, the command continues running in the background.
+
+See the [Configuring networks](https://ubuntu.com/server/docs/configuring-networks#static-ip-address-assignment) Ubuntu docs for Ubuntu 24.04.
+
+Apply the configuration after editing the file:
 
 ```bash
-# --- Sample 24.04 config file --- #
-cat /etc/netplan/99_config.yaml 
+netplan apply
+```
+
+#### /etc/netplan/99_config.yaml
+
+```bash
 network:
   version: 2
   renderer: networkd
@@ -110,122 +121,33 @@ network:
       dhcp4: no
       addresses:
         - 192.168.56.52/24
-
-netplan apply                   # apply config file
 ```
 
 ## Name resolution
 
-When resolving names, Linux doesn't always resolve host names with the DNS server:
-- Linux uses the `/etc/nsswitch.conf` file to determine the resources used to resolve names, and the order in which they are checked
-- `/etc/hosts` contains IPs and hostnames - you can add to this file, but it is difficult to maintain
-  - Easier to rely on central DNS server
-- `/etc/resolv.conf` historically listed IP addresses for DNS servers that the system used to resolve host names
-  - Since Ubuntu 22.04, it only redirects lookups to use `systemd-resolved`, which uses the Netplan config or DHCP server
-  - You shouldn't manually edit `/etc/resolv.conf` - it is automatically generated by Network Manager, a legacy service that managed network interfaces
-- `resolvectl` shows your current DNS servers
+Linux does not always use the DNS server to resolve hostnames. The `/etc/nsswitch.conf`
+file controls which sources are checked and in what order.
+
+`/etc/hosts` maps IP addresses to hostnames locally. You can add entries to this file,
+but a central DNS server is easier to maintain at scale.
+
+Do not edit `/etc/resolv.conf` manually. Since Ubuntu 22.04, it redirects lookups to
+`systemd-resolved`, which reads its DNS configuration from Netplan or the DHCP server.
+The file is generated automatically.
+
+Use `resolvectl` to view your current DNS servers. The `nsswitch.conf` entry for hosts
+shows the resolution order:
 
 ```bash
-cat /etc/nsswitch.conf 
-# /etc/nsswitch.conf
-#
-...
-hosts:          files dns       # checks files (/etc/hosts) and then the DNS server
-                                # specified by the DHCP server or the one in /etc/netplan/<file>
-
 resolvectl                      # view DNS servers your system points to
-...
+
+cat /etc/nsswitch.conf
+hosts:          files dns       # checks /etc/hosts first, then the DNS server
 ```
-
-## OpenSSH
-
-Lets you open a command shell on a remote server:
-- Consists of two components: server daemon (`sshd`) and the client (`ssh`) that lets you connect your workstation to a remote system running `sshd`
-- Most distros install OpenSSH by default - configured to start and become enabled automatically
-- Listens for connections on port 22 by default
-- You have the same permissions as the user you are logged in as
-- When you end session, all background processes you were running are terminated
-
-
-```bash
-# --- Management --- #
-apt install openssh-client          # install client
-apt install openssh-server          # install server
-systemctl status ssh                # verify sshd is running and ready for connections
-systemctl start ssh                 # start ssh
-systemctl enable ssh                # if currently disabled, make ssh auto start at boot 
-ss -tunlp | grep ssh                # verify sshd is listening for connections
-
-# --- Connecting --- #
-ssh 10.20.30.40                     # connect to server at 10.20.30.40 on port 22
-ssh <username>@<addr>               # connect to server at <addr> as <username> on port 22
-ssh -p 2242 <username>@<addr>       # connect to server at <addr> as <username> on port 2242
-exit                                # end ssh session
-```
-
-### SSH keys
-
-[Ubuntu docs](https://help.ubuntu.com/community/SSH/OpenSSH/Keys)
-
-By default, you authenticate to a remote server with your password. You can use a public key to authenticate instead:
-- more secure bc password is never transmitted
-- you create a public and private SSH key pair - these files are linked by a complex algorithm
-  - passphrase is optional but recommended for security
-- when you connect to a server that has your public key, ssh checks your private key to verify your identity
-  - public key has `rw` for owner, `r` for group and others
-  - private key is owned by user that created it with `rw` permissions
-- you copy public key to other servers
-  - when you log in, it uses an algorithm to authenticate your private key with the public key stored on the server
-- you can cache your SSH key passphrase with the ssh-agent
-  - enter passprhase once per session
-
-```bash
-# --- Generating keys --- #
-ssh-keygen                                          # Generate ed25519 keypair
-ssh-keygen -t rsa -b 4096                           # Generate RSA keypair
-
-ssh-copy-id -i ~/.ssh/id_rsa.pub <user>@<ip-addr>   # copy keys to remote - use ip addr or hostname
-
-# --- Add key to ssh-agent --- #
-eval $(ssh-agent)                                   # start ssh-agent, if not already running
-ssh-add ~/.ssh/id_rsa                               # add public key to ssh-agent, requires passphrase
-
-# --- Change passphrase of existing key --- #
-ssh-keygen -p
-```
-### config file
-
-Must be in `~/.ssh/` directory and be named `config`:
-- Not there by default, but client checks that it exists and parses it when present
-- Each `Host` entry has a `Hostname`, `User`, `Port` value
-- Use IP address if you do not have a DNS entry for your server listed in `/etc/hosts`
-
-```bash
-man ssh_config              # get all config options
-
-# --- config file format --- #
-Host <hostname>             # logical name you assign
-    HostName <ip-addr>      # IP addr or remote hostname (from /etc/hosts)
-    User <username>         # user you ssh as
-    Port <port>             # SSH port
-
-# --- Sample config file --- #
-Host u24
-	HostName 10.20.30.40
-	User linuxuser1
-	Port 22
-```
-
-## ssh-copy-id
-
-Copies your local SSH public key to remote server
-- creates `~/.ssh/` directory if doesn't already exist
-- creates `authorized_keys` file if doesn't already exist
-- copies contents of `~/.ssh/id_rsa.pub` into `authorized_keys` file on target server
-  - additional keys are appended to this file, one per line
-
 
 ## ss
+
+`ss` displays socket statistics. Use it to list open and listening ports:
 
 ```bash
 ss -tunlp           # list listening ports
