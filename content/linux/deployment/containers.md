@@ -6,160 +6,149 @@ draft = false
 +++
 
 
-- Containers are isolated filesystems
-  - VMs require that we dedicate resources. We provision CPUs, RAM, and disk space - it might not use all allocated resources
-  - Containers share CPU, kernel with the host
-  - Containers are a collection of namespaces that isolate the container
-    - When you disconnect from the container without leaving a running process, the container stops
-- Containers are portable and can run on any infrastructure as long as it has a container runtime
-- Generally do just one thing (run one app), such as a web server
-  - Run a container any time you need to run a web app or need to peserve resources
-  - Any app that runs in a browser is good for containers
-- Docker is more general purpose than LXD - it runs on all major OSs
-- LXD is better for linux hosts
-- Always heavily audit 3rd party containers that you use!
+A container is an isolated filesystem that shares the host's CPU and kernel. Unlike virtual machines, containers do not require dedicated CPU, RAM, or disk allocations. When you disconnect from a container without leaving a running process, the container stops.
+
+Containers are portable and run on any infrastructure that has a container runtime. They are designed to do one thing, such as run a web server or a browser-based application. Use a container any time you need to run a web application while preserving host resources.
+
+Two common container platforms are Docker and LXD. Docker is general-purpose and runs on all major operating systems. LXD is better suited to Linux hosts. Always audit third-party container images before using them.
 
 ## Docker
 
-Docker employs a layered approach to documentation, where every change you make to the container creates a new layer
-- You can use these layers as a base for other containers - this saves disk space
-- Has an ENTRYPOINT command that executes in the running container
-- Docker can be though of as an application container that contains resources to run an app
-- Docker has Dockerhub, where you can download containers that others have already created. This saves time
-- Image is the closest equivalent that docker has to a VM or hardware image
-  - Snapshot wiht linux fs that includes changes that the creator added to perform a specific task
-- Application run in Docker is called an ENTRYPOINT
-  - Usually a bash script that configures and runs an application
-- Image is a recipe for a container, a container is a running image
-  - If you install packages in a running container, they do not persist beyond the lifetime of the container
+Docker uses a layered filesystem: every change to a container creates a new layer. You can use existing layers as the base for new containers, which saves disk space.
+
+An *image* is a snapshot of a Linux filesystem configured to perform a specific task. It is a recipe for a container. A *container* is a running instance of an image. Packages installed in a running container do not persist after the container stops.
+
+The *ENTRYPOINT* is the command that runs when a container starts. It is usually a shell script that configures and launches the application.
+
+Docker Hub is a public registry where you can download images that others have already built.
 
 
-### Install and setup 
+### Install and setup
 
-Steps to install: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
+Follow the [Docker installation instructions](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) for Ubuntu. After installation, verify the service and add your user to the `docker` group to run commands without `sudo`:
 
 ```bash
 systemctl status docker                 # verify Docker is running
-systemctl enable --now docker           # enable Docker immediately (if not running and not enabled)
-usermod -aG docker <username>           # add yourself to docker group so you don't need sudo each time
+systemctl enable --now docker           # enable and start Docker if it is not running
+usermod -aG docker <username>           # add your user to the docker group
 ```
 
 ### Managing containers
 
-- When you exit a container, you are stopping it - it no longer runs the program
-- `docker ps` - the `COMMAND` is the command that was run when the container was created
-- running a container in detached mode is like running a service - the container doesnt stop until you tell it to
-- Port redirection lets you send traffic from a port in the container to a port on the host
-  - For example, you can access a container's web server instance in a web browser:
-    1. Start the container with port forwarding
-    2. Attach to container
-    3. Install dependencies
-    4. Run program
-    5. Detach without exiting the container
-    6. Go to host port
- - This is not preferred way to start web service container, should use ENTRYPOINT
-- sudo is not included by default in ubuntu container, but you attach as root
-  - apt repo does not even exist, so run `apt update` before trying to install anything
-- containers do not have `systemctl`
+Exiting a container stops it. Detached mode runs a container in the background like a service and keeps running until you explicitly stop it.
 
+Port redirection forwards traffic from a host port to a port inside the container, making a containerized service accessible from a browser. This is not the preferred approach for web servers. Use an `ENTRYPOINT` instead. To access a containerized web server from a browser:
+
+1. Start the container with port forwarding.
+2. Attach to the container.
+3. Install dependencies.
+4. Run the program.
+5. Detach without stopping the container.
+6. Open the host port in a browser.
+
+Ubuntu containers do not include `sudo` by default, but you connect as root. The apt package index is absent by default, so run `apt update` before installing anything. Containers do not have `systemctl`.
+
+The `COMMAND` column in `docker ps` shows the command that was run when the container was created.
+
+
+### Commands
+
+Common commands for managing images and containers. The `-i`, `-t`, and `-d` flags control interactive mode, pseudo-TTY, and detached mode respectively:
 
 ```bash
-# -i: interactive mode
-# -t: psuedo TTY
-# -d: detached - run in the bg
-docker info                                             # details about current docker installation, images, containers, etc
-docker search <keyword>                                 # search for pre-existing image
-docker pull <image-name>                                # pull docker image to local machine
-docker images                                           # list docker images on your server
+docker info                                             # show details about the Docker installation
+docker search <keyword>                                 # search Docker Hub for an image
+docker pull <image-name>                                # download an image to the local machine
+docker images                                           # list downloaded images
 
-docker rmi <image-id>                                   # remove image from your server
-docker rm <container-id>                                # remove persistent container
+docker rmi <image-id>                                   # remove an image
+docker rm <container-id>                                # remove a stopped container
 
-docker run <image-name>                                 # create running container from image
-docker run -it ubuntu /bin/bash                         # create container from ubuntu image and get a bash shell in it
+docker run <image-name>                                 # create and start a container from an image
+docker run -it ubuntu /bin/bash                         # start an Ubuntu container with an interactive shell
+docker run -dit <image-name> <command>                  # start a container in detached mode
+docker run -dit -p <host-port>:<container-port> <image> <command>   # start with port forwarding
+docker run -dit -p 8080:80 ubuntu /bin/bash             # example: forward host port 8080 to container port 80
 
-docker ps                                               # get info about running containers
-docker ps -a                                            # get info about all containers
+docker ps                                               # list running containers
+docker ps -a                                            # list all containers
 
 docker start <container-id>                             # start a stopped container
-docker stop <container-id>                              # stop a running container (SIGTERM -> SIGKILL)
-docker attach <container-id>                            # get shell in running container
-docker run -dit <image-name> <command>                  # run in detached mode - do not stop until explicitly told
-CTRL + P, CTRL + Q                                      # exit container without stopping
+docker stop <container-id>                              # stop a running container
+docker attach <container-id>                            # attach to a running container
+CTRL+P, CTRL+Q                                          # detach without stopping the container
 
-docker commit <container-id> <repo>/<image-name>:<tag>  # create image from running container
-
-# --- Port redirection --- #
-docker run -dit -p <host-port>:<container-port> <image> <command>
-docker run -dit -p 8080:80 ubuntu /bin/bash     # forward container traffic on 80 to host port 8080
+docker commit <container-id> <repo>/<image-name>:<tag>  # create an image from a running container
 ```
 
 ### Dockerfiles
 
-File with a set of instructions to create a Docker image - a recipe for a Docker image
+A Dockerfile is a set of instructions for building a Docker image. To create one:
 
-Steps:
-1. Create a dir named after the image that you want to create
-2. Inside this dir, create file named `Dockerfile`
+1. Create a directory named after the image you want to build.
+2. Inside that directory, create a file named `Dockerfile`.
 
-```bash
-FROM ubuntu                                 # define base image. Downloads from Dockerhub if not local
-MAINTAINER Ryan <ryan@ryan.com>             # optional: declaring image author
-# Avoid confirmation messages
-ARG DEBIAN_FRONTEND=noninteractive          # set env var so package installations do not ask questions - use default answers
-# Update the container's packages
-RUN apt update; apt dist-upgrade -y         # run these commands when creating the image
-# Install apache2 and vim
-RUN apt install -y apache2 vim-nox          # install these packages
-# Start Apache
-ENTRYPOINT apache2ctl -D FOREGROUND         # command to run the app in the container
+#### Dockerfile
 
-
-# --- Create image from Dockerfile --- #
-# run in same dir as Dockerfile
-docker build -t <repo>/<image-name>:<tag> . # build image from dockerfile - run in dir with dockerfile
-docker build -t myrepo/apache-server:1.0 .  # example
+```dockerfile
+FROM ubuntu                                 # base image — downloads from Docker Hub if not present locally
+MAINTAINER Ryan <ryan@ryan.com>             # optional: image author
+ARG DEBIAN_FRONTEND=noninteractive          # suppress interactive prompts during package installation
+RUN apt update && apt dist-upgrade -y       # update packages when building the image
+RUN apt install -y apache2 vim-nox          # install required packages
+ENTRYPOINT apache2ctl -D FOREGROUND         # command that runs when the container starts
 ```
 
-## LXD (Lex-D)
-
-Descendant of LXC (Lex-C, "Linux Containers") which uses cgroups, but LXD does not replace LCD - only builds on top of it:
-- LXD is developed by canonical so available in Ubuntu
-  - Also distributed as snap package so it can run on all distros
-- LXD expands on LXC by adding snapshots, AFS support, and migration
-- Has a filesystem that you can directly access form the host
-- LXD is more like a machine container that tries to emulate a VM
-- Manage containers with `lxc` command, but commands for LXD layer use `lxd`
-- When you add packages to a running container, they are not deleted when the container stops 
-  - No layers, so not as fast as Docker
-- Default ubuntu container has `ubuntu` user
-- always update apt repo when you login
-- LXD has its own IP address space for containers
-- Like a VM - you can set up bridged network to get IP addr from your DHCP server. Need wired interface connection
-
+Build the image from the directory containing the `Dockerfile`:
 
 ```bash
-# --- Setup --- #
-sudo snap install lxd                       # install lxd snap
-usermod -aG lxd <username>                  # add to lxd group
-lxd init                                    # initialize new LXD installation
-...
+docker build -t <repo>/<image-name>:<tag> .     # build an image from the Dockerfile in the current directory
+docker build -t myrepo/apache-server:1.0 .      # example
+```
+
+## LXD
+
+LXD (pronounced "Lex-D") is a machine container platform that emulates a virtual machine more closely than Docker. It is a descendant of LXC ("Lex-C", Linux Containers) and builds on top of it by adding snapshots, advanced filesystem support, and live migration.
+
+LXD is developed by Canonical and is available in Ubuntu. It is also distributed as a snap package, so it runs on all distributions. You can access the container's filesystem directly from the host.
+
+Manage containers with the `lxc` command. LXD layer operations use the `lxd` command.
+
+Unlike Docker, LXD does not use layers, so packages installed in a running container persist after the container stops. This also means LXD is slower than Docker to start containers. The default Ubuntu container includes an `ubuntu` user. Run `apt update` each time you log in.
+
+LXD assigns containers their own IP address space. You can configure a bridged network to assign addresses from your DHCP server, which requires a wired interface.
+
+
+### Setup
+
+Install LXD, add your user to the `lxd` group, and initialize the installation:
+
+```bash
+sudo snap install lxd                   # install the LXD snap
+usermod -aG lxd <username>              # add your user to the lxd group
+lxd init                                # initialize LXD
+```
+
+During `lxd init`, set IPv6 to `none` and enable network availability if you want to access LXD over the network:
+
+```bash
 What IPv6 address should be used? (CIDR subnet notation, “auto” or “none”) [default=auto]: none
 Would you like the LXD server to be available over the network? (yes/no) [default=no]: yes
-...
+```
 
-# --- Common commands --- #
-lxc launch ubuntu:22.04 <container-name>    # downloads and starts container
-lxc list                                    # list all containers
-lxc start <container-name>                  # start container
-lxc stop <container-name>                   # stop container
-lxc delete <container-name>                 # delete container
-lxc image list                              # list downloaded images
-lxc image delete <image-name>               # delete image
+### Commands
 
-# --- Managing containers --- #
-lxc exec <container-name> bash                        # execute bash command in container
-lxc exect <container-name> -- su --login <username>   # login as specific user
-lxc config set my container boot.autostart 1          # config container to start on boot
-curl <container-ip-addr>                              # verify container is online
+```bash
+lxc launch ubuntu:22.04 <container-name>             # download and start a container
+lxc list                                             # list all containers
+lxc start <container-name>                           # start a container
+lxc stop <container-name>                            # stop a container
+lxc delete <container-name>                          # delete a container
+lxc image list                                       # list downloaded images
+lxc image delete <image-name>                        # delete an image
+
+lxc exec <container-name> bash                       # open a bash shell in a container
+lxc exec <container-name> -- su --login <username>   # log in as a specific user
+lxc config set <container-name> boot.autostart 1     # start the container automatically at boot
+curl <container-ip-addr>                             # verify the container is reachable
 ```

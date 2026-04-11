@@ -7,79 +7,79 @@ draft = false
 
 
 
-Automated deployments have lots of benefits:
-- Saves time
-- reduces possibility of human error
-- disaster recovery - you can recover resources much faster
-- living blueprint - another admin can look at the automation script and get a good understanding of the infrastructure
+Terraform automates cloud infrastructure by letting you write code that describes your desired end state. When you run Terraform, it reads your configuration files and provisions the corresponding infrastructure. Store configuration files in a git repository so other administrators can read the scripts and understand the infrastructure.
 
+Terraform is lower-level than Ansible or Puppet and works across cloud providers. It is made by HashiCorp.
 
-Terraform can automate cloud infrastructure:
-- Infrastructure as code - write code that represents the desired end state
-  - Download it to your machine and it turns script files into infrastructure
-- Cross platform - can run on any cloud provider
-- Should store in a git repo
-- Made by Hashicorp
-- Lower-level than ansible or puppet
-- Ingress blocks let you set a port to allow incoming connections on specified IPs
-- Egress lets your machine connect to the internet
+Two block types control network access on a resource:
+
+- **Ingress** blocks allow incoming connections on a specified port from specified IP addresses.
+- **Egress** blocks allow the instance to connect to external networks.
+
+Automated infrastructure deployments offer several advantages over manual processes:
+
+- Reduce the risk of human error during provisioning.
+- Speed up disaster recovery by recreating resources from code.
+- Provide a living blueprint — another administrator can read the configuration and understand the infrastructure.
 
 ## Installation
 
-You have to download Terraform, then configure AWS as the root user:
+Install Terraform and create a dedicated AWS IAM user that Terraform uses to provision resources:
 
-1. Go to https://www.terraform.io/ and copy the commands to install
-2. Log into your AWS console as root
-3. Go to **IAM** > **Users**
-4. Select **Create User**
-5. Enter a name, and do not allow access to the AWS Management Console
-6. On **Set Permissions**, select **Attach policies directly**, and then select the box beside **AdministratorAccess** in the **Permissions policies** list. This policy grants Terraform access to AWS.
-7. On the next page, skip the settings and select **Create User**.
+1. Go to [terraform.io](https://www.terraform.io/) and follow the instructions to install Terraform on your machine.
+2. Log into your AWS console as root.
+3. Go to **IAM** > **Users**.
+4. Select **Create User**.
+5. Enter a name. Do not allow access to the AWS Management Console.
+6. On **Set Permissions**, select **Attach policies directly**, then select **AdministratorAccess** from the **Permissions policies** list. This grants Terraform the access it needs to provision resources.
+7. Skip the remaining settings and select **Create User**.
 
-## Create basic EC2 instance
+## Create a basic EC2 instance
 
-- Go to https://cloud-images.ubuntu.com/locator/ec2/ to find Ubuntu AMI IDs
+Find Ubuntu AMI IDs at [cloud-images.ubuntu.com/locator/ec2](https://cloud-images.ubuntu.com/locator/ec2/). To create a basic EC2 instance:
 
-1. Create a directory to store your terraform config files.
+1. Create a directory to store your Terraform configuration files.
 2. Create a file with a `.tf` extension:
-    ```bash
-    provider "aws" {                                                # provider
-        profile = "profile-name"                                    # if you have creds for more than one aws profile
-    	region = "us-east-1"
-    }
+   ```bash
+   provider "aws" {                                                # provider
+       profile = "profile-name"                                    # if you have creds for more than one aws profile
+   	region = "us-east-1"
+   }
 
-    resource "aws_instance" "my-server-1" {                         # resource block, "values" here are specific to AWS
-    	ami				            = "ami-04b4f1a9cf54c11d0"       # AMI ID
-    	associate_public_ip_address	= "true"                        # give the instance a public IP
-    	instance_type			    = "t2.micro"                
-    	key_name			        = "production-key"              # key pair - look in EC2 > Resources > Key pairs
-    	vpc_security_groups_ids		= [ "sg-000511aaefb840967" ]    # security group - EC2 > Network & Security > Security Groups
-    	tags = {                                                    # custom tags
-    		Name = "Web Server 1"                                   # name of EC2 instance in list
-    	}
-    }
-    ```
-3. Export environment variables using the keys for the terraform user:
+   resource "aws_instance" "my-server-1" {                         # resource block, "values" here are specific to AWS
+   	ami				            = "ami-04b4f1a9cf54c11d0"       # AMI ID
+   	associate_public_ip_address	= "true"                        # give the instance a public IP
+   	instance_type			    = "t2.micro"                
+   	key_name			        = "production-key"              # key pair - look in EC2 > Resources > Key pairs
+   	vpc_security_groups_ids		= [ "sg-000511aaefb840967" ]    # security group - EC2 > Network & Security > Security Groups
+   	tags = {                                                    # custom tags
+   		Name = "Web Server 1"                                   # name of EC2 instance in list
+   	}
+   }
+   ```
+3. Export the IAM user's access keys as environment variables:
    ```bash
    export AWS_ACCESS_KEY_ID="<key>"
    export AWS_SECRET_ACCESS_KEY="<key>"
    ```
-4. Change to a directory with terraform.tf files, and run the init command:
+4. Change to the directory containing your `.tf` files and initialize Terraform:
    ```bash
    cd config/
    terraform init
    ```
-5. Check the syntax on your config file:
+5. Validate the configuration:
    ```bash
    terraform plan
    ```
-6. If the plan command succeeds with no errors, you can apply the config file:
+6. Apply the configuration:
    ```bash
    terraform apply
    ```
 
 
 ### Adding security
+
+Define a security group as a separate resource and reference it by variable in the instance block. This lets you manage firewall rules independently from the instance and reuse the group across multiple resources:
 
 ```bash
 provider "aws" {                            
@@ -126,21 +126,22 @@ resource "aws_instance" "my-server-1" {
 
 ### Destroying resources
 
-Run `terraform destroy` to destroy all resources defined in a config file:
-- when resources are not in use
-- when you need to reset an environment
+Run `terraform destroy` to remove all resources defined in a configuration file. Use this command when resources are no longer in use or when you need to reset an environment:
+
+```bash
+terraform destroy
+```
 
 
 ### Terraform and Ansible
 
-Use terraform to create our initial server and infra builds, and then ansible to automate future enhancements:
-- Terraform can also launch the initial Ansible run so you only have to run a single script
+Use Terraform to provision the initial server and infrastructure, then use Ansible to automate ongoing configuration. Terraform can launch the initial Ansible run so you only need to execute a single script.
 
-To combine these tools, you have to create a script in the same directory as the `.tf` config file, and then reference the script in the terraform config as `user_data`. The **User data** field in AWS is where you manually add scripts that you want to run when the machine is created.
+To combine these tools, create a shell script in the same directory as your `.tf` file and reference it in the Terraform configuration as `user_data`. AWS runs the `user_data` script automatically when the instance is created.
 
-#### Script
+#### bootstrap.sh
 
-This `bootstrap.sh` script updates the machine with ansible, then runs `ansible pull` to get the `local.yaml` file from the repo:
+This script installs Ansible on the new instance and runs `ansible-pull` to retrieve and apply `local.yaml` from the repository:
 
 ```bash
 #!/bin/bash
@@ -149,9 +150,9 @@ sudo apt install -y ansible
 sudo ansible-pull -U https://github.com/rjseymour66/ansible.git
 ```
 
-### Terraform config
+#### Terraform config
 
-This script references `bootstrap.sh` in the `user_data` field:
+Reference `bootstrap.sh` in the `user_data` field of the instance resource:
 
 ```bash
 provider "aws" {
