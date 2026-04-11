@@ -6,204 +6,170 @@ draft = false
 +++
 
 
-- do not need to worry about monitoring hardware components or replacing failed physical devices
-  - all physical servers will fail eventually
-- VPS - virtual private server providers - provide VMs but usually don't provide as many features as a cloud solution like AWS or GCP
-  - DigitalOcean
-  - Linode
-  - Amazon Lightsail
-- Even cloud services have outages
-- Automation is key in the cloud, helpful with redeploys
-- You still have to backup cloud resources
-  - Backup images and servers
-  - Keep copy of most recent backup outside cloud infra
+Cloud providers manage the physical hardware, so you do not need to monitor components or replace failed devices. All physical servers eventually fail, and cloud infrastructure abstracts that risk away.
+
+Virtual private server (VPS) providers offer virtual machines at lower cost but with fewer features than full cloud platforms like AWS or GCP. Common VPS providers include DigitalOcean, Linode, and Amazon Lightsail.
+
+Even cloud services experience outages, so automation is critical. Automated deployments let you redeploy quickly when problems occur. Back up your cloud resources regularly, keep copies of server images, and store at least one recent backup outside your primary cloud infrastructure.
 
 ## AWS
 
-Treats servers as disposable, not like pets:
-- Auto scaling - you can configure resources to scale as traffic increases, but alsos set limits on how much it increases by
-- Auto healing - instance is disposed of and replaced with a new one
-  - When server fails a health check
-- Always consider automation for rebuilding servers in case of a problem
-- IAM role lets you assign permissions to a role, and then attach that role to an AWS resource, like an EC2 instance
-- Tags are key/value pairs that you can make up and attach to any instances
+AWS treats servers as disposable rather than permanent. Two features support this approach:
+
+- **Auto scaling**: scales resources up as traffic increases, with configurable limits on how far it can scale.
+- **Auto healing**: disposes of an instance that fails a health check and replaces it with a new one.
+
+Automate server rebuilds so you can recover quickly from failures.
+
+An **IAM role** lets you assign permissions to a role and attach that role to an AWS resource, such as an EC2 instance. **Tags** are key/value pairs you attach to instances to organize and identify resources.
 
 ### Services overview
 
-Brief description of some core services:
-
-Virtual Private Cloud (VPC)
-: Software version of a complete network, with routers, gateways, firewalls, VMs, etc
-
-Elastic Compute Cloud (EC2)
-: Runs VMs, similar to a level 1 hypervisor. Each VM is an _EC2 instance_.
-
-Elastic Block Storage (EBS)
-: Block storage, the same as a hard disk volume.
-
-Elastic Load Balancer (ELB)
-: Routes traffic between multiple EC2 instances that run your app
-
-Identify and Access Management (IAM)
-: User privilege management. Tool to create and manage user accts, determine user permissions, create API keys for programatic access
-
-Route 53
-: Helps manage DNS entries and registering domain names.
-
-Simple Storage Service (S3)
-: Object storage, which is different from physical disk that you add to server, partition, format, and mount.
-  - Object storage does not have a filesystem and doesn't understand permissions.
-  - Each object is a name/object pair.
-  - Create buckets that store the objects. Each bucket name is unique
-
-Elastic Kubernetes Service (EKS)
-: Runs K8s on AWS. Much simpler than deploying your own resources.
-
-Security groups
-: Determines access to AWS resources:
-  - Much of AWS is inaccessible from the public internet. For example, EC2 instances can reach the internet, but all ports are blocked for inbound traffic.
-  - Can disallow by IP or port
-  - Can create a security group that lets specific IPs access an instance
+| Service | Description |
+|:---|:---|
+| Virtual Private Cloud (VPC) | A software-defined network with routers, gateways, firewalls, and virtual machines. |
+| Elastic Compute Cloud (EC2) | Runs virtual machines. Each VM is an EC2 instance. |
+| Elastic Block Storage (EBS) | Block storage equivalent to a hard disk volume. |
+| Elastic Load Balancer (ELB) | Routes traffic across multiple EC2 instances running your application. |
+| Identity and Access Management (IAM) | Creates and manages user accounts, permissions, and API keys for programmatic access. |
+| Route 53 | Manages DNS records and domain name registration. |
+| Simple Storage Service (S3) | Object storage. Objects are name/value pairs stored in buckets. Each bucket name is globally unique. Unlike block storage, S3 has no filesystem and does not enforce Unix permissions. |
+| Elastic Kubernetes Service (EKS) | Runs Kubernetes on AWS without managing the control plane yourself. |
+| Security groups | Controls access to AWS resources by IP address and port. Most AWS resources are inaccessible from the public internet by default. Security groups define which IPs and ports are allowed. |
 
 ### Create admin account
 
-To begin, you only have the root user account, so log in as root and then create IAM users later:
-- Always set up MFA - Authy is a good choice
+When you first log in, only the root account exists. Create a dedicated admin IAM user immediately and set up multi-factor authentication (MFA) before using the account. Authy is a good choice for MFA:
 
-Create new admin acct:
-1. Go to IAM
-2. Select Users in left pane
-3. Select Create user
-4. Give Console access
-5. For permissions, select **Attach Policies Directly**
-6. In Permissions policies, select **AdministratorAccess**.
-7. Skip tags
-8. 
+1. Go to **IAM**.
+2. Select **Users** in the left pane.
+3. Select **Create user**.
+4. Enable console access.
+5. For permissions, select **Attach Policies Directly**.
+6. In **Permissions policies**, select **AdministratorAccess**.
+7. Skip tags and select **Create user**.
 
 ### Choosing a region
 
-In your account, you have 1 VPC in each region:
-- creating additional VPCs is optional if you ever need more than once
-- Create instances as close to the user as possible
-- CloudFront is AWS's CDN for resources as close as possible to specified regions
-- Availability zones are within regions, and let you get closer to customers
-  - Also local zones within availability zones
+Each AWS account includes one VPC per region. You can create additional VPCs if needed. Deploy instances in the region closest to your users to minimize latency.
+
+AWS offers two levels of geographic subdivision within a region:
+
+- **Availability zones**: Isolated data centers within a region that reduce the impact of localized failures.
+- **Local zones**: Infrastructure placed closer to specific cities, reducing latency further for users in those areas.
+
+**CloudFront** is AWS's content delivery network (CDN). It caches content at edge locations worldwide, serving requests from the location nearest to the user.
 
 ### Creating a role
 
-Session Manager is part of System Manager, and it lets us access a shell on the EC2 instance:
-- alternative to OpenSSH
-- added benefit that we do not have to manage the backend security
-- can control access to Session Manager through the console
-- Requires you install the Session Manager package on the instance, and it requires you create an IAM role with permissions to use Session Manager
+Session Manager is part of AWS Systems Manager. It gives you shell access to an EC2 instance without managing SSH keys or opening port 22. You control access through the AWS console. Session Manager requires the SSM agent installed on the instance and an IAM role with the appropriate permissions.
 
-Create the role:
-1. Go to **IAM** > **Roles**
-2. Select **Create Role**
-3. Select **AWS Service** and **EC2** as the use case
-4. Search for **AmazonSSMFullAccess** policy to the role
-5. Name the role
-6. Select **Create Role**
+To create the role:
+
+1. Go to **IAM** > **Roles**.
+2. Select **Create Role**.
+3. Select **AWS Service** and **EC2** as the use case.
+4. Search for and attach the **AmazonSSMFullAccess** policy.
+5. Enter a name for the role.
+6. Select **Create Role**.
 
 ### Deploying an EC2 instance
 
-1. Type EC2 in the search bar.
-2. Select **Instances** from the left pane. Any instances that you launched are here.
-3. Select **Launch Instance**.
-4. Add a name and select your distro.
-5. In **Instance type**, make sure that **t2.micro** is selected - that is on the free tier.
-6. In **Key pair**, select **Create new key pair**.
-7. In the popup, enter a name and accept the defaults. This downloads a key to your workstation. Store it in a safe place.
-8. In **Network settings**, leave **Anywhere** as `0.0.0.0` if you want to be able to access the instance from any IP. Otherwise, select **My IP** and it will add your public IP.
-   Be careful if you are not using a static ip, or you have to manually update the security group for the instance to include your new IP.
-9. Because we are setting up a web server, select the boxes to allow HTTPS and HTTP traffic from the internet. Usually, you wouldn't allow this.
-10. In **Configure storage**, select how much disk you want on your root volume. You can select 30GIB.
-11. In **Advanced details**, enter commands that you want to run when the instance is created in **User data**:
-    ```bash
-    #!/bin/bash
-    apt update
-    apt dist-upgrade -y
-    apt install -y apache2
-    ```
-12. Select **Launch instance**.
+To launch a new EC2 instance:
 
-You should be able to see the Apache2 Default page on the public IP for your instance.
+1. Search for **EC2** and select **Instances** from the left pane.
+2. Select **Launch Instance**.
+3. Enter a name and select your distribution.
+4. In **Instance type**, select **t2.micro** (free tier eligible).
+5. In **Key pair**, select **Create new key pair**. Enter a name and accept the defaults. Store the downloaded key in a safe place.
+6. In **Network settings**, set the source to **Anywhere** (`0.0.0.0`) to allow access from any IP, or select **My IP** to restrict access to your current address. If your IP is not static, you will need to update the security group each time your IP changes.
+7. Select the checkboxes to allow HTTPS and HTTP traffic if you are deploying a web server.
+8. In **Configure storage**, set the root volume size. 30 GiB is sufficient for most test environments.
+9. In **Advanced details**, add any commands to run at instance creation in the **User data** field:
+   ```bash
+   #!/bin/bash
+   apt update
+   apt dist-upgrade -y
+   apt install -y apache2
+   ```
+10. Select **Launch instance**.
 
-### Accessing an EC2
+After the instance starts, the Apache2 default page should be accessible at the instance's public IP address.
 
-> Might have to reboot before running this?
+### Accessing an EC2 instance
 
-Make sure you have an IAM role with SessionManager ready:
-1. Go to **EC2** > **Instances** to view and access the running instance.
-2. Select the box to the left of the **Name** column in the instance row, then select **Actions** > **Security** > **Modify IAM role**. Select the IAM role with Session Manager access.
-3. On **Instances**, select the **Instance ID** for the instance that you want to connect to.
+Attach the Session Manager IAM role to the instance before connecting. You may need to reboot the instance after attaching the role for it to take effect:
+
+1. Go to **EC2** > **Instances**.
+2. Select the instance row, then select **Actions** > **Security** > **Modify IAM role**. Select the IAM role with Session Manager access.
+3. Select the **Instance ID** of the instance you want to connect to.
 4. Select **Connect**.
 5. Select the **Session Manager** tab, then select **Connect**.
    
 
 ### Create an AMI
 
-An Amazon Machine Image is a disk image - a copy of the instance's hard disk so you can replicate the original server:
-- should shut down server so there are no writes happening, resulting in data corruption
+An Amazon Machine Image (AMI) is a disk image of an instance. Use an AMI to replicate a configured server or recover quickly from a failure. Shut down the instance before creating an AMI to prevent writes from corrupting the image:
 
-1. Go to **EC2** > **Instances**, and right-click the Instance ID. Select **Image and templates** > **Create image**.
+1. Go to **EC2** > **Instances**, right-click the instance, and select **Image and templates** > **Create image**.
 2. Enter a name and description.
-3. Accept the other defaults, and select **Create image**.
-4. Select the AMI ID in the notificaiton, or go to **Images** > **AMIs** to view your AMI.
-5. When **Status** is **Ready**, right-click the instance and select **Launch instance from AMI** to launch a new instance.
+3. Accept the remaining defaults and select **Create image**.
+4. Select the AMI ID in the notification, or go to **Images** > **AMIs** to view your AMI.
+5. When **Status** is **Ready**, right-click the AMI and select **Launch instance from AMI**.
 
 ### Auto Scaling
 
-Automate the process of bringing more servers online to handle an increase in traffic:
-- Create a launch template, which automates all the selections we make when we create an instance
+Auto Scaling brings additional instances online automatically as traffic increases. It requires a launch template, which captures the configuration choices you would otherwise make manually each time you create an instance.
 
-First, you have to create a Launch template:
+#### Create a launch template
+
+A launch template defines the instance configuration Auto Scaling uses when it provisions new servers:
+
 1. Go to **EC2** > **Instances** > **Launch Templates**.
 2. Select **Create launch template**.
-3. Make the following selections:
-   - Launch template name
-   - Template version description
-   - Application and OS Images (AMI) > My AMIs > Owned by me > select your AMI
-   - Instance type: t2.micro (cost-effective)
-   - Key pair (login): select your .pem keypair
-   - Network settings: Select existing security group, then select your group from the list
-   - Advanced details: IAM instance profile > select your profile
+3. Configure the following settings:
+   - **Launch template name** and **Template version description**
+   - **Application and OS Images (AMI)**: select **My AMIs** > **Owned by me**, then select your AMI
+   - **Instance type**: t2.micro
+   - **Key pair (login)**: select your `.pem` key pair
+   - **Network settings**: select an existing security group
+   - **Advanced details** > **IAM instance profile**: select your profile
 4. Select **Create launch template**.
 
-Next, create an Auto Scaling group - a logical group of instances that are related to the overall application:
-- A target group is a logical grouping of EC2 instances that server a common goal.
+#### Create an Auto Scaling group
+
+An Auto Scaling group is a logical collection of instances that serve a common application. A target group is a subset of those instances that a load balancer routes traffic to:
 
 1. Go to **EC2** > **Auto Scaling Groups**.
 2. Select **Create Auto Scaling Group**.
-3. Add a name, and select a launch template.
-4. In **Network**, accept the **VPC** default, and select the first option in the **Availability Zones and subnets** list.
+3. Enter a name and select your launch template.
+4. In **Network**, accept the default VPC and select the first availability zone.
 5. In **Load balancing**, select **Attach to a new load balancer**.
-6. In **Attach to a new load balancer**, select the following:
-   - Select **Appliction Load Balancer**
-   - Enter a **Load balancer name**
-   - Select two options in **Availability Zones and subnets**. Your default zone is already selected, so select one more.
-   - In **Default routing (forward to)**, select **Create a target group**. 
-     - Enter a name or accept the default.
-   Select **Next**.
-7. On **Configure group size and scaling**, you set the min and max number of instances you want to run, depending on scaling. Leave these at **1** for the test env.
-8. Select **Skip to review**.
-9. Select **Create Auto Scaling group**.
+6. Configure the load balancer:
+   - Select **Application Load Balancer**.
+   - Enter a **Load balancer name**.
+   - Select two options under **Availability Zones and subnets**.
+   - Under **Default routing (forward to)**, select **Create a target group** and enter a name.
+   - Select **Next**.
+7. On **Configure group size and scaling**, set the minimum and maximum instance counts. Set both to **1** for a test environment.
+8. Select **Skip to review**, then select **Create Auto Scaling group**.
 
-When the group is created, it will spin up a new instance because we set our minimum capacity at **1**.
-
-Access the website at the DNS name for the load balancer (**Load Balancing** > **Load Balancers**)
+When the group is created, it provisions one instance to meet the minimum capacity. Access the application at the DNS name shown under **Load Balancing** > **Load Balancers**.
 
 ### Costs
 
-Your expenses are listed in the **Billing and Cost Management** dashboard:
-- Manage with root account
-- Search for **Billing** to open **Billing and Cost Management**.
-- Add a billing alert
-- Delete unneeded backups
-- Only run EC2 instances when needed
+Monitor your AWS expenses in the **Billing and Cost Management** dashboard. Access it by searching for **Billing** in the console. Manage billing with the root account.
+
+To keep costs under control:
+
+- Set up a billing alert to notify you when spending exceeds a threshold.
+- Delete backups you no longer need.
+- Stop or terminate EC2 instances when they are not in use.
 
 ### Commands
 
+Connect to an EC2 instance using your `.pem` key pair:
+
 ```bash
-ssh -i /path/to/ec2-key.pem ubuntu@<public-instance-ip>         # ssh into machine
+ssh -i /path/to/ec2-key.pem ubuntu@<public-instance-ip>         # connect to an EC2 instance
 ```

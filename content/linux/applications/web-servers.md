@@ -6,381 +6,489 @@ draft = false
 +++
 
 
-Web servers serve web pages to users.
-
 ## Apache
 
-The configurations described here are unique to Ubuntu:
-- Webservers display the webpage at the server IP addr by default
-- config files are in `/etc/apache2`
-  - main config at `/etc/apache2/apache2.conf`
-- uses plugins to extend functionality
-- serves content from **document root**, `/var/html/www` by default
-- always reload so site doesnt go down. only restart when enabling a plugin or there are issues
+The configurations described here are specific to Ubuntu. Apache serves content from
+the **document root** (`/var/www/html` by default) and uses modules to extend functionality.
+
+Follow these guidelines when managing Apache:
+
+- Reload the service after configuration changes to avoid downtime. Restart only when enabling a new module or resolving an issue.
+- Configuration files are in `/etc/apache2`. The main configuration file is `/etc/apache2/apache2.conf`.
+
+You can run multiple websites on a single server using virtual hosts. Each virtual host
+has its own configuration file in `/etc/apache2/sites-available`. To run a single site,
+replace the default `index.html` in `/var/www/html`.
+
+### Set up a virtual host
+
+Use these steps to configure Apache to serve a new site:
+
+1. Create your website content.
+2. Upload the files to the document root, usually `/var/www`, or a custom location.
+3. Make sure `www-data` owns all files in the document root.
+4. Create a site configuration file in `/etc/apache2/sites-available` with a unique `<VirtualHost>` stanza for each host. For example, `mysite.com.conf`.
+5. Enable the site with `a2ensite` and disable it with `a2dissite`. These commands create and delete a symlink in `/etc/apache2/sites-enabled`.
+6. Reload Apache to apply the configuration.
 
 
-You can run multiple websites on single server with _virtual hosts_
-  - each virtual host has its own config file to make it unique
-  - to host multiple sites, create `.conf` file in `/etc/apache2/sites-available` dir with unique `<VirtualHost>` stanza for each host
-  - To run one site, you can just replace the default `index.html` from `/var/www/html`
+### Install Apache
 
-Virtual Host setup steps:
-1. Create website content
-2. Upload files to server in document root?, usually `/var/www` but can be custom location
-3. Make sure `www-data` owns all files in Document Root
-4. Create site config file and copy into `/etc/apache2/sites-available`. For example, `mysite.com.conf`
-5. Enable site with `a2ensite` (disable with `a2dissite`) - Ubuntu-specific?
-   1. `a2ensite` creates a symlink to your site config file and stores in `/etc/apache2/sites-enabled`
-   2. `a2dissite` deletes the symlink
-6. Reload Apache to refresh config
+Install Apache and verify it is running:
 
+1. Install the package.
+   ```bash
+   apt install apache2
+   ```
+2. Verify the service started.
+   ```bash
+   systemctl status apache2
+   ```
+
+Enable or disable a site by name. An absolute path is not required:
 
 ```bash
-apt install apache2             # 1. Install
-systemctl status apache2        # 2. Verify its running
-
-# ---  --- #
-a2ensite mysite.com.conf        # Enable site and reload (abs path not required)
+a2ensite mysite.com.conf
 systemctl reload apache2
 
-a2dissite mysite.com.conf       # Disable site and reload (abs path not required)
+a2dissite mysite.com.conf
 systemctl reload apache2
 ```
 
-### Config files
+### Configuration files
 
-Important config file info:
-- `/etc/apache2/apache2.conf`:
-  - `IncludeOptional` is where Apache looks for site `.conf` files
-- VirtualHost `.conf` files are stored in `/etc/apache2/sites-available` and symlinked in `/etc/apache2/sites-enabled`
-  - Each site needs its own document root
-  - Default log files are fine with one site, but create custom files when serving multiple sites
-  - Name-based Virtualhosts only get one IP addr, so you have to provide the `ServerName` in the config file
-    - Config file example name: `000-virtual-hosts.conf`
-    - Server filters incoming requests using `ServerName`, points reqs to `DocumentRoot`
-    - Add as many sites as you want, just make sure your server has enough resources to handle reqs
+Apache configuration files are in `/etc/apache2`:
 
-> Research A names, domain names and how to set up Apache
+| File | Description |
+|:---|:---|
+| `apache2.conf` | Main configuration file. The `IncludeOptional` directive tells Apache where to look for site `.conf` files. |
+| `sites-available/` | Stores virtual host configuration files. Each site needs its own document root. |
+| `sites-enabled/` | Contains symlinks to active site configuration files. |
+
+When serving multiple sites, create a unique log file for each. Name-based virtual hosts share a single IP address, so each configuration file must include a `ServerName` directive. Apache uses `ServerName` to route incoming requests to the correct `DocumentRoot`. A common convention for the configuration file name is `000-virtual-hosts.conf`.
 
 
-```bash
-# --- /etc/apache2/apache2.conf --- #
-...
-# Include the virtual host configurations:
+#### apache2.conf
+
+The `IncludeOptional` directive tells Apache where to load site configuration files:
+
+```apacheconf
+# /etc/apache2/apache2.conf
 IncludeOptional sites-enabled/*.conf
+```
 
+#### 000-default.conf
 
-# --- 000-default.conf --- #
-<VirtualHost *:80>                                      # listen to everything (*) on port 80
-	...
-	ServerAdmin webmaster@localhost                     # email addr displayed in site error messages
-	DocumentRoot /var/www/html                          # serve content from this dir
-	...
-    # APACHE_LOG_DIR set in /etc/apache2/envvars - /var/log/ by default
-	ErrorLog ${APACHE_LOG_DIR}/error.log                # Logs site errors
-	CustomLog ${APACHE_LOG_DIR}/access.log combined     # Logs incoming HTTP requests
-    ...
+The default virtual host listens on all interfaces on port 80 and serves content from `/var/www/html`:
+
+```apacheconf
+<VirtualHost *:80>
+    ServerAdmin webmaster@localhost                     # email address displayed in error messages
+    DocumentRoot /var/www/html                          # serve content from this directory
+    # APACHE_LOG_DIR is set in /etc/apache2/envvars — /var/log/ by default
+    ErrorLog ${APACHE_LOG_DIR}/error.log                # logs site errors
+    CustomLog ${APACHE_LOG_DIR}/access.log combined     # logs incoming HTTP requests
+</VirtualHost>
+```
+
+#### Multiple interfaces
+
+Bind each virtual host to a specific IP address to identify the correct network interface:
+
+```apacheconf
+<VirtualHost 10.20.30.40:80>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/mysitename
+    ErrorLog ${APACHE_LOG_DIR}/mysitename.com-error.log
+    CustomLog ${APACHE_LOG_DIR}/mysitename.com-access.log combined
+</VirtualHost>
+```
+
+#### Name-based virtual hosts
+
+Use a single IP address and route requests by `ServerName`. Each site requires a unique `DocumentRoot` and log files:
+
+```apacheconf
+<VirtualHost *:80>
+    ServerName firstsite.com
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/firstsite.com
+    ErrorLog ${APACHE_LOG_DIR}/firstsite.com-error.log
+    CustomLog ${APACHE_LOG_DIR}/firstsite.com-access.log combined
 </VirtualHost>
 
-# --- Sample VirtualHost .conf multiple interfaces --- #
-<VirtualHost 10.20.30.40:80>                                        # IP addr IDs the correct network interface
-    ...
-	ServerAdmin webmaster@localhost
-	DocumentRoot /var/www/mysitename                                # Unique DocumentRoot for each site
-    ...
-	ErrorLog ${APACHE_LOG_DIR}/mysitename.com-error.log             # Unique log file name    
-	CustomLog ${APACHE_LOG_DIR}/mysitename.com-access.log combined  # Unique log file name
-    ...
-</VirtualHost>
-
-# --- Sample name-based VirtualHost .conf single IP addr (VPS) --- #
-<VirtualHost *:80>                                                  # All traffic on port 80
-    ...
-    ServerName firstsite.com                                        # Links incoming reqs to DocumentRoot
-	ServerAdmin webmaster@localhost
-	DocumentRoot /var/www/firstsite.com                             # Unique DocumentRoot for each site
-    ...
-	ErrorLog ${APACHE_LOG_DIR}/firstsite.com-error.log              # Unique log file name    
-	CustomLog ${APACHE_LOG_DIR}/firstsite.com-access.log combined   # Unique log file name
-    ...
-</VirtualHost>
-
-<VirtualHost *:80>                                                  # All traffic on port 80
-    ...
-    ServerName second.com                                           # Links incoming reqs to DocumentRoot
-	ServerAdmin webmaster@localhost
-	DocumentRoot /var/www/second.com                                # Unique DocumentRoot for each site
-    ...
-	ErrorLog ${APACHE_LOG_DIR}/second.com-error.log                 # Unique log file name    
-	CustomLog ${APACHE_LOG_DIR}/second.com-access.log combined      # Unique log file name
-    ...
+<VirtualHost *:80>
+    ServerName second.com
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/second.com
+    ErrorLog ${APACHE_LOG_DIR}/second.com-error.log
+    CustomLog ${APACHE_LOG_DIR}/second.com-access.log combined
 </VirtualHost>
 ```
 
 ### Modules
 
-Modules extend functionality. Install modules based on your needs:
-- installed as modules from `apt` repo
-- Debian sometimes enables modules by default
-- `a2enmod`: enable a module
-- `a2dismod`: disable a module
+Apache modules extend functionality. Install them from the `apt` repository. Debian
+sometimes enables modules by default. Use `a2enmod` to enable a module and `a2dismod`
+to disable one.
+
+Use these commands to explore available modules:
 
 ```bash
-apache2 -l                                  # view built-in modules
-a2enmod                                     # all modules currently installed but not enabled
-apt search libapache2-mod                   # view available mods
-systemctl restart apache2                   # activate a new configuration
-
-# --- Enable module --- #
-apt install libapache2-mod-php8.3           # 1. install php
-a2enmod php8.3                              # 2. enable php
-systemctl restart apache2                   # 3. restart service
+apache2 -l                      # list built-in modules
+a2enmod                         # list modules available to enable
+apt search libapache2-mod       # search available modules in apt
 ```
+
+To enable a module:
+
+1. Install the package.
+   ```bash
+   apt install libapache2-mod-php8.3
+   ```
+2. Enable the module.
+   ```bash
+   a2enmod php8.3
+   ```
+3. Restart the service to activate the change.
+   ```bash
+   systemctl restart apache2
+   ```
 
 ### TLS
 
-TLS encrypts your web traffic and communicates over HTTPS:
-- Install signed certs into your server to protect and encrypt traffic
-- SSL precedes TLS. SSL might still be in use, but use TLS for enhanced security
-- apache runs on port 80, not port 443 (HTTPS)
-- config file is `/etc/apache2/sites-available/default-ssl.conf`
-  - `a2ensite` command enables SSL config file
-- Need to generate certs:
-  - self-signed: good for testing, but in prod most browsers won't trust them by default and send users to an error page first
-  - certificate authority: trusted, signed by vendor. Good for prod
-  - [Let's Encrypt](https://letsencrypt.org/docs/) is a good option for setting up certs
+TLS encrypts web traffic over HTTPS. Apache listens on port 80 by default. Enabling TLS
+adds a listener on port 443. The TLS configuration file is
+`/etc/apache2/sites-available/default-ssl.conf`.
+
+SSL preceded TLS. You may still see SSL references in configuration files, but use TLS
+for all new deployments.
+
+You must provide a certificate to enable TLS. Choose the type based on your environment:
+
+| Type | Use case |
+|:---|:---|
+| Self-signed | Testing only. Most browsers will display a warning before allowing access. |
+| Certificate authority | Production. Trusted and signed by a vendor. |
+| [Let's Encrypt](https://letsencrypt.org/docs/) | Production. Free, automated, and widely trusted. |
+
+To verify which ports Apache is listening on:
 
 ```bash
-sudo ss -tulpn | grep apache                # view ports apache listens on
+sudo ss -tulpn | grep apache
+```
 
-# --- Enable TLS --- #
-a2enmod ssl                                 # 1. enable ssl mod
-systemctl restart apache2                   # 2. restart service
-a2ensite default-ssl.conf                   # 3. enable SSL conf file
+#### Enable TLS
 
-# --- /etc/apache2/sites-available/default-ssl.conf --- #
-<VirtualHost *:443>                                                     # listen on port 443
-	ServerAdmin webmaster@localhost 
+Enable the SSL module, restart Apache, and activate the SSL configuration file:
 
-	DocumentRoot /var/www/html
+1. Enable the SSL module.
+   ```bash
+   a2enmod ssl
+   ```
+2. Restart the service.
+   ```bash
+   systemctl restart apache2
+   ```
+3. Enable the SSL configuration file.
+   ```bash
+   a2ensite default-ssl.conf
+   ```
 
-	ErrorLog ${APACHE_LOG_DIR}/error.log
-	CustomLog ${APACHE_LOG_DIR}/access.log combined
+#### default-ssl.conf
 
-	SSLEngine on                                                        # enables SSL traffic
+The default SSL configuration file listens on port 443. The `snakeoil` certificate is a
+self-signed placeholder installed by default on Ubuntu. Replace it with your own certificate
+before deploying to production:
 
-	SSLCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
-	SSLCertificateKeyFile   /etc/ssl/private/ssl-cert-snakeoil.key
+```apacheconf
+<VirtualHost *:443>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/html
 
-	<FilesMatch "\.(?:cgi|shtml|phtml|php)$">                           # apply these options to files that match regex ext
-		SSLOptions +StdEnvVars                                          # 
-	</FilesMatch>
-	<Directory /usr/lib/cgi-bin>                                        # apply options to a dir
-		SSLOptions +StdEnvVars                                          # applies these options - enable default env vars
-	</Directory>                                                        # for TLS
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+    SSLEngine on
+
+    SSLCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
+    SSLCertificateKeyFile   /etc/ssl/private/ssl-cert-snakeoil.key
+
+    <FilesMatch "\.(?:cgi|shtml|phtml|php)$">
+        SSLOptions +StdEnvVars      # apply SSL environment variables to dynamic files
+    </FilesMatch>
+    <Directory /usr/lib/cgi-bin>
+        SSLOptions +StdEnvVars      # apply SSL environment variables to CGI scripts
+    </Directory>
 </VirtualHost>
 ```
 
-#### Self-signed certs
+#### Self-signed certificates
 
-For testing purposes:
-- need directory to store certs
-  - `.crt` is certificate
-  - `.key` is private key
+Use self-signed certificates for testing. A self-signed certificate uses a `.crt` file
+for the certificate and a `.key` file for the private key.
 
-```bash
-mkdir /etc/apache2/certs                                    # 1. create dir for certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \       # 2. generate certs and answer questions
--keyout /etc/apache2/certs/mysite.key \
--out /etc/apache2/certs/mysite.crt 
+1. Create a directory for the certificates.
+   ```bash
+   mkdir /etc/apache2/certs
+   ```
+2. Generate the certificate and key. Answer the prompts when asked.
+   ```bash
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+   -keyout /etc/apache2/certs/mysite.key \
+   -out /etc/apache2/certs/mysite.crt
+   ```
+3. Update `default-ssl.conf` to point to your certificate files. Replace the existing `SSLCertificateFile` and `SSLCertificateKeyFile` lines:
+   ```apacheconf
+   SSLCertificateFile      /etc/apache2/certs/mysite.crt
+   SSLCertificateKeyFile   /etc/apache2/certs/mysite.key
+   ```
+4. Add a `ServerName` directive to the `<VirtualHost>` block:
+   ```apacheconf
+   <VirtualHost *:443>
+       ServerName mydomain.com:443
+       ...
+   ```
+5. Reload Apache to apply the changes.
+   ```bash
+   systemctl reload apache2
+   ```
 
-vim /etc/apache2/sites-avaiable/default-ssl.conf            # 3. add cert locations to conf file
-SSLCertificateFile      /etc/apache2/certs/mysite.crt       #    Comment out original files, add your cert locations
-SSLCertificateKeyFile   /etc/apache2/certs/mysite.key
+#### CA certificates
 
-systemctl reload apache2                                    # 4. reload service
-vim /etc/apache2/sites-avaiable/default-ssl.conf            # 5. Tell apache to handle req for our site w TLS
-<VirtualHost *:443>
-        ServerName mydomain.com:443
-        ...
-```
+CA certificates follow the same process as self-signed certificates, but the vendor
+generates the certificate files instead of you. Once you receive the files, add them
+to `/etc/apache2/certs/` and update `default-ssl.conf` to reference them.
 
-#### CA certs
+To obtain a CA certificate:
 
-Same process as self-signed certs, but you don't generate the certs yourself, you have to request them and then copy them to your fs:
-1. Create a Certificate Signing Request (CSR)
-2. pay vendor's fee
-3. complete necessary forms
-4. prove you own the website in question
-5. vendor sends you the files
-6. Add them to `/ect/apache2/certs/` dir and config in `../default-ssl.conf`
+1. Create a Certificate Signing Request (CSR).
+2. Pay the vendor's fee.
+3. Complete the required forms.
+4. Prove you own the domain.
+5. The vendor sends you the certificate files.
+6. Copy the files to `/etc/apache2/certs/` and update `/etc/apache2/sites-available/default-ssl.conf`.
 
 
 #### default-ssl.conf sample
 
-If you have multiple websites, you can copy this file as a template:
-1. Copy `default-ssl.conf` and call it `/etc/apache2/sites-avaialble/mysite.conf`
+Use `default-ssl.conf` as a template when hosting multiple sites over TLS. Copy it and
+give it a site-specific name:
 
 ```bash
-<VirtualHost *:443>
-	ServerName mysite.com:443
-	ServerAdmin webmaster@localhost
+cp /etc/apache2/sites-available/default-ssl.conf /etc/apache2/sites-available/mysite.conf
+```
 
-	DocumentRoot /var/www/mysite
-    ...
-	ErrorLog ${APACHE_LOG_DIR}/mysite.com-error.log
-	CustomLog ${APACHE_LOG_DIR}/mysite.com-access.log combined
-    ...
-	SSLEngine on
-	...
-	SSLCertificateFile      /etc/apache2/certs/mysite.crt
-	SSLCertificateKeyFile   /etc/apache2/certs/mysite.key
-	...
-	<FilesMatch "\.(?:cgi|shtml|phtml|php)$">
-		SSLOptions +StdEnvVars
-	</FilesMatch>
-	<Directory /usr/lib/cgi-bin>
-		SSLOptions +StdEnvVars
-	</Directory>
+Then update the new file with your site's values:
+
+```apacheconf
+<VirtualHost *:443>
+    ServerName mysite.com:443
+    ServerAdmin webmaster@localhost
+
+    DocumentRoot /var/www/mysite
+
+    ErrorLog ${APACHE_LOG_DIR}/mysite.com-error.log
+    CustomLog ${APACHE_LOG_DIR}/mysite.com-access.log combined
+
+    SSLEngine on
+
+    SSLCertificateFile      /etc/apache2/certs/mysite.crt
+    SSLCertificateKeyFile   /etc/apache2/certs/mysite.key
+
+    <FilesMatch "\.(?:cgi|shtml|phtml|php)$">
+        SSLOptions +StdEnvVars
+    </FilesMatch>
+    <Directory /usr/lib/cgi-bin>
+        SSLOptions +StdEnvVars
+    </Directory>
 </VirtualHost>
 ```
 
 ## nginx
 
-Proxy server and web server:
-- Should not run two web services on the same machine because there might be conflicts
-- content in `/var/www/html`
-- config files in `/etc/nginx`
-  - same `sites-available` and `sites-enabled` as apache
-- No commands to enable sites, must create the symlink manually
-- For one site, replace the `../sites-available/default` content
-- For more than one site, copy default config file and make changes, then create new dir in `/var/www/`
+nginx functions as both a web server and a proxy server. A proxy server sits between
+clients and backend servers, forwarding requests and returning responses on their behalf.
+Do not run nginx and Apache on the same machine — port conflicts will prevent both
+services from starting correctly.
+
+nginx uses the same `sites-available` and `sites-enabled` directory structure as Apache,
+but has no `a2ensite`-style commands. You must create symlinks manually to enable sites.
+Configuration files are in `/etc/nginx` and content is served from `/var/www/html`.
+
+For a single site, replace the content of `/etc/nginx/sites-available/default`. For
+multiple sites, copy the default configuration file, make your changes, and create a
+new directory in `/var/www/`.
+
+### Install nginx
+
+Install nginx and verify it is running:
+
+1. Install the package.
+   ```bash
+   apt install nginx
+   ```
+2. Verify the service started.
+   ```bash
+   systemctl status nginx
+   ```
+
+To enable a site, create the symlink manually and reload the service:
 
 ```bash
-apt install nginx               # install package
-
-# --- enable a site --- #
 sudo ln -s /etc/nginx/sites-available/site.com /etc/nginx/sites-enabled/site.com
 systemctl reload nginx
 ```
 
-### Multiple site config
+### Multiple site configuration
 
-nginx can have only one default site, so you have to create a new config file:
-- There is a templat at the end of the `default` site config
-- easier configuration
+Each additional site requires its own configuration file. The `default` configuration
+file in `sites-available` includes a template at the end you can use as a starting point.
 
-```bash
-cp sites-available/default sites-available/mysite.com       # 1. duplicate default config file
-vim /etc/nginx/sites-avaiable/mysite.com                    # 2. edit new config file
-...
-server {
-	listen 80;                                              # rm default_site bc there can be only one
-	listen [::]:80;                                         # rm default_site bc there can be only one
-    ...
-	root /var/www/mysite.com;                               # dir storing site files
-    ...
-	index index.html index.htm index.nginx-debian.html;     # leave as default
+1. Copy the default configuration file.
+   ```bash
+   cp /etc/nginx/sites-available/default /etc/nginx/sites-available/mysite.com
+   ```
+2. Edit the new configuration file. Remove the `default_server` flag from the `listen`
+   directives, since only one site can be the default. Update `root` and `server_name`
+   for your site:
+   ```nginx
+   server {
+       listen 80;
+       listen [::]:80;
 
-	server_name mysite.com www.mysite.com;                  # change to name of new site
+       root /var/www/mysite.com;
 
-	location / {
-		...
-		try_files $uri $uri/ =404;
-	}
-    ...
-```
+       index index.html index.htm index.nginx-debian.html;
+
+       server_name mysite.com www.mysite.com;
+
+       location / {
+           try_files $uri $uri/ =404;
+       }
+   }
+   ```
 ### TLS
 
-Store certs in a file and update the config files to use port 443 and the certs:
-- requires a pem key
+nginx TLS requires a PEM-format certificate file and a separate private key file. PEM
+(Privacy Enhanced Mail) is a Base64-encoded format for storing cryptographic keys and
+certificates. It is the most common certificate format used by web servers. Store the
+files in a dedicated directory and update your site configuration to listen on port 443.
 
-```bash
-mkdir /etc/nginx/certs                                      # 1. create dir for certs
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \       # 2. generate certs and answer questions
--keyout /etc/nginx/certs/mysite.key \
--out /etc/nginx/certs/mysite.crt
-vim /etc/nginx/sites-avaiable/tlssite.com                   # 3. edit config file
-server {
-	listen 443 ssl;
-	listen [::]:443 ssl;
-    ...
-	root /var/www/tlssite.com;
-    ...
-	index index.html index.htm index.nginx-debian.html;
+1. Create a directory for the certificates.
+   ```bash
+   mkdir /etc/nginx/certs
+   ```
+2. Generate a self-signed certificate and key. Answer the prompts when asked.
+   ```bash
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+   -keyout /etc/nginx/certs/mysite.key \
+   -out /etc/nginx/certs/mysite.crt
+   ```
+3. Update your site configuration to listen on port 443 and reference the certificate files:
+   ```nginx
+   server {
+       listen 443 ssl;
+       listen [::]:443 ssl;
 
-	server_name tlssite.com www.tlssite.com;
+       root /var/www/tlssite.com;
 
-	ssl_certificate /etc/nginx/certs/cert.pem;
-	ssl_certificate_key /etc/nginx/certs/cert.key;
-	ssl_session_timeout 5m;
+       index index.html index.htm index.nginx-debian.html;
 
-	location / {
-		try_files $uri $uri/ =404;
-	}
-...
-vim /etc/nginx/sites-avaiable/default                       # 4. redirect users from default site
-...
-server {
-	listen 80 default_server;
-	listen [::]:80 default_server;
+       server_name tlssite.com www.tlssite.com;
 
-	return 301 https://$host$request_uri;
-    ...
-```
+       ssl_certificate     /etc/nginx/certs/mysite.crt;
+       ssl_certificate_key /etc/nginx/certs/mysite.key;
+       ssl_session_timeout 5m;
+
+       location / {
+           try_files $uri $uri/ =404;
+       }
+   }
+   ```
+4. Update the default site configuration to redirect HTTP traffic to HTTPS:
+   ```nginx
+   server {
+       listen 80 default_server;
+       listen [::]:80 default_server;
+
+       return 301 https://$host$request_uri;
+   }
+   ```
 
 ## Nextcloud
 
-Requires web server to work:
-- sync files between machines
-- store and sync contacts
-- keep track of tasks
-- get email from a server
+Nextcloud is a self-hosted file sync and collaboration platform. It requires a web server
+to run. Use it to sync files between machines, manage contacts and tasks, and retrieve
+email from a server.
 
-```bash
-wget https://download.nextcloud.com/server/releases/latest.zip      # 1. Download the latest zip
-unzip latest.zip                                                    # 2. Unzip archive
-mv nextcloud /var/www/html/nextcloud                                # 3. Move to Apache server dir
-chown www-data:www-data -R /var/www/html/nextcloud                  # 4. Give Apache user account and group full access
-vim /etc/apache2/sites-available/nextcloud.conf                     # 5. Create config file
-a2ensite nextcloud.conf                                             # 6. Enable site
-apt install libapache2-mod-php8.3                                   # 7. Install Nextcloud req packages
-            php8.3-curl
-            php8.3-gd
-            php8.3-intl
-            php8.3-mbstring
-            php8.3-mysql
-            php8.3-xml
-            php8.3-zip
-systemctl restart apache2                                           # 8. Restart Apache
-mariadb -u root -p                                                  # 9. Log in to mariadb as root
-CREATE DATABASE nextcloud;                                          # 10. Create Nextcloud db
-GRANT ALL ON nextcloud.* to 'nextcloud'@'localhost'                 # 11. Create user nextcloud and grant full access to db
-    IDENTIFIED BY 'super_secret_password';
+### Install Nextcloud
 
-# --- Nextcloud setup questions --- #
-1. Go to <server-ip>/nextcloud
-2. Complete the account setup:
-   New admin account: admin
-   New admin password: <password>
-   Database account: nextcloud (from step 11 above)
-   Database password: <password> (from step 11 above)
-   Database name: nextcloud (from step 11 above)
-   Database host: localhost (if you set up db on same machine as Nextcloud server. Otherwise, enter db server IP)
-3. Select Install.
-4. Create a regular user account. Use admin account to enable or disable apps.
+Download, extract, and configure Nextcloud to run under Apache:
 
+1. Download and extract the Nextcloud archive.
+   ```bash
+   wget https://download.nextcloud.com/server/releases/latest.zip
+   unzip latest.zip
+   ```
+2. Move the extracted directory to the Apache document root.
+   ```bash
+   mv nextcloud /var/www/html/nextcloud
+   ```
+3. Set ownership so Apache can read and write the files.
+   ```bash
+   chown www-data:www-data -R /var/www/html/nextcloud
+   ```
+4. Create and enable the Apache site configuration.
+   ```bash
+   vim /etc/apache2/sites-available/nextcloud.conf
+   a2ensite nextcloud.conf
+   ```
+5. Install the required PHP packages and restart Apache.
+   ```bash
+   apt install libapache2-mod-php8.3 php8.3-curl php8.3-gd php8.3-intl \
+               php8.3-mbstring php8.3-mysql php8.3-xml php8.3-zip
+   systemctl restart apache2
+   ```
 
-# --- NextCloud config file --- #
-<Directory /var/www/html/nextcloud/>                # access at www.<domain-name>.com/nextcloud
-        Options +FollowSymlinks                     # if ServerName is not set, uses <server-ip>/nextcloud
-        AllowOverride All
+### Set up the database
 
-        <IfModule mod_dav.c>
-                Dav off                             # disable WebDAV - will not be file server
-        </IfModule>
+1. Log in to MariaDB as root and create the Nextcloud database and user.
+   ```bash
+   mariadb -u root -p
+   CREATE DATABASE nextcloud;
+   GRANT ALL ON nextcloud.* TO 'nextcloud'@'localhost' IDENTIFIED BY 'super_secret_password';
+   ```
 
-        SetEnv HOME /var/www/html/nextcloud         # set env var HOME
-        SetEnv HTTP_HOME /var/www/html/nextcloud    # set env var HTTP_HOME
+### Complete web setup
+
+Navigate to `http://<server-ip>/nextcloud` and complete the setup form:
+
+| Field | Value |
+|:---|:---|
+| New admin account | admin |
+| New admin password | Your chosen password |
+| Database account | nextcloud |
+| Database password | Your chosen password |
+| Database name | nextcloud |
+| Database host | localhost (or the database server IP if hosted separately) |
+
+Select **Install**, then create a regular user account. Use the admin account to enable or disable apps.
+
+### Configuration file
+
+The Nextcloud Apache configuration block is accessible at `www.<domain-name>.com/nextcloud`. If `ServerName` is not set, it falls back to `<server-ip>/nextcloud`:
+
+```apacheconf
+<Directory /var/www/html/nextcloud/>
+    Options +FollowSymlinks
+    AllowOverride All
+
+    <IfModule mod_dav.c>
+        Dav off
+    </IfModule>
+
+    SetEnv HOME /var/www/html/nextcloud
+    SetEnv HTTP_HOME /var/www/html/nextcloud
 </Directory>
 ```

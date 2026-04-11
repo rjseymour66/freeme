@@ -6,137 +6,209 @@ draft = false
 +++
 
 
-Containers are inexpensive and easy to run, so you might need to manage a large number of containers. Container orchestration helps you make sure containers are running properly:
-- easy to scale according to need
-- provides tools to recover from faults and load balance
-- an orchestrator is a tool that creates containers as demand increases and scales down when no longer needed
-- makes app setup easy
-- self-healing - if a container goes down, the orchestrator brings one up
+Container orchestration manages large numbers of containers across multiple hosts. An orchestrator creates containers as demand increases and removes them when demand drops. It also provides fault recovery, load balancing, and simplified application deployment.
+
+Orchestrators are self-healing: if a container fails, the orchestrator starts a replacement automatically.
 
 ## Kubernetes lab
 
-- Schedules pods on worker nodes
-- worker node needs at least 2 CPUs or 1 CPU with 2 cores
-- Nodes need static IP addresses
-- Has addons to extend core package:
-  - `dns`: config name resolution
-  - `storage`: setup path on host to persist data
-  - `gpu` use NVIDIA GPUs within the containers
+Kubernetes schedules pods on worker nodes. Each worker node requires at least 2 CPUs or 1 CPU with 2 cores, and all nodes must have static IP addresses.
 
-### Manual setup 
+Kubernetes supports addons that extend its core functionality:
 
-This setup has 1 controller node and 2 worker nodes, but you can have N worker nodes:
-- Requires that you setup a container runtime that lets k8s run containers in the cluster
-  - suggested runtime is `containerd`
-  - `kubeadm`: tools that bootstrap cluster - create new cluster, add node, etc
-  - `kubectl`: k8s command line tool
-  - `kubelet`: agent that facilitates communication between the nodes with an API
-- Kubernetes pods run in `kube-system` namespace. These provide app functionality
-- Flannel is a networking layer (sets up a network) - a popular CNI (Container Network Interface) plugin for Kubernetes that provides a software-defined network (SDN) to enable pod-to-pod communication across the nodes in a Kubernetes cluster.
+- `dns`: Configures name resolution within the cluster.
+- `storage`: Sets up a host path to persist data across container restarts.
+- `gpu`: Enables NVIDIA GPU access within containers.
+
+### Manual setup
+
+This setup uses one controller node and two worker nodes, though you can add additional worker nodes as needed.
+
+Kubernetes requires several components installed on each node:
+
+- `containerd`: The container runtime that Kubernetes uses to run containers in the cluster.
+- `kubeadm`: Bootstraps the cluster — creates a new cluster, adds nodes, and manages certificates.
+- `kubectl`: The Kubernetes command-line tool for managing cluster resources.
+- `kubelet`: An agent that runs on each node and facilitates communication between nodes via the API.
+
+Kubernetes system pods run in the `kube-system` namespace and provide core cluster functionality.
+
+**Flannel** is a popular Container Network Interface (CNI) plugin that creates a software-defined network (SDN) enabling pod-to-pod communication across nodes.
+
+#### containerd setup
+
+Run these steps on every node in the cluster:
+
+1. Install the package:
+   ```bash
+   apt install containerd -y
+   ```
+2. Verify the service is running:
+   ```bash
+   systemctl status containerd
+   ```
+3. Create the configuration directory and generate the default config:
+   ```bash
+   mkdir /etc/containerd
+   containerd config default | sudo tee /etc/containerd/config.toml
+   ```
+4. Open the config file and set the cgroup driver to systemd:
+   ```bash
+   vim /etc/containerd/config.toml
+   ```
+   Set:
+   ```bash
+   SystemdCgroup = true
+   ```
+5. Disable swap. Kubernetes will not start if swap is enabled:
+   ```bash
+   sudo swapoff -a
+   free -m
+   ```
+6. Comment out the swap entry in `/etc/fstab` to persist the setting across reboots:
+   ```bash
+   vim /etc/fstab
+   ```
+7. Enable IP forwarding in `/etc/sysctl.conf`:
+   ```bash
+   vim /etc/sysctl.conf
+   ```
+   Set:
+   ```bash
+   net.ipv4.ip_forward=1
+   ```
+8. Create a kernel modules config file to load `br_netfilter` at boot. This module assists with pod networking:
+   ```bash
+   vim /etc/modules-load.d/k8s.conf
+   ```
+   Add:
+   ```bash
+   br_netfilter
+   ```
+9. Reboot to apply all changes:
+   ```bash
+   reboot
+   ```
+
+#### Kubernetes setup
+
+Run these steps on every node. See the [kubectl installation docs](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) for the current GPG keyring steps:
+
+1. Add the Kubernetes repository key:
+   ```bash
+   curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg \
+       https://packages.cloud.google.com/apt/doc/apt-key.gpg
+   ```
+2. Set permissions on the keyring:
+   ```bash
+   sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+   ```
+3. Add the Kubernetes repository:
+   ```bash
+   echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] \
+       https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' \
+       | sudo tee /etc/apt/sources.list.d/kubernetes.list
+   sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list
+   ```
+4. Update the package index and install the required packages:
+   ```bash
+   apt update
+   apt install kubeadm kubectl kubelet
+   ```
+
+#### Controller setup
+
+Run these steps on the controller node only:
+
+1. Initialize the cluster. Replace the endpoint IP with your controller's address:
+   ```bash
+   kubeadm init --control-plane-endpoint=192.168.122.200 \
+       --node-name controller \
+       --pod-network-cidr=10.244.0.0/16
+   ```
+2. Configure `kubectl` access using the commands printed by `kubeadm init`:
+   ```bash
+   mkdir -p $HOME/.kube
+   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+   ```
+3. Install the Flannel CNI plugin:
+   ```bash
+   kubectl apply -f \
+       https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+   ```
+
+#### Worker node setup
+
+Run the join command on each worker node to add it to the cluster. The join command is printed by `kubeadm init` on the controller:
 
 ```bash
-# --- containerd setup --- #
-# Run these commands on each node #
-apt install containerd -y                                           # 1. install package
-systemctl status containerd                                         # 2. verify status
-mkdir /etc/containerd                                               # 3. create config dir
-containerd config default | sudo tee /etc/containerd/config.toml    # 4. create config file, send output to stdout
-vim /etc/containerd/config.toml                                     # 5. edit config file
-SystemdCgroup = true                                                # 6. in config file, set cgroup driver to systemd
-sudo swapoff -a                                                     # 7. turn off swap - k8s will abort otherwise
-free -m                                                             # 8. confirm swap is all 0s
-vim /etc/fstab                                                      # 9. comment out line with swap to persist setting
-vim /etc/systctl.conf                                               # 10. open to enable bridging
-net.ipv4.ip_forward=1                                               # 11. enable bridging
-vim /etc/modules-load.d/k8s.conf                                    # 12. create config file to load kernel module at boot
-br_netfilter                                                        # 13. add this line to ../k8s.conf
-                                                                    #     assists w/networking
-reboot                                                              # 14. reboot when config is complete
+sudo kubeadm join <controller-ip-addr>:6443 --token <token> \
+    --discovery-token-ca-cert-hash sha256:<hash>
+```
 
+If you lose the join command, regenerate it on the controller:
 
-# --- K8s setup --- #
-# GPG keyring steps: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
-curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg \        # 1. add repo key so server knows its a trusted source
-    https://packages.cloud.google.com/apt/doc/apt-key.gpg
-
-sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg             # 2. let unprivileged apt programs read keyring
-
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] \    # 3. add repo
-    https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /'\
-    | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list                  # 4. helps tools work correctly
-apt update                                                              # 5. update local index
-apt install kubeadm kubectl kubelet                                     # 6. install k8s required packages
-
-# --- CONTROLLER ONLY from here --- #
-kubeadm init --control-plane-endpoint=192.168.122.200 \                 # 7. Inits a cluster and assigns it a pod network. Add server IP
-    --node-name controller \                                            #    server hostname
-    --pod-network-cidr=10.244.0.0/16                                    #    internal k8s pod network CIDR
-
-# --- Commands in prev command output --- #
-mkdir -p $HOME/.kube                                                    # 8. create local config dir for kubectl
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config                # 9. copy admin file to config dir
-sudo chown $(id -u):$(id -g) $HOME/.kube/config                         # 10. change dir ownership to current user
-
-kubectl apply -f \                                                      # 11. install flannel on controller
-    https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
-
-# --- Worker nodes --- #
-# run on all worker nodes to join the cluster
-sudo kubeadm join <controller-ip-addr>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
-kubeadm token create --print-join-command               # regen previous command, if lost
+```bash
+kubeadm token create --print-join-command
 ```
 
 ### kubectl commands
 
+Common commands for managing cluster resources. `k` is the standard alias for `kubectl`:
+
 ```bash
-k apply -f manifest.yaml
+k apply -f manifest.yaml                    # apply a manifest file
 
-k get pods
-k get pods -n <namespace>
-k get pods --all-namespaces
-k get pods -o wide
+k get pods                                  # list pods in the default namespace
+k get pods -n <namespace>                   # list pods in a specific namespace
+k get pods --all-namespaces                 # list pods across all namespaces
+k get pods -o wide                          # list pods with additional details
 
-k get nodes
+k get nodes                                 # list all nodes in the cluster
 
-k get service
+k get service                               # list all services
 
-k delete pod <pod-name>
-k delete service <service-name>
+k delete pod <pod-name>                     # delete a pod
+k delete service <service-name>             # delete a service
 ```
 
 ### MicroK8s
 
-Available as a snap package:
-- `kubectl`: Kube control - utility to perform actions against your cluster
-- `microk8s kubectl`: microk8s own version of the utility that targets your microk8s installation 
+MicroK8s is a lightweight Kubernetes distribution available as a snap package. It ships with its own version of `kubectl` scoped to the MicroK8s installation. Use `microk8s kubectl` to target your MicroK8s cluster instead of any other Kubernetes context.
 
+To install and verify MicroK8s:
 
 ```bash
-# --- Installation --- #
-snap install microk8s --classic                 # 1. install microk8s
-microk8s                                        # 2. verify installation
-microk8s kubectl get all --all-namespaces       # 3. view all components in all namespaces
-microk8s enable dns                             # 4. enable dn addon
-
+snap install microk8s --classic                 # install MicroK8s
+microk8s                                        # verify installation
+microk8s kubectl get all --all-namespaces       # view all components in all namespaces
+microk8s enable dns                             # enable the DNS addon
 ```
 
 ### Deploying containers
 
-- labels are attached to a pod so you can ID them for tasks
-- linuxserver.io maintains images for linux distros to run on all architectures
-- assign the port a name to reference it like a var in future commands
-- must create NodePort service to expose internal pod network to outside network. For example, a web server is only available from nodes in the cluster on the 10.244.x.x cluster network unless you expose it
-  - NodePort exposes a port running on a pod to a port running on a node
+Labels identify pods so you can reference them in services and other resources. Assign a name to a container port so you can reference it by name instead of number in later manifests.
 
+[linuxserver.io](https://linuxserver.io) maintains images for Linux distributions that run on all architectures.
+
+By default, pods are only reachable within the cluster network (`10.244.x.x`). To expose a pod to external traffic, create a NodePort service. A NodePort maps a port on a pod to a port on the node, making the pod accessible from outside the cluster. NodePort values must be in the range `30000–32767`, and the mapping applies cluster-wide.
+
+#### MicroK8s commands
+
+When using MicroK8s, prefix all `kubectl` commands with `microk8s`. To copy local manifest files into the MicroK8s VM:
 
 ```bash
-# --- microk8s only --- #
-multipass transfer <file.yml> microk8s-vm:          # copy local files into microk8s command
-microk8s kubectl <command>                          # prepend all k commands with 'microk8s'
+multipass transfer <file.yml> microk8s-vm:          # copy a local manifest into the MicroK8s VM
+microk8s kubectl <command>                          # run any kubectl command against MicroK8s
+```
 
-# --- nginx pod --- #
-apiVersion: v1                          
+#### Pod manifest
+
+This manifest creates an nginx pod using a [linuxserver.io](https://linuxserver.io) image and names the container port for use in the NodePort service:
+
+```yaml
+apiVersion: v1
 kind: Pod
 metadata:
   name: nginx-example
@@ -149,14 +221,13 @@ spec:
       ports:
         - containerPort: 80
           name: "nginx-http"
+```
 
-# --- NodePort manifest to bridge LAN to K8s cluster --- #
-# maps port 80 in the pod to 30080 in cluster
-# can use ports 30000 - 32767
-# selector uses a label on the pod that we want to apply this service to
-# port mappings are cluster wide, not just on controller or node running the pod
+#### NodePort manifest
 
-k get service               # verify service is running
+This manifest creates a NodePort service that maps port 80 on the pod to port 30080 on the node. The `selector` targets pods with the `app: nginx` label:
+
+```yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -170,4 +241,10 @@ spec:
       targetPort: nginx-http
   selector:
     app: nginx
+```
+
+Verify the service is running:
+
+```bash
+k get service
 ```

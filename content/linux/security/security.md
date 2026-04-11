@@ -6,252 +6,314 @@ draft = false
 +++
 
 
-All applications that are accessible from outside your network is a risk:
-- Attack surface is the list of things that are exploitable
-- Lowering attack surface is when you lock down an application against threats
-- You have to allow some access to servers (e.g. web services), but you should completely lock down internal apps 
-- uninstall unused apps 
-- setup firewalls to allow only specific connections
-- use strong, randomly-generated passwords
+Every application accessible from outside your network increases your **attack surface**:
+the set of entry points an attacker can exploit. Reduce the attack surface by limiting
+what is exposed:
+
+- Uninstall unused applications.
+- Configure firewalls to allow only required connections.
+- Use strong, randomly generated passwords.
+- Allow external access only to services that require it. Lock down all internal
+  applications completely.
 
 ## Check ports
 
-Check which ports are listening for network connections:
-- processes listening on 0.0.0.0 accept connections from any network 
-- processes listening on 127.0.0.1 are not accepting connections
-- stop unwanted services or delete the package. Can always install at a later time 
-- 
+Regularly audit which ports are listening for connections. Processes listening on
+`0.0.0.0` accept connections from any network. Processes listening on `127.0.0.1`
+accept local connections only. Stop and remove any service you do not need:
 
 ```bash
-sudo ss -tulpn              # check what ports are listening - more info with 'sudo'    
+sudo ss -tulpn              # list listening ports (use sudo for full process details)
 ```
 
 
 ## Check packages
 
-Get a list of all installed packages and remove unneeded ones:
-- research before you remove a package - might be a system package!
-- when you come up w a list of packages that your servers don't need, create an ansible playbook to make sure they are not installed 
+Audit installed packages and remove anything your server does not need. Research each
+package before removing it, as some are system dependencies. Once you have identified
+packages to remove across your servers, create an Ansible playbook to enforce their
+absence consistently:
 
-```bash 
-dpkg --get-selections > installed_packages.txt          # creates a file containing all installed packages
-apt-cache rdepends <package>                            # check whether other packages depend on <package>
-                                                        # packages in output need <package> to run
+```bash
+dpkg --get-selections > installed_packages.txt      # export a list of all installed packages
+apt-cache rdepends <package>                        # list packages that depend on <package>
 ```
 
-## Principle of least privilege (script some of these)
+## Principle of least privilege
 
-Do not trust users - only give them privs that they need to do their job. Document these changes so you can apply to all servers:
-- Add users to smallest num of groups
-- Network shares should default to read-only 
-- audit servers for user accts that haven't logged in for a long time 
-- set acct expirations
-- limit access to system directories
-- restrict sudo to specific commands 
+Grant users only the permissions they need to do their job. Document all permission
+changes so you can apply them consistently across servers:
+
+- Add users to the minimum number of groups required.
+- Set network shares to read-only by default.
+- Audit servers for user accounts that have not logged in recently.
+- Set account expiration dates.
+- Limit access to system directories.
+- Restrict sudo to specific commands.
 
 ## Common Vulnerabilities and Exposures (CVEs)
 
-https://ubuntu.com/security/cves
-
-When a security flaw is revealed, it is reported on security sites and given a CVE number so researchers can document their findings:
-- CVEs are found in online catalogs - many distros maintain their own CVE catalogs
-  - which distro version is vulnerable 
-  - which CVEs have responded to 
-  - updates to install to address them 
-- Might have to restart server after applying updates 
+When researchers discover a security flaw, they report it and assign it a CVE number.
+Many distributions maintain their own CVE catalogs at [ubuntu.com/security/cves](https://ubuntu.com/security/cves),
+listing which versions are vulnerable, which CVEs have been addressed, and which updates
+to install. You may need to restart the server after applying security updates.
 
 
-## Installing security updates 
+## Installing security updates
 
-Package updates are sometimes made daily:
-- include new features and security updates 
-- For LTS releases, security updates are made frequently
-- Some admins don't install updates regularly bc they might make major changes to the server and break something
-  - create virtual clones of prod system and test updates there 
-  - for clusters, maybe just update one server and then go from there 
-  - for workstations, select some users to receieve updates and then push to other users
-- Don't close terminal window when upgrade is in progress
-- You can run `apt upgrade` followed by `apt dist-upgrade` to upgrade new packages or kernel updates
-- Might have to restart services
-- In case of rollback, previously downloaded package versions are available in `/var/cache/apt/archives`
+Package updates are released frequently and include both new features and security fixes.
+On LTS releases, security updates are especially common. You may need to restart services
+after applying updates.
+
+Some administrators delay updates because they risk breaking production systems. To
+mitigate this:
+
+- Test updates on virtual clones of your production system before applying them.
+- For clusters, update one server first and verify stability before proceeding.
+- For workstations, roll out updates to a subset of users first.
+
+Previously downloaded package versions are cached in `/var/cache/apt/archives` and can
+be used to roll back an update.
+
+### Apply updates
+
+Run these steps on a regular schedule to keep packages and security fixes current:
+
+1. Update the local package index.
+   ```bash
+   sudo apt update
+   ```
+2. Upgrade installed packages.
+   ```bash
+   sudo apt upgrade
+   ```
+3. Upgrade packages and dependencies, including kernel updates.
+   ```bash
+   sudo apt dist-upgrade
+   ```
+4. Fix any broken package dependencies.
+   ```bash
+   sudo apt -f install
+   ```
+5. Restart affected services as needed.
+   ```bash
+   sudo systemctl restart <service>
+   ```
+
+### Roll back updates
+
+If an update breaks a service or causes unexpected behavior, use the cached package
+version to restore the previous state. Previously downloaded packages are stored in
+`/var/cache/apt/archives`:
 
 ```bash
-# --- standard package updates --- #
-sudo apt update                     # 1. update local repo index - checks all subscribed repos for changes
-sudo apt upgrade                    # 2. update packages
-sudo apt dist-upgrade               #    upgrade - safest to use. does not remove packages, just updates installed packages
-                                    #    dist-upgrade - updates everything it can: packages + dependencies, updated kernel
-sudo apt -f install                 # 3. fix installed packages, if possible
-sudo systemctl restart <service>    # 4. restart services, as needed
-
-# --- rollback a package version --- #
 sudo dpkg -i /var/cache/apt/archives/<package-name>
 ```
 
-## Kernel upgrades 
+## Kernel upgrades
 
-Distros handle kernel upgrades differently:
-- Some distros can have only one kernel isntalled at a time (arch linux) and require reboots
-- Ubuntu can have multiple kernels installed simultaneously, so it runs the new version alongside your older version 
-  - GRUB boots with the new version
-  - If there is an issue, press Esc during boot and select a known-working kernel 
+Distributions handle kernel upgrades differently. Some, like Arch Linux, support only
+one installed kernel at a time and require a reboot to switch versions. Ubuntu supports
+multiple installed kernels simultaneously. GRUB boots the newest version by default. If
+a new kernel causes issues, press Esc during boot and select a known-working version.
 
 ### Canonical Livepatch
 
-Lets you get kernel updates and apply them without rebooting:
-- Not free or included - requires a subscription at https://auth.livepatch.canonical.com/
-  - Create account to receive a token that you ahve to install
-  - Free on up to 3 servers 
-- Complex security updates might still require a reboot 
+[Canonical Livepatch](https://auth.livepatch.canonical.com/) applies kernel updates
+without requiring a reboot. It requires a subscription, though it is free for up to
+three servers. Create an account to receive a token, then activate it on each server.
+Complex security updates may still require a reboot.
 
-```bash 
-sudo snap install canonical-livepatch           # install livepatch snap
-sudo canonical-livepatch enable <token>         # apply your token
-sudo canonical-livepatch status                 # check status
+```bash
+sudo snap install canonical-livepatch           # install the Livepatch snap
+sudo canonical-livepatch enable <token>         # activate your token
+sudo canonical-livepatch status                 # check Livepatch status
 ```
 
 ## OpenSSH
 
-Configuration file is in `/etc/ssh/sshd_config`:
-- always restart daemon after you change the settings
-- connection attemps are logged in `/var/log/auth.log`
-
-Security changes:
-- Change port from 22 to X
-  - Helps keep logs clean - you only see port scan intrusion attempts
-  - Have to specify port when ssh-ing into the machine
-- For older installations, make sure you are using Protocol 2.
-  - If its not in the file, then you are using protocol 2
-- Set `AllowUsers` to restrict who can ssh into the server
-  - This setting is not found in the config file by default
-- Set `AllowGroups` to restrict who can ssh into the server by group
-  - Create group for ssh, like `sshusers`
-- `AllowUsers` overrides `AllowGroups`, but `AllowGroups` is easier to manage because you just add the user to the group and no need to change the config file
-  - Might have to recopy ssh keys to server with `ssh-copy-id -i ...`
-- Set `PermitRootLogin` to `no`. This lets a root user login with ssh. The default `prohibit-password` means that root can use a key to ssh in, but not use password. This is bad too.
-  - If a cloud provider requires you login as root, then give regular user sudo privs and log in w that user
-- Set `PasswordAuthentication` to `no`
-  - Prevents brute-force attacks
-  - Must set up public key access 
-
+The SSH daemon reads its configuration from `/etc/ssh/sshd_config`. Restart the service
+after every change. Connection attempts are logged to `/var/log/auth.log`.
 
 ```bash
 systemctl restart ssh
+```
 
-# --- /etc/ssh/sshd_config --- #
-Port 65332                          # change default port
-AllowUsers user1 user2[ user3...]   # restrict ssh access by user
-AllowGroups admin sshusers          # restrict ssh access by group (sudo groupadd sshusers)
-PermitRootLogin no                  # disable passwd and key login for root user
-PasswordAuthentication              # disable passwd auth, require public key auth
+Apply these settings to harden SSH access:
+
+| Setting | Value | Effect |
+|:---|:---|:---|
+| `Port` | `65332` (or any non-default) | Reduces noise in logs from automated port scanners |
+| `AllowUsers` | `user1 user2` | Restricts SSH access to named users |
+| `AllowGroups` | `sshusers` | Restricts SSH access to members of a group |
+| `PermitRootLogin` | `no` | Disables root login entirely |
+| `PasswordAuthentication` | `no` | Requires public key authentication |
+
+`AllowGroups` is easier to manage than `AllowUsers`: add a user to the group rather
+than editing the config file. If you change the port, specify it when connecting with
+`ssh -p <port>`. If you restrict access by group, you may need to re-copy SSH keys
+with `ssh-copy-id`.
+
+#### /etc/ssh/sshd_config
+
+```bash
+Port 65332
+AllowUsers user1 user2
+AllowGroups admin sshusers
+PermitRootLogin no
+PasswordAuthentication no
 ```
 
 ## Fail2ban
 
-Watches log files for authentication failures and can block an IP address after a set number of failures:
-- starts at boot
-- config file is `/etc/fail2ban/jail.conf` but that is overwritten if there are updates to fail2ban. Create a `/etc/fail2ban/jail.local` file - the `.local` file superseded the default `.conf` file.
-- All Jails are disabled by default, except SSH. Add `enable = true`
-  - Add `enabled` line to [sshd] section too, just to be sure
-  - A jail is a security guard that watches a specific log file and blocks bad actors.
-  - Always restart fail2ban after updating a jail
-  - You must have the service installed and running to enable a jail
-- Enable these jails:
-  - `[apache-modsecurity]` jail if you use SSL for apache
-  - `[apache-shellshock]` to protect against ShellShock bash command
-- After you make a change, check the status 
+Fail2ban monitors log files for repeated authentication failures and blocks offending
+IP addresses after a configurable number of attempts. It starts at boot by default.
 
-Helpful settings:
-- `ignoreip`: do NOT ban IPs in this list (`::1` is localhost in IPv6). Set this so you do not get locked ou
+Do not edit `/etc/fail2ban/jail.conf` directly — it is overwritten on updates. Instead,
+copy it to `/etc/fail2ban/jail.local`. The `.local` file takes precedence over the
+default `.conf` file. Restart Fail2ban after every configuration change.
+
+A **jail** monitors a specific log file and bans IPs that exceed the failure threshold.
+All jails are disabled by default except SSH. Enable additional jails based on the
+services you run:
+
+- `[apache-modsecurity]`: enable if you use SSL with Apache
+- `[apache-shellshock]`: enable to protect against the Shellshock vulnerability
+
+### Install Fail2ban
+
+Install and copy the default configuration to a local override file:
 
 ```bash
-apt install fail2ban                                    # install package
-cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local     # copy config file
+apt install fail2ban
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+```
 
-# health
-systemctl restart fail2ban                              # restart fail2ban
-systemctl status -l fail2ban                            # check fail2ban status
-fail2ban-client status                                  # list all enabled jails
+Check service health and jail status:
 
-# --- /etc/fail2ban/jail.local config file --- #
-ignoreip: 127.0.0.1/8 ::1 20.30.40.0/24 20.30.40.158/24 # DO NOT block these hosts/networks
-bantime                 # how long host is banned
-maxretry                # number of failures before fail2ban bans an IP for bantime setting
+```bash
+systemctl restart fail2ban
+systemctl status -l fail2ban
+fail2ban-client status              # list all enabled jails
+```
 
-# configuring jails
-[sshd]                  # ssh is enabled
-...
+#### /etc/fail2ban/jail.local
+
+```bash
+ignoreip = 127.0.0.1/8 ::1 20.30.40.0/24   # never ban these hosts (::1 is IPv6 localhost)
+bantime  = 600                               # seconds to ban an IP
+maxretry = 5                                 # failures before banning
+
+[sshd]
 enabled = true
-port    = 65332         # if you changed ssh default port, set it here
-
+port    = 65332                              # update if you changed the default SSH port
 ```
 
 ## Database servers
 
-DBs are not hard to secure:
-- Should not be reachable from the internet - only internal servers 
-  - Ex: DB for web server only accepts connections from web server
-  - use `/ect/hosts.allow` and `/ect/hosts.deny` to manage this. `/ect/hosts.allow` overrides `/etc/hosts.deny`
-  - Add IP for SSH and webserver to `.allow`
-    - Never add `ALL: ALL`
-    - Add all internal network IP addr
-  - Deny everything in `.deny` file - overridden by `.allow`
-    - Make sure you setup `.allow` file first!
+Database servers should not be reachable from the internet. Accept connections only from
+internal servers that require access — for example, a web server connecting to its
+database. Use `/etc/hosts.allow` and `/etc/hosts.deny` to control access. Configure
+`/etc/hosts.allow` before `/etc/hosts.deny`, as the allow file takes precedence.
 
-```bash 
-# --- /etc/hosts.allow --- #
-ALL: 192.168.1.30               # Allows this IP (e.g. ssh IP)
-ALL: 192.168.1.0/255.255.255.0  # Allow any IP from 192.168.1 network
-ALL 192.168.1.                  # Wildcard - any IP from this network
-ssh: 192.168.1.                 # Daemons - allow ssh from any host on that network
-
-# --- /etc/hosts.deny --- #
-ALL: ALL
-```
-### User access
-
-Restrict user logins by IP:
-- `%` is a wildcard, so never allow connections from `...'appuser'@'%'...`
-- Only allow subnet access if its not the same subnet that your users are on
+#### /etc/hosts.allow
 
 ```bash
-# Restrict access to single IP
+ALL: 192.168.1.30               # allow this specific IP
+ALL: 192.168.1.0/255.255.255.0  # allow any IP on the 192.168.1 network
+ALL: 192.168.1.                 # wildcard: any IP on this network
+ssh: 192.168.1.                 # allow SSH from any host on this network
+```
+
+#### /etc/hosts.deny
+
+```bash
+ALL: ALL                        # deny all connections not explicitly allowed
+```
+
+### User access
+
+Restrict database user accounts to specific IP addresses. The `%` wildcard allows
+connections from any host and should not be used for application accounts:
+
+```bash
+# restrict access to a single IP
 GRANT SELECT ON mydb.* TO 'appuser'@'192.168.1.50' IDENTIFIED BY 'password';
 FLUSH PRIVILEGES;
 
-# Restrict access to subnet - not as good as single IP
-GRANT SELECT ON mydb.* TO 'appuser'@'192.168.1.%` IDENTIFIED BY 'password';
+# restrict access to a subnet
+GRANT SELECT ON mydb.* TO 'appuser'@'192.168.1.%' IDENTIFIED BY 'password';
 FLUSH PRIVILEGES;
 ```
 
 ## LUKS
 
-You should encrypt any data on disk with personal or sensitive information:
-- Choose full-disk encryption when you setup your Linux installation
-  - Otherwise, a person can just boot a Live OS disc and mount the hard drive to view your data
-- `cryptsetup` package lets us encrypt and decrypt disks
-- Encrypting a disk removes any data on it, so use a clean one
+Encrypt disks that store personal or sensitive data. For the strongest protection,
+enable full-disk encryption during your Linux installation. Without encryption, anyone
+who boots a live OS can mount the drive and read its contents. Use the `cryptsetup`
+package to encrypt and decrypt disks. Encrypting a disk erases all existing data, so
+use a clean disk or back up the data first.
+
+### Encrypt and mount a disk
+
+Encrypt a new disk and mount it for use. This process erases all existing data on the
+disk, so back up any data before proceeding:
+
+1. Install the package.
+   ```bash
+   apt install cryptsetup
+   ```
+2. Identify the disk to format.
+   ```bash
+   fdisk -l
+   ```
+3. Format the disk with LUKS encryption.
+   ```bash
+   cryptsetup luksFormat /dev/<disk>
+   ```
+4. Open the encrypted disk and assign it a name.
+   ```bash
+   cryptsetup luksOpen /dev/sda <disk-name>
+   ```
+5. Verify the mapped device appeared in `/dev/mapper/`.
+   ```bash
+   fdisk -l
+   ```
+6. Create a filesystem on the mapped device.
+   ```bash
+   mkfs.ext4 -L "usb_drive" /dev/mapper/<disk-name>
+   ```
+7. Create a mount point and mount the device.
+   ```bash
+   mkdir /media/<disk-name>
+   mount /dev/mapper/<disk-name> /media/<disk-name>
+   ```
+
+### Unmount an encrypted disk
+
+Unmount the disk and close the LUKS container before physically removing the device:
 
 ```bash
-apt install cryptsetup                              # 1. install packages
-fdisk -l                                            # 2. verify the disk that you want to format
-cryptsetup luksFormat /dev/<disk>                   # 3. format the disk
-cryptsetup luksOpen /dev/sda <disk-name>            # 4. opens the disk and names it <disk-name> so you can format it 
-fdisk -l                                            # 5. verify it worked in /dev/mapper/<disk-name>
-mkfs.ext4 -L "usb_drive" /dev/mapper/<disk-name>    # 6. create fs on drive, add label with -L
-mkdir /media/<disk-name>                            # 7. create mount point
-mount /dev/mapper/<disk-name> /media/<disk-name>    # 8. mount on local fs
+umount /media/<disk-name>
+cryptsetup luksClose /dev/mapper/<disk-name>
+```
 
-# --- unmount encrypted drive --- #
-umount /media/<disk-name>                           # unmount the volume
-cryptsetup luksClose /dev/mapper/<disk-name>        # close the volume
+### Remount an encrypted disk
 
-# --- remount encrypted drive --- #
-fdisk -l                                            # get disk names
-crytpsetup luksOpen /dev/sda <disk-name>            # open the volume
-fdisk -l                                            # get disk names
-mount /dev/mapper/<disk-name> /media/<disk-name>    # mount the volume
+Reopen and remount a previously encrypted disk after it has been removed or the system
+has been rebooted:
 
-# --- change encrypted drive passphrase --- #
+```bash
+fdisk -l
+cryptsetup luksOpen /dev/sda <disk-name>
+fdisk -l
+mount /dev/mapper/<disk-name> /media/<disk-name>
+```
+
+### Change the passphrase
+
+Update the LUKS passphrase on an existing encrypted disk:
+
+```bash
 cryptsetup luksChangeKey /dev/sda -s 0
 ```
