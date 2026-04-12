@@ -6,11 +6,11 @@ weight = 20
 draft = false
 +++
 
-Applications often require persistent configuration information. Config files let you pass the information without having to use command line arguments.
+Config files let you supply persistent configuration without command-line arguments. Go supports JSON natively; YAML, INI, and environment variables require small third-party libraries or the standard `os` package.
 
 ## JSON
 
-Go has a robust JSON package for marshaling and unmarshaling JSON-formatted data. If you use JSON files for configuration, you can store the data in a struct. One issue is that JSON config files cannot contain comments.
+Go's `encoding/json` package reads JSON config files into structs. JSON doesn't support comments.
 
 Here is `conf.json`:
 
@@ -23,16 +23,19 @@ Here is `conf.json`:
   "enableFlag": true
 }
 ```
+
 This code sample parses `conf.json` and stores its values in memory:
-1. `config` exports all fields with capitalization.
-2. `os.Open` returns a `*File` and an error. `*File` implements `io.Reader`.
-3. Always use `defer` to close the file after you opening.
-4. Create a new decoder, which takes an `io.Reader`
-5. Create a `config` struct and decode it with `Decode`. The `Decode` method tries to match the keys in `conf.json` with the keys in the `cfg` struct of type `config`. If it finds a match, the value is assigned to the field in the `cfg` field. If there is no match, the value is ignored. Only exported fields are matched, and matches are case-insensitive.
-   
+1. Capitalize all `config` fields to export them.
+2. `os.Open` returns a `*os.File` and an error. `*os.File` implements `io.Reader`.
+3. Always `defer` the file close immediately after opening it.
+4. `json.NewDecoder` takes an `io.Reader`.
+5. `Decode` matches keys in `conf.json` to fields in the `config` struct. Matching is case-insensitive. Unmatched keys are ignored. Only exported fields are matched.
+
    {{< admonition "" tip >}}
-   You use `Decode` rather than `json.Unmarshal` because you are reading from a stream, file, or connection (not in-memory). Use `json.Unmarshal` when the JSON data is already in memory.
+   Use `Decode` rather than `json.Unmarshal` when reading from a stream, file, or connection. Use `json.Unmarshal` when the JSON data is already in memory as a `[]byte`.
    {{< /admonition >}}
+
+This example writes errors to stderr with `fmt.Fprintf(os.Stderr, ...)`, which makes the destination explicit. In production code, prefer `log.Printf` (adds timestamps automatically) or `slog.Error` (Go 1.21+, structured key-value output). All three write to stderr by default.
 
 ```go
 type config struct {                        // 1
@@ -46,30 +49,32 @@ type config struct {                        // 1
 func jsonConfig() {
 	file, err := os.Open("conf.json")       // 2
 	if err != nil {
-		fmt.Println("Cannot read file `conf.json`", err)
+		fmt.Fprintf(os.Stderr, "cannot open conf.json: %v\n", err)
 		return
 	}
 
 	defer file.Close()                      // 3
 	decoder := json.NewDecoder(file)        // 4
-	cfg := config{}                         // 5
-	err = decoder.Decode(&cfg)
+	cfg := config{}
+	err = decoder.Decode(&cfg)              // 5
 	if err != nil {
-		fmt.Println("Error parsing config file", err)
+		fmt.Fprintf(os.Stderr, "error parsing config file: %v\n", err)
+		return
 	}
 
-    // output with field names
-    fmt.Printf("%+v\n", cfg)
+	// output with field names
+	fmt.Printf("%+v\n", cfg)
 }
 ```
 
 
 ## YAML
 
-YAML is a common configuration file format that accepts comments. Go does not have a native YAML parser, but the Gypsy library is widely used and recommended:
+YAML supports comments, which JSON does not. Go doesn't include a native YAML parser. The [Gypsy library](https://github.com/kylelemons/go-gypsy) provides a simple key-value API for reading YAML files:
 
-- [Gypsy repo](https://github.com/kylelemons/go-gypsy)
 - [Gypsy documentation](https://pkg.go.dev/github.com/kylelemons/go-gypsy/yaml)
+
+For new projects, consider [`gopkg.in/yaml.v3`](https://pkg.go.dev/gopkg.in/yaml.v3). It's actively maintained and uses struct tags like `encoding/json`.
 
 Here is `conf.yaml`:
 
@@ -84,7 +89,7 @@ enableFlag: true
 This code sample parses `conf.yaml` and stores its values in memory:
 1. The `yaml.ReadFile` function takes a string and returns a `*File`.
 2. The `*File` type has methods to retrieve values of type `string`, `bool`, and `int`.
-3. `GetInt` returns an `int64`, so you have to convert it to a `string`.
+3. `GetInt` returns an `int64`, so you need to convert it to an `int` before passing it to `strconv.Itoa`.
 
 
 ```go
@@ -129,10 +134,10 @@ func yamlConfig() {
 
 ## INI
 
-Go does not have a native INI parser, but the INI library is widely used and recommended:
+Go doesn't include a native INI parser. The `gopkg.in/ini.v1` library is widely used:
 
-- [Getting Started](https://ini.unknwon.io/docs/intro/getting_started)
-- [API reference](https://gowalker.org/gopkg.in/ini.v1)
+- [Getting started](https://ini.unknwon.io/docs/intro/getting_started)
+- [API reference](https://pkg.go.dev/gopkg.in/ini.v1)
 
 Here is `conf.ini`:
 
@@ -150,8 +155,8 @@ enable_flag = true
 ```
 
 This code sample parses `conf.ini` and stores its values in memory:
-1. `ini.Load` takes an empty interface and returns a `*File` and an `error`. Make sure you check the error.
-2. The `File` type has methods that you can chain to parse the file by hierarchy. Here, we parse first by `Section`, then `Key`. The `String` method returns the value as a `string`. `Bool` returns a Boolean and an error that indicates whether the value is an accepted Boolean value. For example, `true`, `false`, `on`, `off`, `0`, or `1`.
+1. `ini.Load` accepts one or more file paths and returns a `*ini.File` and an `error`.
+2. Chain `Section` and `Key` calls to navigate the file hierarchy. `String` returns the value as a string. `Bool` returns a boolean and an error; it accepts `true`, `false`, `on`, `off`, `1`, and `0`.
 
 ```go
 func iniConfig() {
@@ -176,30 +181,49 @@ func iniConfig() {
 
 ## Environment variables
 
-Modern applications often use environment variables to set configuration for each environment where the application runs. For example, you might have a different configuration for your development and production environments. Containers in the pipeline need access to this configuration at build time. Because environments and privileges can vary widely---a user might not have filesystem privileges---setting configuration in the environment is required.
+Environment variables configure applications per deployment without touching the filesystem. They're the standard approach for containers and cloud environments, where filesystem access may be restricted or unavailable.
 
 {{< admonition "12-factor apps" note >}}
 Configuring applications with environment variables is one of the factors in a 12-factor app.
 {{< /admonition >}}
 
-You can set environment variables in an environment configuration file like `.bashrc`, or you can manually export them to the shell session. Always namespace your variables to avoid conflicts during build stages.
-
-The following example manually exports the `MYAPP_PORT` environment variable and sets its value as the port for a webserver:
+You can set environment variables in `.bashrc` or export them directly to a shell session. Namespace your variables to avoid conflicts:
 
 ```bash
 export MYAPP_PORT="4005"    # set env var in shell session
 unset MYAPP_PORT            # unset env var
 ```
 
-When getting the env var, a common pattern to use is the "short-if declaration":
+### os.Getenv
+
+Use `os.Getenv` when a missing variable and an empty value are both invalid. It returns an empty string in both cases, so a single check handles either condition:
 
 ```go
 func main() {
-	var port string
-	if port = os.Getenv("MYAPP_PORT"); port == "" {
-        // handle empty MYAPP_PORT env var
-		panic("env var MYAPP_PORT is not set!")
+	port := os.Getenv("MYAPP_PORT")
+	if port == "" {
+		fmt.Fprintf(os.Stderr, "MYAPP_PORT is not set\n")
+		os.Exit(1)
 	}
-    ...
+	// use port
+}
+```
+
+### os.LookupEnv
+
+Use `os.LookupEnv` when you need to distinguish between a missing variable and one explicitly set to an empty string. It returns the value and a boolean that is `false` only when the variable is absent:
+
+```go
+func main() {
+	port, ok := os.LookupEnv("MYAPP_PORT")
+	if !ok {
+		fmt.Fprintf(os.Stderr, "MYAPP_PORT is not set\n")
+		os.Exit(1)
+	}
+	if port == "" {
+		fmt.Fprintf(os.Stderr, "MYAPP_PORT is set but empty\n")
+		os.Exit(1)
+	}
+	// use port
 }
 ```

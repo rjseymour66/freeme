@@ -6,170 +6,224 @@ weight = 35
 draft = false
 +++
 
-Before you write your first line of Go, you need to understand the problem you're solving. Production-ready applications start with a clear problem statement, a domain model that captures the rules of that problem, and the observability infrastructure to understand what the system is doing at runtime.
+Production-ready Go applications share a common structure: a domain model that captures business rules, a service layer that orchestrates logic, adapters that handle I/O, and a composition root that wires everything together.
 
-This page walks through those steps using [link](https://github.com/example/link), a URL shortener service, as a concrete example.
+This page covers the blueprint. Apply it to any Go application regardless of domain.
 
-## Define the requirements
+## Define requirements
 
 Requirements answer three questions: what does the system do, what are the rules, and what does failure look like?
 
-For the link service, requirements break into three areas:
+Document requirements in three areas before writing any code:
 
-**Operations**
-- A client submits a long URL and receives a short key.
-- A client submits a key and is redirected to the original URL.
+**Operations:** what actions the system performs
+- A client submits data and receives a response.
 - The system exposes a health check endpoint.
 
-**Rules**
-- Keys must not exceed 16 characters.
-- A URL must have a valid scheme (`http` or `https`) and a non-empty host.
-- If the client does not supply a key, the system generates one from the URL.
-- Duplicate keys must be rejected.
+**Rules:** constraints the system enforces
+- Input must meet defined validation criteria.
+- Duplicate entries must be rejected.
 
-**Failure modes**
-- Invalid input → return a bad request error.
-- Duplicate key → return a conflict error.
-- Missing key → return a not found error.
-- Unexpected error → log the full error, return a generic message to the client.
+**Failure modes:** how the system responds to each error condition
+- Invalid input: return a bad request error.
+- Duplicate entry: return a conflict error.
+- Missing resource: return a not found error.
+- Unexpected error: log the full error, return a generic message to the client.
 
-Writing these down before you write any code keeps your domain model honest. Each rule becomes a validation. Each failure mode becomes a sentinel error.
+Writing failure modes down before you write any code keeps your error taxonomy honest. Each failure mode becomes a sentinel error. Each rule becomes a validation.
 
-## Plan the package structure
+## Plan the project layout
 
-Once you've written your requirements, identify your packages before you write any code. A package is a unit of responsibility—each package should do one thing, and nothing outside that package should need to know how it does it.
-
-Use your requirements to answer four questions:
-
-1. **What are the core entities and rules?** These belong in your domain package.
-2. **How do clients interact with the system?** These are your transport packages.
-3. **Where does data live?** These are your storage adapter packages.
-4. **What cuts across all requests?** These are your utility packages.
-
-For the link service, the answers look like this:
-
-| Question | Answer | Package |
-|---|---|---|
-| Core entities and rules | `Link`, `Key`, key generation, validation, errors | `link` |
-| Client interaction | HTTP: shorten, resolve, health | `rest` |
-| Data storage | SQLite | `sqlite` |
-| Cross-cutting concerns | Request logging, trace IDs, HTTP helpers | `kit/*` |
-| Startup and wiring | Config, dependency setup, server start | `cmd/linkd` |
-
-Once you have this table, draw the dependency arrows. Each package should depend only on packages below it:
+Go doesn't enforce a directory structure, but the community has converged on a layout that scales well. The key principle from [Effective Go](https://go.dev/doc/effective_go): organize by responsibility, not by type.
 
 ```
-cmd/linkd → rest, sqlite, kit/*
-rest      → link (domain)
-sqlite    → link (domain)
-link      → standard library only
-kit/*     → standard library only
+myapp/
+├── cmd/
+│   └── myapp/
+│       ├── main.go      # entry point: two lines, calls run
+│       ├── run.go       # wiring: config, deps, server, shutdown
+│       └── config.go    # config struct and loadConfig
+├── internal/
+│   ├── domain/          # types, validation, sentinel errors
+│   ├── service/         # business logic, orchestration
+│   ├── store/           # storage adapter (database)
+│   ├── rest/            # HTTP transport layer
+│   └── kit/             # shared utilities (logging, tracing)
+├── go.mod
+└── go.sum
 ```
 
-This direction is not optional—it's what keeps your business rules free of infrastructure. If you find yourself importing `rest` from `sqlite`, you've created a cycle. Go will refuse to compile it.
+Key decisions:
+- `cmd/<app>/` contains only wiring and startup. No business logic.
+- `internal/` prevents other modules from importing your packages. The Go compiler enforces this.
+- The domain package imports nothing outside the standard library.
+- Adapters (`rest`, `store`) import the domain. The domain never imports them.
+
+## Plan package structure
+
+A package is a unit of responsibility. Each package does one thing, and nothing outside it needs to know how it does it.
+
+Use your requirements to identify four kinds of packages:
+
+1. **Domain:** core types, validation rules, and sentinel errors.
+2. **Service:** business operations that orchestrate domain logic and storage.
+3. **Adapters:** packages that connect your service to external systems (HTTP, databases, queues).
+4. **Utilities:** behavior that cuts across all requests (logging, tracing, auth).
+
+Draw the dependency arrows. Each package depends only on packages below it:
+
+```
+cmd/myapp  → rest, service, store, kit
+rest       → service (via interface), domain
+service    → domain, store (via interface)
+store      → domain
+domain     → standard library only
+kit        → standard library only
+```
+
+This direction is not optional. It keeps your business rules free of infrastructure. If you find yourself importing `rest` from `store`, you've created a cycle. Go refuses to compile it.
+
+## What is a service?
+
+A service is a struct that implements your business operations. It sits between your transport layer (HTTP handlers) and your storage layer (database). Handlers call service methods. The service calls storage. Neither layer knows about the other.
+
+A service:
+- Holds its dependencies as interface fields, not concrete types.
+- Implements operations as methods: `Register`, `Fetch`, `Delete`.
+- Enforces business rules: validation, authorization, sequencing.
+- Does not know about HTTP status codes, SQL, or request parsing.
+
+```go
+// internal/service/user.go
+
+type UserStore interface {                                        // 1
+    Save(ctx context.Context, u *domain.User) error
+    FindByEmail(ctx context.Context, email string) (*domain.User, error)
+}
+
+type UserService struct {
+    store UserStore
+}
+
+func NewUserService(store UserStore) *UserService {              // 2
+    return &UserService{store: store}
+}
+
+func (s *UserService) Register(ctx context.Context, email, password string) (*domain.User, error) {
+    if err := domain.ValidateEmail(email); err != nil {          // 3
+        return nil, fmt.Errorf("register: %w: %w", err, domain.ErrBadRequest)
+    }
+    _, err := s.store.FindByEmail(ctx, email)
+    if err == nil {
+        return nil, fmt.Errorf("register: %w", domain.ErrConflict) // 4
+    }
+    if !errors.Is(err, domain.ErrNotFound) {
+        return nil, fmt.Errorf("register: %w", err)
+    }
+    u := &domain.User{Email: email}
+    if err := u.SetPassword(password); err != nil {
+        return nil, fmt.Errorf("register: %w", err)
+    }
+    if err := s.store.Save(ctx, u); err != nil {
+        return nil, fmt.Errorf("register: %w", err)
+    }
+    return u, nil
+}
+```
+
+1. The service defines the interface it needs. It does not import the `store` package directly.
+2. The constructor accepts the interface. Pass the concrete implementation from the composition root.
+3. The service calls domain validation. It does not duplicate validation logic.
+4. If `FindByEmail` returns no error, the user already exists.
+
+The HTTP handler calls `svc.Register(r.Context(), email, password)` without knowing about databases. The store saves users without knowing about HTTP or business rules. The service coordinates them.
 
 ### Define interfaces at package boundaries
 
-Interfaces belong in the package that consumes them, not the package that implements them. Your `rest` package doesn't import `sqlite`—it defines its own small interfaces that describe the behavior it needs:
+Per [Effective Go](https://go.dev/doc/effective_go#interfaces_and_types): interfaces belong in the package that uses them, not the package that implements them.
+
+Your `rest` package defines the interface it needs from the service:
 
 ```go
-// rest/shortener.go
+// internal/rest/handlers.go
 
-type Shortener interface {
-    Shorten(context.Context, link.Link) (link.Key, error)
-}
-
-type Resolver interface {
-    Resolve(context.Context, link.Key) (link.Link, error)
+type UserRegistrar interface {
+    Register(ctx context.Context, email, password string) (*domain.User, error)
 }
 ```
 
-`*sqlite.Shortener` satisfies both interfaces without knowing they exist. This is Go's implicit interface satisfaction: you wire them together in `cmd/linkd`, where both sides are visible.
+Your `service.UserService` satisfies this interface without knowing it exists. You wire them together in `cmd/myapp`, where both sides are visible.
 
-Define interfaces this way: one method or two, focused on what the consumer needs. Avoid large interfaces—they're hard to implement in tests and couple packages too tightly.
+Define interfaces with one or two methods focused on what the consumer needs. Large interfaces are hard to implement in tests and couple packages too tightly.
 
 ## Choose your implementation order
 
-Build in this order: domain first, then adapters, then transport, then wiring. Each layer depends only on what came before it.
+Build layers in this order: domain first, then storage, then service, then transport, then wiring.
 
-**1. Domain layer**
-
-Write types, validation, and errors. This layer has no imports outside the standard library, so you can test it immediately with no setup.
+**1. Domain**
+Write types, validation, and sentinel errors. No imports outside the standard library. Test immediately with no setup.
 
 **2. Storage adapter**
+Implement persistence against your domain types. Test against a real database, not mocks. A mocked database cannot catch SQL errors, constraint violations, or migration failures.
 
-Implement the persistence layer against your domain types. Use `DialTestDB` or an equivalent to run adapter tests against a real database—not mocks.
+**3. Service**
+Implement business operations against the storage interface. Test with a fake in-memory implementation of the interface.
 
-**3. Transport layer**
+**4. Transport**
+Write HTTP handlers that call the service interface. Test with `net/http/httptest` against a fake service implementation.
 
-Write HTTP handlers that call the interfaces you defined. Test them with `net/http/httptest` against fake implementations of those interfaces.
-
-**4. Composition root**
-
-Wire dependencies together in `cmd/<app>`. This is the only place that imports from all layers. If your wiring code grows large, that's a signal that dependencies are too tangled—not that `main` needs more functions.
-
-This order is not arbitrary. Starting with the domain means you validate your data model before you've committed to any infrastructure. If validation turns out to need more fields or different constraints, you change one package—not three.
+**5. Composition root**
+Wire all layers together in `cmd/<app>`. If wiring grows large, that's a signal your dependencies are too tangled, not that `main` needs more functions.
 
 ## Model the domain
 
-The domain layer defines your core types, validates the rules you identified, and declares your error taxonomy. It has no dependencies on HTTP, databases, or any other infrastructure.
+The domain layer defines your core types, validates your rules, and declares your error taxonomy. It has no dependencies on HTTP, databases, or any other infrastructure.
 
 ### Define core types
 
-Start with the entities your system works with. In the link service, there are two: a URL and its short key.
+Start with the entities your system works with. Keep types small and give each distinct concept its own type even if the underlying representation is the same.
 
 ```go
-// link.go
+// internal/domain/user.go
 
-type Link struct {
-    URL string
-    Key Key
+type User struct {
+    ID           int64
+    Email        string
+    PasswordHash []byte
+    CreatedAt    time.Time
 }
 
-type Key string
+func (u *User) SetPassword(password string) error {
+    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    if err != nil {
+        return fmt.Errorf("hashing password: %w", err)
+    }
+    u.PasswordHash = hash
+    return nil
+}
 ```
-
-Keep types small. A `Key` is not just a `string`—it has its own validation rules and deserves its own type.
 
 ### Implement validation
 
-Each type validates itself. Attach a `Validate` method that enforces the rules you defined in your requirements.
+Each type validates itself. Attach a `Validate` method or standalone `Validate<Field>` functions that enforce the rules from your requirements.
 
 ```go
-func (k Key) Validate() error {
-    if len(k) > 16 { // 1
-        return errors.New("key exceeds 16 characters")
-    }
-    return nil
-}
+// internal/domain/validate.go
 
-func (lnk Link) Validate() error {
-    if err := lnk.Key.Validate(); err != nil { // 2
-        return fmt.Errorf("key: %w", err)
-    }
-    u, err := url.ParseRequestURI(lnk.URL)
-    if err != nil {
-        return err
-    }
-    if u.Host == "" {
-        return errors.New("empty host")
-    }
-    if u.Scheme != "http" && u.Scheme != "https" {
-        return errors.New("scheme must be http or https")
+func ValidateEmail(email string) error {
+    if !strings.Contains(email, "@") {
+        return errors.New("invalid email address")
     }
     return nil
 }
 ```
 
-1. The `Key` type enforces its own constraint, independent of `Link`.
-2. `Link.Validate` delegates to `Key.Validate`, then checks its own fields. Errors are wrapped with context so callers can tell which field failed.
-
 ### Declare sentinel errors
 
-Define your failure modes as package-level error values. Other packages use `errors.Is` to check for them, and your transport layer maps them to HTTP status codes.
+Define failure modes as package-level error values. Per the [Go Blog on error handling](https://go.dev/blog/go1.13-errors): other packages use `errors.Is` to check for them. Your transport layer maps them to HTTP status codes.
 
 ```go
-// error.go
+// internal/domain/errors.go
 
 var (
     ErrBadRequest = errors.New("bad request")
@@ -179,168 +233,254 @@ var (
 )
 ```
 
-Keeping these in the domain package means both your storage adapters and your HTTP handlers share the same error vocabulary. The storage layer wraps them with context; the transport layer unwraps them with `errors.Is`.
+Keeping sentinel errors in the domain package means your storage adapters and HTTP handlers share the same error vocabulary. The storage layer wraps them with context. The transport layer unwraps them with `errors.Is`.
 
-### Implement domain logic
+## Configure the application
 
-If the client doesn't supply a key, generate one. The link service hashes the URL with SHA256, takes the first six bytes, and encodes them as base64url—producing a deterministic, ~8-character key.
+Load configuration from environment variables at startup. Per the [12-factor app methodology](https://12factor.net/config), configuration that varies between deployments belongs in the environment, not the code.
+
+### Define a config struct
+
+Define a single `config` struct that holds all runtime settings. Keep fields unexported — only `cmd/<app>` reads them.
 
 ```go
-func Shorten(lnk Link) (Link, error) {
-    if lnk.Key.Empty() {
-        h := sha256.Sum256([]byte(lnk.URL))
-        lnk.Key = Key(base64.URLEncoding.EncodeToString(h[:6]))
-    }
-    if err := lnk.Validate(); err != nil {
-        return Link{}, err
-    }
-    return lnk, nil
+// cmd/myapp/config.go
+
+type config struct {
+    addr     string
+    dsn      string
+    logLevel slog.Level
 }
 ```
 
-This function lives in the domain package. It doesn't know whether the caller is an HTTP handler or a CLI tool—it just applies the rule.
+### Load config with a getenv function
+
+Accept a `getenv func(string) string` parameter instead of calling `os.Getenv` directly. This makes `loadConfig` testable without manipulating the process environment.
+
+```go
+func loadConfig(getenv func(string) string) (config, error) {
+    cfg := config{                                    // 1
+        addr:     ":8080",
+        logLevel: slog.LevelInfo,
+    }
+    if v := getenv("MYAPP_ADDR"); v != "" {
+        cfg.addr = v
+    }
+    cfg.dsn = getenv("MYAPP_DSN")
+    if cfg.dsn == "" {
+        return config{}, errors.New("MYAPP_DSN is required") // 2
+    }
+    return cfg, nil
+}
+```
+
+1. Provide sensible defaults for optional settings.
+2. Fail fast on missing required variables before the server starts.
+
+### Use a run function
+
+Keep `main` to two lines. Put all startup logic in a `run` function that accepts context and a `getenv` function, and returns an error. This makes the full startup path testable.
+
+```go
+// cmd/myapp/main.go
+
+func main() {
+    ctx := context.Background()
+    if err := run(ctx, os.Getenv); err != nil {
+        fmt.Fprintf(os.Stderr, "%s\n", err)
+        os.Exit(1)
+    }
+}
+```
+
+```go
+// cmd/myapp/run.go
+
+func run(ctx context.Context, getenv func(string) string) error {
+    cfg, err := loadConfig(getenv)                             // 1
+    if err != nil {
+        return fmt.Errorf("config: %w", err)
+    }
+
+    lg := slog.New(slog.NewTextHandler(os.Stderr,             // 2
+        &slog.HandlerOptions{Level: cfg.logLevel},
+    )).With("app", "myapp")
+
+    db, err := sql.Open("postgres", cfg.dsn)                  // 3
+    if err != nil {
+        return fmt.Errorf("open db: %w", err)
+    }
+    defer db.Close()
+
+    userStore   := store.NewUserStore(db)                     // 4
+    userService := service.NewUserService(userStore)
+
+    mux := http.NewServeMux()
+    rest.Register(mux, lg, userService)                       // 5
+
+    srv := &http.Server{
+        Addr:         cfg.addr,
+        Handler:      mux,
+        ReadTimeout:  5 * time.Second,
+        WriteTimeout: 10 * time.Second,
+        IdleTimeout:  120 * time.Second,
+    }
+
+    go func() {
+        lg.Info("starting", "addr", cfg.addr)
+        if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+            lg.Error("server error", "err", err)
+            os.Exit(1)
+        }
+    }()
+
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
+
+    lg.Info("shutting down")
+    ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+    defer cancel()
+
+    if err := srv.Shutdown(ctx); err != nil {
+        return fmt.Errorf("shutdown: %w", err)
+    }
+    lg.Info("stopped")
+    return nil
+}
+```
+
+1. Load and validate config before allocating any resources.
+2. Set up the logger immediately so all subsequent errors are structured.
+3. Open the database connection. `defer db.Close()` ensures it closes when `run` returns.
+4. Construct concrete implementations and pass them to services. This is the only place that knows about all layers.
+5. Register HTTP routes. `rest.Register` receives the logger and service interface, not concrete types.
+
+The `run` pattern comes from Mat Ryer's [How I write HTTP services in Go](https://grafana.com/blog/2024/02/09/how-i-write-http-services-in-go-after-13-years/). It separates startup logic from process management and makes the entire boot sequence testable.
 
 ## Set up structured logging
 
-Use `log/slog` (available since Go 1.21) for structured, leveled logging. Structured logs emit key-value pairs instead of unformatted text, which makes them searchable and parseable by log aggregation tools.
+Use `log/slog` (Go 1.21+) for structured, leveled logging. Structured logs emit key-value pairs that log aggregation tools can parse and query without regex.
 
 ### Create a logger in main
 
-Initialize the logger in your entry point and pass it as a dependency—never use a global logger.
+Initialize the logger in `run` and pass it as a dependency. Don't use a global logger — it makes behavior implicit and tests harder to isolate.
 
 ```go
-// cmd/linkd/linkd.go
-
-lg := slog.New(slog.NewTextHandler(os.Stderr, nil)).With("app", "linkd") // 1
-lg.Info("starting", "addr", cfg.http.addr)
+lg := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+    Level: cfg.logLevel,
+})).With("app", "myapp")                   // 1
 ```
 
-1. `.With("app", "linkd")` attaches a static field to every log record produced by this logger. Use this for fields that never change across the lifetime of the process—application name, version, environment.
+1. `.With("app", "myapp")` attaches a static field to every log record this logger produces. Use this for fields that never change: application name, version, environment.
 
 For production, swap `NewTextHandler` for `NewJSONHandler` to emit machine-readable JSON.
 
-### Inject the logger
-
-Pass the logger to any component that needs it. Don't embed it in structs unless necessary—for HTTP handlers, a closure over the logger is enough.
-
-```go
-mux.Handle("POST /shorten", rest.Shorten(lg, shortener))
-mux.Handle("GET /r/{key}", rest.Resolve(lg, shortener))
-```
-
-Each handler logs errors through its own `lg`. Because the logger was created with `.With("app", "linkd")`, every log record from every handler carries that field automatically.
-
 ### Use context in log calls
 
-Prefer `LogAttrs` with `r.Context()` over `Info` when you're inside an HTTP handler. This becomes important once you add context-aware log enrichment.
+Inside HTTP handlers, use `LogAttrs` with `r.Context()` instead of `Info`:
 
 ```go
-lg.LogAttrs(r.Context(), slog.LevelError, "internal error", slog.Any("error", err))
+lg.LogAttrs(r.Context(), slog.LevelError, "register failed",
+    slog.Any("error", err),
+)
 ```
 
-The context argument lets the logger pull request-scoped values—like a trace ID—and add them to the record automatically.
+The context argument lets the logger pull request-scoped values like a trace ID and add them to the record automatically. See [Propagate context](#propagate-context).
 
 ## Propagate context
 
-Context carries request-scoped values—trace IDs, auth principals, deadlines—across package boundaries without changing function signatures. Every function that does I/O should accept a `context.Context` as its first argument.
+Per the [Go Blog on context](https://go.dev/blog/context): context carries request-scoped values (trace IDs, deadlines, cancellation signals) across package boundaries without changing function signatures. Every function that does I/O accepts `context.Context` as its first argument.
 
 ### Store values in context
 
-Use an unexported struct type as the context key. This prevents key collisions with other packages.
+Use an unexported struct type as the context key to prevent key collisions with other packages.
 
 ```go
-// kit/traceid/traceid.go
+// internal/kit/traceid/traceid.go
 
-type traceIDContextKey struct{} // 1
+type contextKey struct{}
 
 func WithContext(ctx context.Context, id string) context.Context {
-    return context.WithValue(ctx, traceIDContextKey{}, id)
+    return context.WithValue(ctx, contextKey{}, id)
 }
 
 func FromContext(ctx context.Context) (string, bool) {
-    id, ok := ctx.Value(traceIDContextKey{}).(string)
+    id, ok := ctx.Value(contextKey{}).(string)
     return id, ok
 }
 ```
 
-1. The unexported struct type is the key. Other packages cannot construct this key, so they cannot accidentally overwrite or read the value.
+The unexported type is the key. Other packages cannot construct it, so they cannot overwrite or read the value accidentally.
 
 ### Inject values with middleware
 
-Inject the trace ID at the edge of your system—in HTTP middleware—so it's available for the full lifetime of the request.
+Inject the trace ID at the edge of your system so it's available for the full lifetime of the request.
 
 ```go
-// kit/traceid/http.go
+// internal/kit/traceid/http.go
 
 func Middleware(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         if _, ok := FromContext(r.Context()); !ok {
-            ctx := WithContext(r.Context(), New()) // 1
-            r = r.WithContext(ctx)                 // 2
+            ctx := WithContext(r.Context(), New())  // 1
+            r = r.WithContext(ctx)                  // 2
         }
         next.ServeHTTP(w, r)
     })
 }
 ```
 
-1. Generate a new ID only if one isn't already present. This lets upstream proxies inject their own IDs.
-2. Replace the request's context with one that carries the trace ID. All downstream handlers receive this context when they call `r.Context()`.
+1. Generate a new ID only if one isn't already present. This lets upstream proxies inject their own trace IDs.
+2. Replace the request's context. All downstream handlers receive the updated context from `r.Context()`.
 
 ### Enrich logs automatically
 
-Write a custom `slog.Handler` that reads the trace ID from context and adds it to every log record. Wrap your base handler with it when you set up the logger in `main`.
+Write a custom `slog.Handler` that reads the trace ID from context and adds it to every log record.
 
 ```go
-// kit/traceid/slog.go
+// internal/kit/traceid/slog.go
 
-type LogHandler struct {
-    slog.Handler
-}
+type handler struct{ slog.Handler }
 
-func (h *LogHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *handler) Handle(ctx context.Context, r slog.Record) error {
     if id, ok := FromContext(ctx); ok {
-        r = r.Clone()
-        r.AddAttrs(slog.String("trace_id", id)) // 1
+        r = r.Clone()                                // 1
+        r.AddAttrs(slog.String("trace_id", id))
     }
     return h.Handler.Handle(ctx, r)
 }
-```
 
-1. Clone the record before modifying it—`slog.Record` values are not safe to modify in place.
-
-Apply it in the composition root:
-
-```go
-// cmd/linkd/linkd.go
-
-lg := slog.New(traceid.NewLogHandler(cfg.lg.Handler())) // 1
-srv.Handler = traceid.Middleware(hlog.Middleware(lg)(mux)) // 2
-```
-
-1. Wrap the base handler with the trace ID handler. Every `lg.LogAttrs(ctx, ...)` call that passes a context with a trace ID will now include `trace_id` in the output—with no changes to the individual call sites.
-2. Apply `traceid.Middleware` outermost so the trace ID is in context before the logger middleware runs.
-
-### Pass context through the call stack
-
-Every function that performs I/O should accept and forward the context.
-
-```go
-func (s *Shortener) Shorten(ctx context.Context, lnk link.Link) (link.Key, error) {
-    lnk, err := link.Shorten(lnk)
-    if err != nil {
-        return "", fmt.Errorf("%w: %w", err, link.ErrBadRequest)
-    }
-    _, err = s.db.ExecContext(ctx, insertLink, lnk.Key, base64String(lnk.URL)) // 1
-    if isPrimaryKeyViolation(err) {
-        return "", fmt.Errorf("saving: %w", link.ErrConflict)
-    }
-    if err != nil {
-        return "", fmt.Errorf("saving: %w: %w", err, link.ErrInternal)
-    }
-    return lnk.Key, nil
+func NewLogHandler(base slog.Handler) slog.Handler {
+    return &handler{base}
 }
 ```
 
-1. `ExecContext` accepts the context. If the request is cancelled or times out, the database call returns immediately instead of blocking.
+1. Clone the record before modifying it. `slog.Record` is not safe to modify in place.
 
-The context flows from the HTTP request through the handler, into the storage layer, and down to the database driver—propagating the trace ID and respecting cancellation at every level.
+Wrap the base handler in `run`:
+
+```go
+base := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: cfg.logLevel})
+lg   := slog.New(traceid.NewLogHandler(base)).With("app", "myapp")
+```
+
+Every `lg.LogAttrs(ctx, ...)` call that passes a context containing a trace ID includes `trace_id` in the output, with no changes to individual call sites.
+
+### Pass context through the call stack
+
+Every function that performs I/O accepts and forwards the context.
+
+```go
+func (s *UserService) Register(ctx context.Context, email, password string) (*domain.User, error) {
+    // ...
+    if err := s.store.Save(ctx, u); err != nil {   // 1
+        return nil, fmt.Errorf("register: %w", err)
+    }
+    return u, nil
+}
+```
+
+1. `Save` passes `ctx` to the database driver. If the request is cancelled or times out, the database call returns immediately instead of blocking.
+
+The context flows from the HTTP request through the handler into the service and down to the database driver, propagating the trace ID and respecting cancellation at every level.
