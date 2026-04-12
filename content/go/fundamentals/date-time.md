@@ -5,9 +5,9 @@ weight = 70
 draft = false
 +++
 
-Computers have two different types of clocks: a wall clock and a monotonic. A wall clock is synchronized with an NTP server to set the correct time on the computer. Its time can be inconsistent---another user or program might set this clock, or it might just jump back and forth.
+Computers have two types of clocks: a wall clock and a monotonic clock. A wall clock synchronizes with an NTP server to track the current time. Its value can be inconsistent: another user or program might reset it, or it might jump forward or backward.
 
-A monotonic clock is always moving forward and is not affected by variables like the wall clock. Because it is always moving forward, the monotonic clock is used to measure duration.
+A monotonic clock always moves forward and is unaffected by those adjustments. Because it never goes backward, the monotonic clock is used to measure elapsed time.
 
 ## Time struct
 
@@ -21,12 +21,12 @@ type Time struct {
 }
 ```
 
-### Methods - wall vs monotonic
+### Methods: wall vs. monotonic
 
-`Time` has methods that work with exclusively with the wall and monotonic clock:
+`Time` has methods that work exclusively with the wall and monotonic clock:
 
 | Category                 | Method                                                  | Wall Clock | Monotonic Clock | Notes                                                     |
-| ------------------------ | ------------------------------------------------------- | ---------- | --------------- | --------------------------------------------------------- |
+| :----------------------- | :------------------------------------------------------ | :--------- | :-------------- | :-------------------------------------------------------- |
 | **Construction**         | `time.Now()`                                            | ✅          | ✅               | Returns a `Time` with both wall and monotonic times.      |
 |                          | `time.Date()`                                           | ✅          | ❌               | Constructs a wall clock time only (no monotonic part).    |
 |                          | `time.Unix()` / `time.UnixMicro()` / `time.UnixMilli()` | ✅          | ❌               | Wall clock only.                                          |
@@ -43,8 +43,8 @@ type Time struct {
 |                          | `t.After(u)`                                            | ✅          | ✅               | Uses monotonic time if both have it.                      |
 | **Arithmetic**           | `t.Add(d)`                                              | ✅          | ✅               | Adds duration; monotonic time preserved if present.       |
 |                          | `t.Sub(u)`                                              | ❌          | ✅               | Uses monotonic time if both have it; otherwise wall time. |
-|                          | `time.Since(t)`                                         | ❌          | ✅               | Shortcut for `time.Now().Sub(t)` — monotonic.             |
-|                          | `time.Until(t)`                                         | ❌          | ✅               | Shortcut for `t.Sub(time.Now())` — monotonic.             |
+|                          | `time.Since(t)`                                         | ❌          | ✅               | Shortcut for `time.Now().Sub(t)`. Uses monotonic clock.   |
+|                          | `time.Until(t)`                                         | ❌          | ✅               | Shortcut for `t.Sub(time.Now())`. Uses monotonic clock.   |
 | **Serialization**        | `t.MarshalText()` / `t.UnmarshalText()`                 | ✅          | ❌               | Monotonic info is discarded when serializing.             |
 | **Zero / Equality**      | `t.IsZero()`                                            | ✅          | ❌               | Checks wall clock zero time.                              |
 
@@ -67,7 +67,7 @@ When you print a time in its default format (`time.Now()`), you get the followin
 ```
 
 | Part                        | Example              | Meaning                                                                                                                                                                            |
-| --------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :-------------------------- | :------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Date**                    | `2025-10-30`         | The calendar date: year-month-day                                                                                                                                                  |
 | **Time**                    | `23:20:49.197299338` | The wall clock time (hour:minute:second.nanoseconds)                                                                                                                               |
 | **UTC offset**              | `-0400`              | The timezone offset from UTC (here: 4 hours behind UTC)                                                                                                                            |
@@ -77,7 +77,7 @@ When you print a time in its default format (`time.Now()`), you get the followin
 
 ## Current time
 
-Get the current time with `time.Now()`. This returns a `Time` struct that contains both the wall clock and monotonic clock reading:
+`time.Now()` returns a `Time` struct containing both the wall clock and monotonic clock reading:
 
 ```go
 func main() {
@@ -88,9 +88,8 @@ func main() {
 
 ## Add and subtract time
 
-You both add and subtract time with the `Add` method. `Add` takes a `Duration` value, so you are adding a duration of time to the instant of time represented by the time struct.
+You add and subtract time with the `Add` method. `Add` takes a `Duration`, so you're adding a duration to the instant represented by the `Time` struct. Pass a positive duration to add, and a negative duration to subtract:
 
-To add, pass a positive Duration. To subtract, pass a negative duration.
 1. Add 10 minutes to `now`.
 2. Subtract 10 minutes from `now`.
 
@@ -107,12 +106,11 @@ func main() {
 
 ## Dates
 
-The `time` package provides the `Date` function that you can use to create a specific date and time. Note that all values are `int` except for `Location`.
+`time.Date` creates a specific date and time. All parameters are `int` except `loc`, which requires a non-nil `*time.Location`:
 
-```
+```go
 time.Date(year int, month time.Month, day int, hour int, min int, sec int, nsec int, loc *time.Location)
 ```
-You have to pass a non-nil value for the `*time.Location` parameter.
 
 ```go
 func main() {
@@ -120,9 +118,10 @@ func main() {
 	fmt.Println(date) // 2025-10-30 11:45:00 +0000 UTC
 }
 ```
+
 ### Month and Weekday
 
-The `Month` and `Weekday` types are `int`s that return the corresponding month or weekday. `Weekday` is zero-indexed. You most often use these methods to extract the month or weekday from a `Time` struct.
+The `Month` and `Weekday` types are `int`s that return the corresponding month or weekday. `Weekday` is zero-indexed. You most often use these methods to extract the month or weekday from a `Time` struct:
 
 1. Create a date. `Date` returns a `Time` struct that corresponds to the given values.
 2. Extract the month from `date`.
@@ -142,13 +141,14 @@ func main() {
 }
 ```
 
-## Time Zones
+## Time zones
 
-Go's `time` package represents time zones with a `Location`. Go has a built-in time zone database managed by the Internet Assigned Numbers Authority (IANA). This database is called _tz_ or _zoneinfo_, and it uses the `Area/Location` naming convention. For example, `Asia/Singapore`.
+Go's `time` package represents time zones with a `Location`. Go has a built-in time zone database managed by the Internet Assigned Numbers Authority (IANA). This database is called _tz_ or _zoneinfo_, and it uses the `Area/Location` naming convention, for example, `Asia/Singapore`.
 
 ### Built-in TZ database
 
-`LoadLocation` gives you access to the time zone in the built-in IANA database. This example loads a location (time zone) from the database and then uses `In` to convert an instant in time to another time zone:
+`LoadLocation` gives you access to a time zone in the built-in IANA database. This example loads a location and uses `In` to convert an instant in time to another time zone:
+
 1. Load a location from the built-in database.
 2. Check for errors.
 3. Create a specific time in UTC.
@@ -170,9 +170,10 @@ func main() {
 
 ### Custom TZ
 
-You don't have to use the internal time zone database to create a time zone. You can define a custom time zone with `FixedZone`. This function takes a string description, and an offset in seconds east of UTC. Custom time zones do not handle daylight saving time.
+You don't have to use the internal time zone database. `FixedZone` creates a custom time zone from a string name and an offset in seconds east of UTC. Custom time zones do not handle daylight saving time.
 
-The following example creates a custom time zone:
+This example creates a custom time zone:
+
 1. Create a location named "Singapore Time" that is 8 hours east of UTC.
 2. Create a specific time in UTC.
 3. Convert the specific time to Singapore's local time.
@@ -189,8 +190,7 @@ func main() {
 
 ## Durations
 
-Represent a span of time with `Duration`, which is an `int64` with helper methods. Because a `Duration` is an `int64`, you can construct a span of time with arithmetic. This example shows common methods:
-
+`Duration` represents a span of time as an `int64` with helper methods. Because `Duration` is an `int64`, you construct a span of time with arithmetic:
 
 ```go
 func main() {
@@ -208,9 +208,9 @@ func main() {
 }
 ```
 
-## Measuring lapsed time
+## Measuring elapsed time
 
-Measure lapsed time with the monotonic clock available in a `Time` struct. When you log a time instance, you get the monotonic time and wall clock time. The monotonic time begins with `m=`, and the wall clock is everything that precedes it:
+Measure elapsed time with the monotonic clock available in a `Time` struct. When you print a time instance, you get both the wall clock and monotonic clock reading. The monotonic reading begins with `m=`, and the wall clock is everything before it:
 
 ```go
 2025-11-01 10:10:03.996705232 -0400 EDT m=+0.000068038
@@ -218,7 +218,7 @@ Measure lapsed time with the monotonic clock available in a `Time` struct. When 
 m=+0.000068038                              // monotonic clock
 ```
 
-The monotonic clock shows how long it takes your program to run. To illustrate, run a simple program, then run the same program with a `Sleep` method:
+The monotonic clock shows how long your program has been running. To illustrate, run a simple program, then run the same program with a `Sleep`:
 
 ```go
 // standard
@@ -235,7 +235,7 @@ func main() {
 }
 ```
 
-Compare the monotonic portions of the `time` instances. The implemenation with `Sleep` has a `5` in the monotonic clock value:
+Compare the monotonic portions of the two `Time` instances. The implementation with `Sleep` has a `5` in the monotonic clock value:
 
 | Implementation   | Monotonic value  |
 | :--------------- | :--------------- |
@@ -244,7 +244,7 @@ Compare the monotonic portions of the `time` instances. The implemenation with `
 
 ### Sub()
 
-`Sub` returns the duration of the caller minus the given `Time` instance. For example, the following code creates two `Time` instances with a 1 second pause between the two. Call `Sub` with the second instance, `t2` and pass it the first instance, `t1`:
+`Sub` returns the duration of the caller minus the given `Time` instance. This example creates two `Time` instances with a 1 second pause between them. Call `Sub` on `t2`, passing `t1`:
 
 ```go
 func main() {
@@ -260,7 +260,7 @@ func main() {
 
 ## Formatting time
 
-The `time` package uses pattern-based layouts to format time. You provide an example of the time format, and Go uses that as a reference to format the `Time` instance. Create custom time formats with the `time.Format` method. `Format` converts a time struct into its string representation:
+The `time` package uses pattern-based layouts to format time. You provide an example of the format you want, and Go uses it as a reference to format the `Time` instance. `Format` converts a `Time` struct into its string representation:
 
 ```go
 func main() {
@@ -273,21 +273,22 @@ func main() {
 
 ### Layout string
 
-Go uses an actual date and time as the pattern template. When you provide your example time format, you need to use the following date:
+Go uses an actual date and time as the pattern template. When you provide your example format, use the following date:
 
 ```
 Mon Jan 2 15:04:05 MST 2006
 ```
-This is Go's layout string. It describes how a date/time should look. translates to:
+
+This is Go's layout string. It translates to:
 
 ```
 01/02 15:04:05PM '06 -0700
 01/02 03:04:05PM '06 -0700
 ```
 
-When you create a format, you have to use these layout placeholder values, or Go views them as a label and returns an incorrect time:
+When you create a format, you must use these layout placeholder values, or Go treats them as labels and returns an incorrect time:
 
-```sql
+```
 01    → Month
 02    → Day
 15    → Hour (24h)
@@ -299,7 +300,7 @@ MST   → Time zone name
 -0700 → Time zone offset
 ```
 
-So, to create a simple format for the current date, you must use these placeholder values in your reference to return an accurate time. `Format` is a method, so create a `Time` instance first:
+To create a simple format for the current date, use these placeholder values in your reference. `Format` is a method, so create a `Time` instance first:
 
 ```go
 func main() {
@@ -312,12 +313,13 @@ func main() {
 
 ### Parsing into structs
 
-`Parse` converts a string into a `Time` struct. If you do not provide a time zone, `Parse` assumes UTC:
+`Parse` converts a string into a `Time` struct. If you don't provide a time zone, `Parse` assumes UTC:
+
 1. Define a specific time as a string.
 2. Define the layout string format.
 3. Parse the string into a struct using the layout format string.
-4. Print the result with in RCF3339 format.
-5. Print the result with in kitchen time.
+4. Print the result in RFC3339 format.
+5. Print the result in kitchen time.
 
 
 ```go
@@ -339,7 +341,7 @@ func main() {
 Here is a table of Go's time pattern formats:
 
 | Constant           | Layout String                           | Example Output                        |
-| ------------------ | --------------------------------------- | ------------------------------------- |
+| :----------------- | :-------------------------------------- | :------------------------------------ |
 | `time.Kitchen`     | `"3:04PM"`                              | `11:20PM`                             |
 | `time.ANSIC`       | `"Mon Jan _2 15:04:05 2006"`            | `Thu Oct 30 23:20:49 2025`            |
 | `time.UnixDate`    | `"Mon Jan _2 15:04:05 MST 2006"`        | `Thu Oct 30 23:20:49 EDT 2025`        |
