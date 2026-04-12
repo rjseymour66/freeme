@@ -2,7 +2,7 @@
 title = 'Configuration files'
 linkTitle = 'Config files'
 date = '2025-08-14T11:40:02-04:00'
-weight = 20
+weight = 50
 draft = false
 +++
 

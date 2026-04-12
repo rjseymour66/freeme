@@ -1,7 +1,7 @@
 +++
 title = 'Structuring packages and services'
 date = '2026-03-03T21:31:48-05:00'
-weight = 30
+weight = 20
 draft = false
 +++
 

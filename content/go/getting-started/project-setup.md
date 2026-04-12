@@ -2,7 +2,7 @@
 title = 'Setting up a production-ready Go application'
 linkTitle = 'Project setup'
 date = '2026-03-28T00:00:00-04:00'
-weight = 35
+weight = 30
 draft = false
 +++
 

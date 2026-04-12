@@ -1,7 +1,7 @@
 +++
 title = 'Tooling'
 date = '2025-08-12T23:44:57-04:00'
-weight = 20
+weight = 10
 draft = false
 +++
 

@@ -44,9 +44,25 @@ theme = 'freeme'
   weight = 60
 
 [[menus.main]]
-  name = 'Writing'
-  pageRef = '/writing'
+  name = 'Bash'
+  pageRef = '/bash'
   weight = 70
+
+[[menus.main]]
+  name = 'Python'
+  pageRef = '/python'
+  weight = 80
+
+[[menus.main]]
+  name = 'git'
+  pageRef = '/git'
+  weight = 90
+
+
+[[menus.main]]
+  name = 'SQL'
+  pageRef = '/sql'
+  weight = 100
 
 
 [module]
