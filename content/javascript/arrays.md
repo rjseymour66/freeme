@@ -1,7 +1,7 @@
 ---
 title: "Arrays"
 # linkTitle: "CSS"
-weight: 100
+weight: 120
 description: >
   Helpful Array methods with examples.
 ---
@@ -475,3 +475,72 @@ console.log(lastTwo);
 ```
 
 If you pass a value that is not in the array, it returns a `-1`.
+
+### at()
+
+`at(index)` returns the element at the given index and supports negative indexing (`-1` is the last element, `-2` is second to last). This is cleaner than `arr[arr.length - 1]`:
+
+```js
+const colors = ['red', 'green', 'blue', 'yellow'];
+
+console.log(colors.at(0));    // 'red'
+console.log(colors.at(-1));   // 'yellow' — last element
+console.log(colors.at(-2));   // 'blue'   — second to last
+
+// Compare with the old pattern:
+colors[colors.length - 1];    // 'yellow' — verbose
+colors.at(-1);                // 'yellow' — clear
+```
+
+### flatMap()
+
+`flatMap(fn)` maps each element to an array, then flattens one level. It is equivalent to `.map().flat()` but more efficient. Use it when your transform function naturally produces multiple values per input:
+
+```js
+// Split sentences into individual words
+const sentences = ['hello world', 'foo bar baz'];
+const words = sentences.flatMap(s => s.split(' '));
+// ['hello', 'world', 'foo', 'bar', 'baz']
+
+// Expand order items into individual line items
+const orders = [
+    { id: 1, items: ['shirt', 'hat'] },
+    { id: 2, items: ['shoes'] },
+];
+const allItems = orders.flatMap(order => order.items);
+// ['shirt', 'hat', 'shoes']
+```
+
+## Real-world method chaining
+
+Array methods compose well. Chaining `filter → map → reduce` is a common pattern for transforming and summarizing data:
+
+```js
+const transactions = [
+    { type: 'purchase', amount: 29.99, category: 'clothing' },
+    { type: 'refund',   amount: 15.00, category: 'electronics' },
+    { type: 'purchase', amount: 89.95, category: 'electronics' },
+    { type: 'purchase', amount: 12.49, category: 'clothing' },
+    { type: 'purchase', amount: 249.00, category: 'electronics' },
+];
+
+// Total spent on electronics purchases only
+const electronicsTotal = transactions
+    .filter(t => t.type === 'purchase' && t.category === 'electronics')
+    .map(t => t.amount)
+    .reduce((sum, amount) => sum + amount, 0);
+
+console.log(electronicsTotal.toFixed(2));   // 338.95
+
+// Summarize total by category
+const byCategory = transactions
+    .filter(t => t.type === 'purchase')
+    .reduce((totals, t) => {
+        totals[t.category] = (totals[t.category] ?? 0) + t.amount;
+        return totals;
+    }, {});
+
+// { clothing: 42.48, electronics: 338.95 }
+```
+
+Each method returns a new array without mutating the original — you can apply multiple transforms safely, and the chain reads top-to-bottom like a description of what you want.

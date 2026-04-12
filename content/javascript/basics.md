@@ -1,6 +1,6 @@
 ---
 title: "Basics"
-weight: 13
+weight: 30
 description: >
   Types and globals.
 ---
@@ -22,6 +22,18 @@ name = "Rename";
 ```
 
 `let` and `const` have block scope, `var` has global or function scope.
+
+Prefer `const` by default — use `let` only when you need to reassign a value. This makes your intent clear and prevents accidental reassignment:
+
+```js
+const MAX_RETRIES = 3;          // value never changes
+let currentAttempt = 0;         // will increment in a loop
+
+// const with objects/arrays: the reference is fixed, but contents are mutable
+const user = { name: 'Alice' };
+user.name = 'Bob';              // allowed
+user = {};                      // TypeError: Assignment to constant variable
+```
 
 ## Strings 
 
@@ -159,6 +171,44 @@ let upToLower = upper.toLowerCase();
 console.log(lowToUpper);  // ABCDEFGHIJKLMNOPQRSTUVWXYZ
 console.log(upToLower);   // abcdefghijklmnopqrstuvwxyz
 ```
+### trim, trimStart, trimEnd
+
+`trim()` removes whitespace from both ends of a string. `trimStart()` and `trimEnd()` remove from one side only. Useful when handling user input from form fields:
+
+```js
+let raw = "   user@example.com   ";
+console.log(raw.trim());        // "user@example.com"
+console.log(raw.trimStart());   // "user@example.com   "
+console.log(raw.trimEnd());     // "   user@example.com"
+```
+
+### includes
+
+`includes(str)` returns `true` if the string contains `str`. Unlike `indexOf`, it returns a Boolean instead of an index — cleaner for simple checks:
+
+```js
+let url = "https://api.example.com/users";
+
+if (url.includes('/users')) {
+    console.log('User API endpoint');
+}
+// true
+```
+
+### padStart and padEnd
+
+`padStart(length, char)` and `padEnd(length, char)` pad a string to a minimum length. Useful for formatting numbers or building fixed-width output:
+
+```js
+// Zero-pad an order number for display
+let orderId = String(42);
+console.log(orderId.padStart(6, '0'));  // "000042"
+
+// Progress indicator
+let pct = '75%';
+console.log(pct.padEnd(10, '-'));       // "75%-------"
+```
+
 ### startsWith and endsWith
 
 `startsWith(word)` and `endsWith(word)` return a boolean that indicates whether the string starts or ends with `word`. Note that it is case-sensitive, and punctuation counts as part of the string:
@@ -244,6 +294,69 @@ x === y
 // false
 ```
 
+
+## Type coercion gotchas
+
+The `==` operator silently converts types before comparing. This produces results that are hard to predict:
+
+```js
+0 == false        // true  — 0 is falsy
+'' == false       // true  — empty string is falsy
+null == undefined // true  — special case
+[] == false       // true  — array coerces to ''
+[] == ![]         // true  — both coerce to 0
+
+// Avoid == entirely. Use === everywhere.
+0 === false       // false — different types
+```
+
+The values `0`, `''`, `null`, `undefined`, `NaN`, and `false` are all _falsy_. Everything else is _truthy_. This matters for `if` checks:
+
+```js
+const username = '';
+
+// Dangerous: 0 is a valid count, but this branch won't run
+if (!username) {
+    console.log('No username provided');
+}
+
+// Explicit check is clearer
+if (username === '') {
+    console.log('No username provided');
+}
+```
+
+## Optional chaining and nullish coalescing
+
+Optional chaining (`?.`) lets you safely access nested object properties without throwing a `TypeError` when an intermediate value is `null` or `undefined`:
+
+```js
+// Without optional chaining — crashes if user is null
+const city = user.address.city;
+
+// With optional chaining — returns undefined instead of throwing
+const city = user?.address?.city;
+
+// Also works for method calls and array access
+const firstTag = post?.tags?.[0];
+const label = button?.getAttribute?.('aria-label');
+```
+
+Nullish coalescing (`??`) provides a fallback when a value is `null` or `undefined` — but *not* when it is `0` or `''`:
+
+```js
+const timeout = config.timeout ?? 3000;   // use 3000 only if timeout is null/undefined
+const retries = config.retries ?? 3;
+
+// Compare with ||, which also triggers on 0 and ''
+const timeout2 = config.timeout || 3000;  // replaces 0 with 3000 — usually wrong
+```
+
+Combine them for safe property access with a default:
+
+```js
+const displayName = user?.profile?.nickname ?? 'Anonymous';
+```
 
 ## URI and URL encoding 
 
@@ -447,5 +560,243 @@ switch(expression) {
   default:
     // code to be executed when no cases match
     break;
+}
+```
+
+A switch statement is a good fit when you have a fixed set of named states. A real-world example: mapping HTTP status codes to user-facing messages:
+
+```js
+function statusMessage(code) {
+    switch (code) {
+        case 200: return 'OK';
+        case 201: return 'Created';
+        case 400: return 'Bad request — check your input';
+        case 401: return 'Unauthorized — please log in';
+        case 403: return 'Forbidden';
+        case 404: return 'Not found';
+        case 500: return 'Server error — try again later';
+        default:  return `Unexpected status: ${code}`;
+    }
+}
+```
+
+## Functions
+
+Functions are reusable blocks of code that execute when called. Follow these naming conventions:
+- Use camelCase.
+- Use a verb to describe what the function does: `fetchUser`, `validateEmail`, `formatDate`.
+
+```js
+// Standard function declaration — hoisted to the top of its scope
+function greet(name) {
+    return `Hello, ${name}!`;
+}
+
+// Function expression — not hoisted, assigned to a variable
+const greet = function(name) {
+    return `Hello, ${name}!`;
+};
+
+// Parameters do not need type annotations
+function add(x, y) {
+    return x + y;
+}
+```
+
+### Argument object
+
+Each function has an `arguments` object that stores every value passed in, accessible by index. This predates rest parameters — prefer the modern `...args` syntax in new code:
+
+```js
+// Legacy — avoid in new code
+function sumAll() {
+    let total = 0;
+    for (let i = 0; i < arguments.length; i++) {
+        total += arguments[i];
+    }
+    return total;
+}
+
+// Modern — use rest parameters instead
+function sumAll(...nums) {
+    return nums.reduce((total, n) => total + n, 0);
+}
+
+sumAll(1, 2, 3, 4);  // 10
+```
+
+### Hoisting and strict mode
+
+Hoisting moves `var` declarations and function declarations to the top of their scope at parse time. This makes code hard to reason about:
+
+```js
+// This works because the declaration is hoisted — but it's confusing
+console.log(greet('Alice'));  // 'Hello, Alice!'
+
+function greet(name) {
+    return `Hello, ${name}!`;
+}
+
+// var is also hoisted — initialized as undefined
+console.log(score);   // undefined, not ReferenceError
+var score = 10;
+```
+
+Use `let` and `const` to avoid hoisting surprises. Add `'use strict'` at the top of files that don't use ES modules — strict mode disables several error-prone behaviors:
+
+```js
+'use strict';
+```
+
+### Default parameters
+
+If you call a function without providing an argument, JavaScript assigns that parameter `undefined`. Default parameter values guard against this:
+
+```js
+// Without default — breaks when timeout is undefined
+function fetchWithTimeout(url, timeout) {
+    // timeout is NaN if not passed
+}
+
+// With defaults — safe and self-documenting
+function fetchWithTimeout(url, timeout = 5000, retries = 3) {
+    console.log(`Fetching ${url} with ${timeout}ms timeout, ${retries} retries`);
+}
+
+fetchWithTimeout('/api/data');
+// Fetching /api/data with 5000ms timeout, 3 retries
+```
+
+## Special functions
+
+### Arrow functions
+
+Arrow functions are a concise syntax for function expressions. They do not bind their own `this` — they inherit it from the surrounding scope (see the `this` section in Objects):
+
+```js
+// No params
+const logTimestamp = () => console.log(Date.now());
+
+// One param — parentheses optional
+const double = n => n * 2;
+
+// Multiple params
+const add = (a, b) => a + b;
+
+// Multi-line body requires curly braces and explicit return
+const buildUrl = (base, path, id) => {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return `${base}${normalized}/${id}`;
+};
+```
+
+Arrow functions are most useful as callbacks, where the concise syntax reduces noise:
+
+```js
+const prices = [9.99, 14.49, 3.75, 22.00];
+
+const discounted = prices
+    .filter(p => p < 15)
+    .map(p => p * 0.9)
+    .map(p => p.toFixed(2));
+
+console.log(discounted);  // ['8.99', '13.04', '3.38']
+```
+
+### Immediately invoked function expressions (IIFE)
+
+An IIFE wraps a function in parentheses and invokes it immediately. Use IIFEs to create a private scope or to initialize something once without polluting the global namespace:
+
+```js
+// Basic IIFE
+(function () {
+    console.log('Runs immediately');
+})();
+
+// IIFE with initialization — common before ES modules
+const config = (function () {
+    const apiBase = 'https://api.example.com';
+    const version = 'v2';
+
+    return {
+        endpoint: (path) => `${apiBase}/${version}/${path}`,
+        timeout: 5000,
+    };
+})();
+
+console.log(config.endpoint('users'));  // https://api.example.com/v2/users
+```
+
+### Anonymous functions
+
+An anonymous function has no name. You assign it to a variable or pass it directly as a callback:
+
+```js
+// Assigned to a variable
+const multiply = function(a, b) {
+    return a * b;
+};
+
+// Passed inline as a callback
+setTimeout(function() {
+    console.log('Delayed output');
+}, 1000);
+```
+
+In modern code, prefer arrow functions for anonymous callbacks — they are shorter and avoid `this` binding issues.
+
+## Error handling
+
+Use `try/catch` to handle errors from code that might fail, such as network requests, JSON parsing, or operations on potentially null values. The optional `finally` block runs whether or not an error occurs:
+
+```js
+try {
+    somethingRisky();
+} catch (e) {
+    if (e instanceof TypeError) {
+        // wrong type passed to a function
+    } else if (e instanceof RangeError) {
+        // value out of allowed range
+    } else if (e instanceof EvalError) {
+        // eval() error
+    } else {
+        throw e;  // re-throw unknown errors
+    }
+} finally {
+    console.log('Runs regardless of success or failure');
+}
+```
+
+A real-world example: parsing user-supplied JSON safely:
+
+```js
+function parseConfig(raw) {
+    try {
+        const config = JSON.parse(raw);
+        if (!config.apiKey) throw new TypeError('Missing apiKey in config');
+        return config;
+    } catch (e) {
+        if (e instanceof SyntaxError) {
+            console.error('Invalid JSON — could not parse config');
+        } else {
+            console.error(e.message);
+        }
+        return null;
+    }
+}
+```
+
+You can also throw errors deliberately to signal invalid states:
+
+```js
+function divide(a, b) {
+    if (b === 0) throw new RangeError('Division by zero');
+    return a / b;
+}
+
+try {
+    divide(10, 0);
+} catch (e) {
+    console.error(e.message);  // Division by zero
 }
 ```

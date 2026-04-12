@@ -1,7 +1,7 @@
 ---
 title: "Storage"
 # linkTitle: ""
-weight: 70
+weight: 100
 description:
 ---
 
@@ -62,6 +62,85 @@ console.log(localStorage.json);                 // string
 console.log(data);                              // JSON obj
 ```
 
+### Real-world example: typed localStorage wrapper
+
+`localStorage` only stores strings, so you have to serialize and deserialize values yourself. A wrapper handles this transparently and provides a clean API:
+
+```js
+const store = {
+    get(key, fallback = null) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw !== null ? JSON.parse(raw) : fallback;
+        } catch {
+            return fallback;    // handles malformed JSON gracefully
+        }
+    },
+    set(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+    },
+    remove(key) {
+        localStorage.removeItem(key);
+    },
+    update(key, updater, fallback = null) {
+        this.set(key, updater(this.get(key, fallback)));
+    },
+};
+
+// Booleans, numbers, arrays, objects — all work transparently
+store.set('darkMode', true);
+const isDark = store.get('darkMode', false);    // boolean, not string
+
+store.set('cart', []);
+store.update('cart', items => [...items, { id: 1, qty: 2 }]);
+const cart = store.get('cart', []);
+```
+
+### Real-world example: shopping cart
+
+A cart that persists across page refreshes and loads instantly on the next visit:
+
+```js
+const CartStore = (() => {
+    const KEY = 'shopping_cart';
+    let items = JSON.parse(localStorage.getItem(KEY)) ?? [];
+
+    const save = () => localStorage.setItem(KEY, JSON.stringify(items));
+
+    return {
+        getItems: () => [...items],
+
+        add(product) {
+            const existing = items.find(i => i.id === product.id);
+            if (existing) {
+                existing.qty++;
+            } else {
+                items.push({ ...product, qty: 1 });
+            }
+            save();
+        },
+
+        remove(productId) {
+            items = items.filter(i => i.id !== productId);
+            save();
+        },
+
+        total() {
+            return items.reduce((sum, i) => sum + i.price * i.qty, 0);
+        },
+
+        clear() {
+            items = [];
+            save();
+        },
+    };
+})();
+
+CartStore.add({ id: 'shoe-42', name: 'Trail Runner', price: 89.99 });
+CartStore.add({ id: 'sock-m',  name: 'Merino Socks', price: 14.99 });
+console.log(`Total: $${CartStore.total().toFixed(2)}`);  // Total: $104.98
+```
+
 ### Properties and methods
 
 | Property              | Description                                                                                                     |
@@ -93,6 +172,35 @@ When `localStorage` changes, the browser fires a 'storage' event on all Window o
 - register a handler for a storage event with `window.onstorage` or `window.addEventListener('storage', func(){...}))`
 - a sort of broadcast mechanism that alerts all windows of a user preference or change
 - 'storage' event listener is useful if the user changes to dark mode - the other tabs with the app open can change too
+
+### Real-world example: syncing dark mode across tabs
+
+The `storage` event fires in every tab *except* the one that made the change. Use it to keep UI state consistent when the user has multiple tabs open:
+
+```js
+const THEME_KEY = 'theme';
+
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;   // CSS can use [data-theme="dark"]
+}
+
+// Apply saved theme on load
+applyTheme(localStorage.getItem(THEME_KEY) ?? 'light');
+
+// Toggle theme in the current tab
+document.querySelector('#theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+});
+
+// Keep all other open tabs in sync
+window.addEventListener('storage', (e) => {
+    if (e.key === THEME_KEY && e.newValue) {
+        applyTheme(e.newValue);
+    }
+});
+```
 
 Event properties for a storage event:
 

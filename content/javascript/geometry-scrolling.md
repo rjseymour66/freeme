@@ -1,7 +1,7 @@
 ---
 title: "Document geometry and scrolling"
 linkTitle: "Geometry and scrolling"
-weight: 40
+weight: 70
 description:
 ---
 
@@ -119,6 +119,87 @@ b.scrollIntoView({
     block: "center",
     inline: "nearest"
 });
+```
+
+## Intersection Observer
+
+Scroll event listeners fire hundreds of times per second. The **Intersection Observer API** is more efficient: the browser calls your callback only when an element crosses a visibility threshold, with no polling required.
+
+Common use cases:
+- Lazy-loading images below the fold
+- Triggering CSS animations when elements enter the viewport
+- Infinite scroll — loading more content when the bottom is reached
+- Analytics — tracking which sections a user actually sees
+
+```js
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);   // stop watching once visible
+        }
+    });
+}, {
+    threshold: 0.15,                    // fire when 15% of the element is in view
+    rootMargin: '0px 0px -60px 0px',    // shrink the bottom of the viewport by 60px
+});
+
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+```
+
+| Option | Description |
+|--------|-------------|
+| `threshold` | A number (0–1) or array of numbers — the fraction of the element that must be visible to trigger the callback |
+| `rootMargin` | Grows or shrinks the intersection root — same syntax as CSS `margin`. Use negative values to trigger before an element fully enters the viewport |
+| `root` | The scroll container to observe relative to. Defaults to the browser viewport |
+
+### Real-world example: lazy-loading images
+
+Swap a placeholder `src` for the real image URL only when the image scrolls into view. This reduces initial page load time significantly:
+
+```js
+const imageObserver = new IntersectionObserver((entries) => {
+    entries.forEach(({ isIntersecting, target }) => {
+        if (!isIntersecting) return;
+
+        target.src = target.dataset.src;
+        target.removeAttribute('data-src');
+        imageObserver.unobserve(target);
+    });
+});
+
+document.querySelectorAll('img[data-src]').forEach(img => imageObserver.observe(img));
+```
+
+```html
+<!-- Low-res placeholder loads immediately; real image loads on scroll -->
+<img
+  data-src="/images/product-hero.jpg"
+  src="/images/placeholder-blur.jpg"
+  alt="Product hero"
+  width="1200" height="600"
+>
+```
+
+### Real-world example: scroll progress bar
+
+A reading progress bar shows how far down the page the user has scrolled. Use `{ passive: true }` so the scroll listener never blocks rendering:
+
+```js
+const bar = document.querySelector('#progress-bar');
+
+window.addEventListener('scroll', () => {
+    const scrolled = window.scrollY;
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = `${Math.round((scrolled / total) * 100)}%`;
+}, { passive: true });
+```
+
+```html
+<div id="progress-bar" style="
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: #0057ff; width: 0%; transition: width 0.1s linear;
+"></div>
 ```
 
 ## Viewport size, content size, scroll position

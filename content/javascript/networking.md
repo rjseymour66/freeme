@@ -1,7 +1,7 @@
 ---
 title: "Networking"
 # linkTitle: ""
-weight: 60
+weight: 90
 description:
 ---
 
@@ -274,7 +274,29 @@ fetch('https://jsonplaceholder.typicode.com/posts',
   - URL hostname does not exist
 - For these reasons, you should always include a `.catch()` clause with `fetch()`
 
-Here is an example with error handling:
+### The fetch gotcha: 4xx and 5xx do not reject
+
+`fetch()` only rejects its Promise when the network fails entirely (offline, DNS failure, server unreachable). A `404 Not Found` or `500 Internal Server Error` response *resolves* the Promise — you must check `response.ok` yourself:
+
+```js
+// WRONG — logs the 404 body as if the request succeeded
+fetch('/api/missing')
+    .then(res => res.json())
+    .then(data => console.log(data));
+
+// CORRECT — check ok before reading the body
+async function getUser(id) {
+    const res = await fetch(`/api/users/${id}`);
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    return res.json();
+}
+```
+
+`response.ok` is `true` for status codes 200–299 only.
+
+Here is a fuller example with error handling:
 ```js
 fetch(url)
     .then(response => {
@@ -396,6 +418,87 @@ fetch(url, {
         }
     })
     .finally(() => clearTimeout(timeoutId));
+```
+
+### Retry with exponential backoff
+
+Transient failures and rate-limit responses (`429`) often succeed on a retry. Exponential backoff doubles the wait time on each attempt to avoid hammering a struggling server:
+
+```js
+async function fetchWithRetry(url, options = {}, maxRetries = 3, baseDelay = 500) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const res = await fetch(url, options);
+
+            if (res.ok) return res;
+
+            // Retry on rate limit or server error — not on client errors (4xx)
+            if (res.status === 429 || res.status >= 500) {
+                if (attempt === maxRetries) throw new Error(`HTTP ${res.status} after ${maxRetries} retries`);
+                const delay = baseDelay * 2 ** (attempt - 1);   // 500ms, 1s, 2s…
+                await new Promise(r => setTimeout(r, delay));
+                continue;
+            }
+
+            throw new Error(`HTTP ${res.status}`);  // 4xx — do not retry
+        } catch (err) {
+            if (attempt === maxRetries) throw err;
+            await new Promise(r => setTimeout(r, baseDelay * 2 ** (attempt - 1)));
+        }
+    }
+}
+
+// Usage
+try {
+    const res = await fetchWithRetry('/api/reports', { method: 'GET' });
+    const data = await res.json();
+} catch (err) {
+    console.error('Request failed after all retries:', err.message);
+}
+```
+
+### Centralized API wrapper
+
+Instead of repeating headers, base URLs, and `response.ok` checks on every call, wrap `fetch` in a single function. Every call site becomes one line:
+
+```js
+const api = (() => {
+    const BASE = 'https://api.example.com/v1';
+
+    async function request(method, path, body = null) {
+        const token = localStorage.getItem('auth_token');
+
+        const res = await fetch(`${BASE}${path}`, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            body: body ? JSON.stringify(body) : null,
+        });
+
+        if (!res.ok) {
+            // Try to read an error message from the response body
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error(err.message ?? `HTTP ${res.status}`);
+        }
+
+        return res.status === 204 ? null : res.json();  // 204 No Content has no body
+    }
+
+    return {
+        get:    (path)        => request('GET',    path),
+        post:   (path, body)  => request('POST',   path, body),
+        put:    (path, body)  => request('PUT',    path, body),
+        patch:  (path, body)  => request('PATCH',  path, body),
+        delete: (path)        => request('DELETE', path),
+    };
+})();
+
+// Clean call sites — no headers, no ok checks, no base URL
+const users = await api.get('/users');
+const created = await api.post('/users', { name: 'Alice', role: 'admin' });
+await api.delete('/users/42');
 ```
 
 ## Server-sent events

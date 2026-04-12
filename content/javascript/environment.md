@@ -1,7 +1,7 @@
 ---
 title: "Programming environment"
 linkTitle: "Environment"
-weight: 10
+weight: 20
 description:
 ---
 
@@ -192,11 +192,45 @@ First events to occur are `DOMContentLoaded` and 'load' events:
 | `visibilitychange` | When the page is hidden or visible                  | Pause/resume background tasks               |
 
 ```js
-window.addEventListener('DOMContentLoaded', () => alert('DOMContentLoaded'));
-document.addEventListener('DOMContentLoaded', () => alert('DOMContentLoaded'));
+document.addEventListener('DOMContentLoaded', () => console.log('DOM ready'));
+window.addEventListener('DOMContentLoaded', () => console.log('DOM ready (window)'));
 
-// document doesn't have the `load` event, only window does
-window.addEventListener('load', () => alert('DOMContentLoaded'));
+// document doesn't have the `load` event — only window does
+window.addEventListener('load', () => console.log('page fully loaded'));
+```
+
+### Real-world example: initializing UI components
+
+`DOMContentLoaded` is the right place to attach event listeners and query the DOM. Use `load` only when you depend on images or stylesheets being available:
+
+```js
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('#signup-form');
+    const status = document.querySelector('#status-msg');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = form.elements['email'].value.trim();
+
+        if (!email.includes('@')) {
+            status.textContent = 'Enter a valid email address.';
+            return;
+        }
+
+        status.textContent = 'Submitting...';
+        try {
+            const res = await fetch('/api/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            if (!res.ok) throw new Error('Server error');
+            status.textContent = 'Success! Check your inbox.';
+        } catch {
+            status.textContent = 'Something went wrong. Try again.';
+        }
+    });
+});
 ```
 
 ### Threading model
@@ -293,4 +327,45 @@ The single executor is called the _event loop_. The event loop executes all of t
 
 The call stack is a queue of all actions that are pending execution. The event loop constantly monitors the call stack and completes pending tasks, one-by-one, from the top of the stack. 
 
-When you use a callback, Javascript outsources the callback task to the browser's web API. When the callback completes, it goes into the callback queue. When the call stack is empty, the event loop checks the callback queue to see if there is any pending work. If there are callbacks waiting in the queue, they are executed one-by-one, from the top of the queue. After each callback is executed, the event loop checks the call stack to see if there is any work to do before executing another callback. 
+When you use a callback, Javascript outsources the callback task to the browser's web API. When the callback completes, it goes into the callback queue. When the call stack is empty, the event loop checks the callback queue to see if there is any pending work. If there are callbacks waiting in the queue, they are executed one-by-one, from the top of the queue. After each callback is executed, the event loop checks the call stack to see if there is any work to do before executing another callback.
+
+### Microtasks vs macrotasks
+
+The callback queue has two tiers with different priorities:
+
+- **Macrotasks** (`setTimeout`, `setInterval`, I/O, UI events): one runs per event loop turn.
+- **Microtasks** (Promises, `queueMicrotask`, `MutationObserver`): the entire microtask queue drains before the next macrotask begins.
+
+```js
+console.log('1: sync');
+
+setTimeout(() => console.log('4: macrotask'), 0);
+
+Promise.resolve().then(() => console.log('3: microtask'));
+
+console.log('2: sync');
+
+// Output:
+// 1: sync
+// 2: sync
+// 3: microtask    ← all microtasks run before the next macrotask
+// 4: macrotask
+```
+
+This explains a common surprise: `await` resumes as a microtask, so code after `await` runs *before* any pending `setTimeout` callbacks — even `setTimeout(..., 0)`:
+
+```js
+async function run() {
+    console.log('A');
+    await Promise.resolve();
+    console.log('C');   // microtask — runs before D
+}
+
+setTimeout(() => console.log('D'), 0);  // macrotask
+run();
+console.log('B');
+
+// Output: A, B, C, D
+```
+
+Knowing this order matters when you're sequencing async work: prefer Promises over `setTimeout` when you need something to run as soon as the current call stack is clear. 

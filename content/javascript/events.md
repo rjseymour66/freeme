@@ -1,7 +1,7 @@
 ---
 title: "Events"
 linkTitle: "Events"
-weight: 20
+weight: 50
 description:
 ---
 
@@ -159,7 +159,34 @@ If you pass the object:
 - `capture`: Boolean, determines whether the event handler is a _capturing handler_
 - `once`: Boolean, automatically remove the handler after it is invoked once
 - `passive`: Boolean, controls `preventDefault()` behavior. If `true`, the handler will never call `preventDefault()`. Lets the web browser know that it can use its default behavior when the handler is running.
-  Firefox and Chrome make `touchmove` and `mousewheel` events passive by default, because the browser needs to be able to scroll when users are touching the screen. 
+  Firefox and Chrome make `touchmove` and `mousewheel` events passive by default, because the browser needs to be able to scroll when users are touching the screen.
+
+**`once` — run a handler exactly one time:**
+
+Use `once: true` whenever you need a setup step that should only happen once — for example, showing a welcome tooltip or tracking first interaction:
+
+```js
+// Show an onboarding tooltip only on the user's first click
+document.addEventListener('click', () => {
+    showOnboardingTooltip();
+}, { once: true });
+
+// Or: log when a video is first played (not on every resume)
+videoEl.addEventListener('play', () => {
+    analytics.track('video_first_play', { id: videoEl.dataset.id });
+}, { once: true });
+```
+
+**`passive: true` — improve scroll performance:**
+
+Scroll and touch handlers can block the browser's rendering pipeline unless you explicitly promise not to call `preventDefault()`. Mark them passive to keep scrolling smooth:
+
+```js
+// Lets the browser scroll immediately without waiting for your handler
+window.addEventListener('scroll', () => {
+    updateProgressBar();
+}, { passive: true });
+```
 
 ### Add handler on each node in group
 
@@ -322,4 +349,92 @@ You can manage event bubbling by using the 3rd parameter for `addEventListener`,
 document.addEventListener("DOMContentLoaded", func(), useCapture;)
 ```
 
-`useCapture` is a Boolean. This enables _event delegation_: instead of adding event handlers to every element in a block of HTML, you define a wrapper and assign the event to the wrapper element. This wrapper element applies the event handler to its child elements. 
+`useCapture` is a Boolean. This enables _event delegation_: instead of adding event handlers to every element in a block of HTML, you define a wrapper and assign the event to the wrapper element. This wrapper element applies the event handler to its child elements.
+
+#### Real-world example: dynamic todo list
+
+Event delegation is essential when list items are added or removed dynamically. Registering one listener on the parent is more efficient than registering one on every `<li>`:
+
+```js
+const list = document.querySelector('#todo-list');
+
+// One listener handles clicks on all current AND future items
+list.addEventListener('click', (e) => {
+    // Target a specific element type using matches()
+    if (e.target.matches('.delete-btn')) {
+        const item = e.target.closest('li');
+        item.remove();
+    }
+
+    if (e.target.matches('.complete-btn')) {
+        const item = e.target.closest('li');
+        item.classList.toggle('done');
+    }
+});
+
+// Adding a new item works automatically — no new listener needed
+function addTodo(text) {
+    const li = document.createElement('li');
+    li.innerHTML = `
+        <span>${text}</span>
+        <button class="complete-btn">Done</button>
+        <button class="delete-btn">Delete</button>
+    `;
+    list.appendChild(li);
+}
+```
+
+## Custom events
+
+You can create and dispatch your own events using `CustomEvent`. This is useful for communicating between components without tight coupling:
+
+```js
+// Dispatch a custom event with a payload
+function notifyUserLoggedIn(user) {
+    const event = new CustomEvent('userLoggedIn', {
+        bubbles: true,      // event bubbles up the DOM
+        detail: { user },   // payload accessible at e.detail
+    });
+    document.dispatchEvent(event);
+}
+
+// Listen for it anywhere in the document
+document.addEventListener('userLoggedIn', (e) => {
+    const { user } = e.detail;
+    console.log(`Welcome, ${user.name}!`);
+    updateNavBar(user);
+});
+
+// Trigger it
+notifyUserLoggedIn({ name: 'Alice', role: 'admin' });
+```
+
+Custom events let one part of your app signal changes without importing or calling the other part directly.
+
+## Debouncing events
+
+High-frequency events like `input`, `scroll`, and `resize` fire many times per second. Debouncing delays execution until the user stops firing the event for a set period:
+
+```js
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+}
+
+// Real-world use: search-as-you-type
+const searchInput = document.querySelector('#search');
+
+const search = debounce(async (query) => {
+    if (!query) return;
+    const results = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await results.json();
+    renderResults(data);
+}, 300);
+
+searchInput.addEventListener('input', (e) => search(e.target.value));
+```
+
+Without debouncing, the above would fire a network request on every keystroke. With a 300ms delay, it waits until the user pauses.

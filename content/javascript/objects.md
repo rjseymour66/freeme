@@ -1,7 +1,7 @@
 ---
 title: "Objects and organization"
 linkTitle: "Objects"
-weight: 15
+weight: 40
 description: >
   Different ways to organize your JS code.
 ---
@@ -570,29 +570,6 @@ Period.prototype.format = function () {
 const walkPeriod = new Period(2, 30);
 ```
 
-## Scope
-
-- `var` is _function-scoped_, which means they are available anywhere within a function. This complicates `var` usage in nested functions like closures.
-- `let` and `var` are _block-scoped_. This limits their scope to curly braces (`{ }`), which provides more control over scope and is optimal for nested functions.
-
-## Closures
-
-A closure is a combination of a function and its lexical environment (its surrounding state).
-
-```js
-let makeAdding = (firstNumber) => {
-  const first = firstNumber;
-
-  return function resulting(secondNumber) {
-    const second = secondNumber;
-    return first + second;
-  };
-};
-
-const add5 = makeAdding(5);
-console.log(add5(3)); // => 8
-```
-
 ## Object shorthand notation
 
 The following factor function uses the object shorthand notation:
@@ -646,6 +623,62 @@ console.log(three); // => 3
 console.log(four); // => 4
 ```
 
+## Object spread
+
+The spread operator (`...`) copies all enumerable own properties from one object into another. It is the most common way to merge or clone objects:
+
+```js
+const defaults = { theme: 'light', fontSize: 14, language: 'en' };
+const userPrefs = { theme: 'dark', fontSize: 16 };
+
+// Merge: rightmost values win
+const config = { ...defaults, ...userPrefs };
+// { theme: 'dark', fontSize: 16, language: 'en' }
+
+// Shallow clone — changes to clone do not affect original
+const copy = { ...defaults };
+copy.theme = 'high-contrast';
+console.log(defaults.theme);  // 'light' — unchanged
+```
+
+> Spread performs a *shallow* copy. Nested objects are still shared by reference. Use `structuredClone()` for a deep copy.
+
+```js
+// Override a single property without mutating the original
+function updateUser(user, changes) {
+    return { ...user, ...changes, updatedAt: Date.now() };
+}
+
+const user = { name: 'Alice', role: 'viewer' };
+const updated = updateUser(user, { role: 'admin' });
+// { name: 'Alice', role: 'admin', updatedAt: 1712345678 }
+```
+
+## Optional chaining on objects
+
+Use `?.` to safely access deeply nested properties without writing defensive null checks:
+
+```js
+// Without optional chaining — crashes if address is null
+const city = user.address.city;
+
+// With optional chaining — returns undefined instead of throwing
+const city = user?.address?.city;
+
+// Method calls
+const formatted = response?.data?.toUpperCase?.();
+
+// Array elements
+const firstTag = post?.tags?.[0];
+```
+
+Combine with `??` (nullish coalescing) to provide a fallback:
+
+```js
+const displayName = user?.profile?.nickname ?? 'Anonymous';
+const timeout = config?.network?.timeout ?? 5000;
+```
+
 ## Factory functions
 
 ### vs constructors
@@ -679,6 +712,41 @@ console.log(constructor); // => User {name: 'jack', discordName: '@jack'}
 
 let factoryFunc = createUser("jack");
 console.log(factoryFunc); // => {name: 'jack', discordName: '@jack'}
+```
+
+### Real-world example: API client factory
+
+A factory function is a natural fit for creating configured service clients. The `baseUrl` and `headers` are captured in the closure — callers get a clean interface without worrying about configuration:
+
+```js
+const createApiClient = (baseUrl, token) => {
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    };
+
+    const request = async (method, path, body = null) => {
+        const res = await fetch(`${baseUrl}${path}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : null,
+        });
+        if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
+        return res.json();
+    };
+
+    return {
+        get:    (path)       => request('GET',    path),
+        post:   (path, body) => request('POST',   path, body),
+        put:    (path, body) => request('PUT',    path, body),
+        delete: (path)       => request('DELETE', path),
+    };
+};
+
+// Usage
+const api = createApiClient('https://api.example.com', process.env.API_TOKEN);
+const users = await api.get('/users');
+const newUser = await api.post('/users', { name: 'Alice', role: 'admin' });
 ```
 
 ### Private variables and functions
@@ -779,18 +847,35 @@ To pass parameters to an IIFE, include it in the parentheses at the end. The pre
 
 Scope answers the question, _where are my variables and functions available to me?_
 
+- `var` is _function-scoped_: available anywhere within the function it is declared in. This complicates `var` usage in nested functions like closures.
+- `let` and `const` are _block-scoped_: limited to the surrounding curly braces (`{ }`). This is more predictable and is the preferred choice.
+
 ### Global scope
 
 Anything that is in the global scope is attached to the window object, except for variables that are declared with `let` and `const`. These variables are global, but not attached to the `window` object.
 
 Also, you can't reassign `const`.
 
-`let` and `var` are block-scoped.
+`let` and `const` are block-scoped.
 `var` is function-scoped.
 
 ## Closures
 
 A closure is _the ability to access a parent level scope from a child scope, even after the parent function has been terminated_.
+
+A closure is also described as a combination of a function and its lexical environment (its surrounding state). A simple example — a function that adds a fixed number:
+
+```js
+const makeAdder = (firstNumber) => {
+    return (secondNumber) => firstNumber + secondNumber;
+};
+
+const add5 = makeAdder(5);
+console.log(add5(3));   // => 8
+console.log(add5(10));  // => 15
+```
+
+`add5` closes over `firstNumber`. Even after `makeAdder` returns, `firstNumber` stays in memory because `add5` still references it.
 
 The following closures are equivalent:
 
@@ -1041,6 +1126,57 @@ Static methods are on the class itself--you cannot access them from an object of
 - properties: caches, fixed-configuration, other data that does not need to be replicated across instances.
 
 Think about how some string methods are accessed on the instance of a string itself--`someString.slice(0, 5)`--whereas some methods are called on the String constructor--`String.fromCharCode(79, 100, 105, 110)`.
+
+### Real-world example: form validator class
+
+Classes work well when you need multiple instances that share behavior but maintain independent state. Here a `FormValidator` tracks errors per instance:
+
+```js
+class FormValidator {
+    #rules = new Map();
+    #errors = [];
+
+    addRule(field, validate, message) {
+        this.#rules.set(field, { validate, message });
+        return this;  // enable chaining
+    }
+
+    validate(data) {
+        this.#errors = [];
+
+        for (const [field, { validate, message }] of this.#rules) {
+            if (!validate(data[field])) {
+                this.#errors.push({ field, message });
+            }
+        }
+
+        return this.#errors.length === 0;
+    }
+
+    get errors() {
+        return [...this.#errors];  // return a copy
+    }
+}
+
+// Usage
+const validator = new FormValidator()
+    .addRule('email',    v => v?.includes('@'),      'Invalid email')
+    .addRule('password', v => v?.length >= 8,         'Password too short')
+    .addRule('username', v => /^[a-z0-9_]+$/i.test(v), 'Invalid username');
+
+const valid = validator.validate({
+    email: 'alice@example.com',
+    password: 'hunter2',
+    username: 'alice_42',
+});
+
+if (!valid) {
+    console.log(validator.errors);
+    // [{ field: 'password', message: 'Password too short' }]
+}
+```
+
+Notice the use of `#rules` and `#errors` — private class fields that prevent callers from accidentally mutating internal state.
 
 ## Modules
 

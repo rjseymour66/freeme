@@ -1,13 +1,19 @@
 ---
 title: "Patterns"
 # linkTitle: "CSS"
-weight: 200
+weight: 130
 # description: 
 ---
 
 https://www.patterns.dev/
 
+This page collects common browser JS patterns — small, self-contained examples that combine DOM manipulation, event handling, and data management. Each example is intentionally minimal so the core technique is easy to extract and adapt.
+
+## Examples
+
 ### Getting text content from click event
+
+Passes `this` from an inline `onclick` handler to read the element's text content. Demonstrates how to identify which button was clicked when multiple buttons share a handler.
 
 ```html
 <!doctype html>
@@ -29,7 +35,9 @@ https://www.patterns.dev/
 </html>
 ```
 
-### Build table and retrieve data 
+### Build table and retrieve data
+
+Generates an HTML table from a JavaScript array using `forEach`, and stores row data in `data-` attributes. Clicking a row reads those attributes to display a message — no DOM traversal needed to get the row's data.
 
 ```html 
 <!DOCTYPE html>
@@ -67,7 +75,9 @@ https://www.patterns.dev/
 </html>
 ```
 
-### Add event listener to button with loop 
+### Add event listener to button with loop
+
+Selects multiple buttons with `querySelectorAll` and attaches an individual click listener to each using `forEach`. The `this` keyword inside a regular function refers to the clicked button.
 
 ```html 
 <!doctype html>
@@ -94,7 +104,9 @@ https://www.patterns.dev/
 </html>
 ```
 
-### Add items to a list with input box and button 
+### Add items to a list with input box and button
+
+Reads a text input value, creates a new `<li>` element with `createElement`, and appends it to an ordered list. A foundation for any add-to-list UI.
 
 ```html 
 <!DOCTYPE html>
@@ -128,7 +140,9 @@ https://www.patterns.dev/
 </html>
 ```
 
-### Collapsible accordian 
+### Collapsible accordion
+
+Toggles an `.active` class on an adjacent sibling element when a title is clicked. Calls a `remover()` function first to close any previously open panel — ensuring only one panel is open at a time.
 
 ```html 
 <!doctype html>
@@ -178,6 +192,8 @@ https://www.patterns.dev/
 ```
 
 ### Voting system (add to list, increase counter on clicks)
+
+Combines dynamic list building with per-row click handlers. Each row stores a counter in its last `<td>` — clicking the row reads and increments the value directly in the DOM. Demonstrates how to attach event listeners inside a factory function.
 
 ```html 
 <!DOCTYPE html>
@@ -347,7 +363,9 @@ https://www.patterns.dev/
 ```
 
 
-### Dark mode 
+### Dark mode
+
+Toggles dark and light themes by setting `document.body.style` properties. A simple toggle that stores state in a local variable. For a production pattern that persists across page loads and syncs across tabs, see the `localStorage` storage events example.
 
 ```html 
 <!DOCTYPE html>
@@ -377,7 +395,7 @@ https://www.patterns.dev/
 
 ### Build your own analytics
 
-Record IDs, tabs, and class name of items clicked on:
+Uses event delegation on a container to intercept all clicks. For each click, records the target element's ID, tag name, text content, and class into an array. Demonstrates how a single listener can track interactions across a section of the page without attaching listeners to every element.
 
 ```html 
 <!doctype html >

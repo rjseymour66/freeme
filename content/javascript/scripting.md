@@ -1,7 +1,7 @@
 ---
 title: "Scripting documents"
 linkTitle: "Scripting"
-weight: 30
+weight: 60
 description:
 ---
 
@@ -52,6 +52,33 @@ let ar = Array.from(titles);
 // call querySelector on Element object
 let inner = document.querySelector('.inner-div');
 let innerh2 = inner.querySelector('h2');
+```
+
+### Real-world example: filterable list
+
+One listener on the input filters all items in real time. Store the searchable value in a `data-` attribute so the filter logic doesn't depend on visible text formatting:
+
+```js
+const input = document.querySelector('#filter-input');
+const items = document.querySelectorAll('.user-item');
+
+input.addEventListener('input', () => {
+    const query = input.value.toLowerCase();
+
+    items.forEach(item => {
+        const name = item.dataset.name.toLowerCase();
+        item.hidden = !name.includes(query);
+    });
+});
+```
+
+```html
+<input id="filter-input" placeholder="Search users…">
+<ul>
+  <li class="user-item" data-name="alice johnson">Alice Johnson</li>
+  <li class="user-item" data-name="bob smith">Bob Smith</li>
+  <li class="user-item" data-name="carol white">Carol White</li>
+</ul>
 ```
 
 `event.target.closest('<element>)` element selector either matches the element object that it is invoked on, or it finds the parent of the element argument:
@@ -204,7 +231,24 @@ console.log(div.dataset.myData);            // custom attribute
 ### innerHTML for HTML content
 
 You can set and return element content as a string of HTML or plain text:
-- NEVER INSERT USER INPUT INTO THE DOCUMENT
+- **Never insert untrusted content with `innerHTML`.** An attacker can inject `<script>` tags or event handler attributes, which executes arbitrary code (XSS). Use `textContent` for plain text, or `createElement` for structured content. If you must render HTML from an untrusted source, sanitize it first with a library like [DOMPurify](https://github.com/cure53/DOMPurify):
+
+  ```js
+  // UNSAFE — never do this with user input
+  el.innerHTML = userInput;
+
+  // SAFE — plain text only
+  el.textContent = userInput;
+
+  // SAFE — structured content via DOM API
+  const p = document.createElement('p');
+  p.textContent = userInput;
+  container.appendChild(p);
+
+  // SAFE — HTML from untrusted source, sanitized
+  // el.innerHTML = DOMPurify.sanitize(userInput);
+  ```
+
 - `innerHTML` returns the content as a string of HTML markup
   - Not efficient to append text because this method it has to serialize the HTML string as text, append the text, then parse it back into an HTML element
 - `outerHTML` includes the enclosing element too when you get it. When you set it, it replaces the element entirely
@@ -471,158 +515,43 @@ let setTheme = (name) => {
 setTheme('other-style');
 ```
 
+### Real-world example: toast notification
+
+A toast is a temporary message that appears and fades out automatically. It creates a DOM element, inserts it, then removes it after a delay — no HTML template needed:
+
+```js
+function showToast(message, type = 'info', duration = 3000) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.className = `toast toast--${type}`;
+    Object.assign(toast.style, {
+        position: 'fixed',
+        bottom: '1.5rem',
+        right: '1.5rem',
+        padding: '0.75rem 1.25rem',
+        borderRadius: '6px',
+        color: 'white',
+        background: type === 'error' ? '#c62828' : '#323232',
+        transition: 'opacity 0.3s ease',
+        opacity: '1',
+    });
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }, duration);
+}
+
+// Usage
+showToast('Settings saved.');
+showToast('Upload failed — please try again.', 'error');
+showToast('New message from Alice.', 'info', 5000);
+```
+
 ### Animation and events
 
 Revisit when I understand transitions and keyframes.
 
-
-Functions are actions--a bundle of statements that are executed when called. 
-
-Follow these guidelines when you name a function:
-- Use camelCase.
-- Describe what the function does.
-- Use a verb to help describe what the function is doing. Ex: `sendMsg`.
-
-## Functions 
-
-```js
-// standard function declaration
-function nameOfFunction() {
-  // func body
-}
-
-// assign anonymous function to a variable
-let varFunction = function() {
-  // func body
-}
-
-// params do not need types
-function paramFunc(param1, param2) {
-  // func body
-}
-```
-
-### Argument object
-
-Each function has a custom `arguments` object that stores the values passed into each function as an array. Access them with index notation:
-
-```js
-function test(a, b, c) {
-  console.log("first:", a, arguments[0]);
-  console.log("second:", b, arguments[1]);
-  console.log("third:", c, arguments[2]);
-}
-test("fun", "js", "secrets");
-```
-
-It is now more common (i.e. modern) to use the rest parameter `(...param)` that arguments.
-
-
-### Hoisting and Strict mode 
-
-Hoisting is when Javascript moves declarations to the top of the scope in which they are defined. It makes code less readable and is generally confusing. When you declare variables and functions, use `let` instead of `var`.
-
-To use `strict` mode, add the following to the top of a `.js` file:
-
-```js 
-"use strict";
-```
-
-`strict` mode is considered a best practice. It fixes many of the odd behaviors that Javascript has (such as hoisting). It is a good precursor to TypeScript or other frameworks.
-
-### Default parameters
-
-If you do not pass arguments to functions that require parameters, then Javascript assigns them the default type, `undefined`.
-
-> `undefined` + `undefined` = `NaN`
-
-Create default parameters with the assignment syntax:
-
-```js
-function addNums(x = 2, y = 3) {
-  return x + y;
-}
-```
-
-## Special functions
-
-
-### Arrow functions 
-
-Arrow functions are a short-hand notation. They are useful for passing higher-order functions:
-
-```js
-// no params
-() => single line func body 
-
-// one param
-param => single line func body
-
-// params
-(param1, param2) => single line func body
-
-(param1, param2) => {
-  // multiple 
-  // lines of 
-  // code
-}
-```
-
-### Immediately invoked function expressions (IIFE)
-
-These are anonymous functions that you invoke immediately. These are helpful when you want to initialize something, or when yiu want to create private and public variables and functions.
-
-To create an IIFE, wrap an anonymous function in parentheses, and add another set of parentheses after the function definition to invoke the function immediately:
-
-```js
-(function () {
-  console.log("IIFE")
-})();
-```
-
-### Anonymous functions 
-
-To declare an anonymous function, use the `function` keyword followed by the function definition. You can also assign the function to a variable:
-
-```js 
-function() {
-  // function body
-}
-
-let funcVar = function() {
-  // function body
-}
-```
-
-## Error handling 
-
-Use a `try/catch` block with an optional `finally` block to handle potential errors:
-
-```js 
-try {
-  somethingVeryDangerous();
-} catch (e) {
-  if (e instanceof TypeError) {
-    // deal with TypeError exceptions
-  } else if (e instanceof RangeError) {
-    // deal with RangeError exceptions
-  } else if (e instanceof EvalError) {
-    // deal with EvalError exceptions
-  } else {
-    //deal with all other exceptions
-    throw e; //rethrow
-  }
-} finally {
-  console.log("Error or no error, I will be logged!");
-}
-```
-The `finally` block is executed if the function succeeds or if it throws an error. 
-
-You can also throw an error on purpose: 
-
-```js 
-function somethingVeryDangerous() {
-  throw RangeError();
-}
-```
 

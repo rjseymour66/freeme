@@ -1,9 +1,21 @@
 ---
 title: "Build tools"
-weight: 5
+weight: 10
 description: >
   Toolchains to manage your environments and distribute your code.
 ---
+
+## Why you need a bundler
+
+Without a bundler, managing JavaScript dependencies means:
+- Linking each library manually with a `<script>` tag.
+- Shipping every file as a separate HTTP request — slow on mobile.
+- No support for `import` syntax in older browsers.
+- No way to use modern JS syntax without manually transpiling.
+
+A bundler solves this: it reads your source files, resolves all `import` statements, and produces a single optimized output file the browser downloads once. It also tree-shakes dead code, minifies output, and can process non-JS assets like CSS and images.
+
+> **Modern alternative**: [Vite](https://vitejs.dev/) uses native ES modules during development (no bundling needed) and Rollup for production builds. It is now the recommended choice for new React, Vue, and Svelte projects. Webpack remains the standard in legacy and enterprise codebases.
 
 ## Project quickstart
 
@@ -39,7 +51,17 @@ description: >
        },
    };
    ```
-5. 
+5. Add build scripts to `package.json`, then run your first build:
+   ```json
+   {
+     "scripts": {
+       "build": "webpack --mode=production",
+       "start": "webpack serve --open",
+       "watch": "webpack --watch"
+     }
+   }
+   ```
+   Run `npm run build` to produce a production bundle. Run `npm start` to launch the dev server with live reload.
 
 ## History
 

@@ -1,7 +1,7 @@
 ---
 title: "Location, navigation, and history"
 linkTitle: "Location, nav, history"
-weight: 50
+weight: 80
 description:
 ---
 
@@ -23,6 +23,39 @@ The Location object is represented by the `location` property on the Window and 
 let url = new URL(window.location);         // URL object  
 let query = url.searchParams.get("q");      // test
 ```
+
+### Real-world example: shareable filter state
+
+Store UI state (current page, active filters, sort order) in query parameters so users can bookmark and share filtered views. Update the URL without reloading the page using `history.pushState`:
+
+```js
+// Read state from URL on page load
+function getFilters() {
+    const params = new URL(window.location).searchParams;
+    return {
+        page:     parseInt(params.get('page') ?? '1', 10),
+        category: params.get('category') ?? 'all',
+        sort:     params.get('sort') ?? 'newest',
+    };
+}
+
+// Apply a filter and update the URL
+function applyFilter(key, value) {
+    const url = new URL(window.location);
+    url.searchParams.set(key, value);
+    url.searchParams.set('page', '1');   // reset to page 1 on filter change
+    history.pushState({}, '', url);
+    renderResults(getFilters());
+}
+
+// Initialize on load
+renderResults(getFilters());
+
+// Re-render on back/forward navigation
+window.addEventListener('popstate', () => renderResults(getFilters()));
+```
+
+A URL like `/products?category=shoes&sort=price&page=2` is now shareable and bookmarkable.
 
 ### Loading new documents
 
@@ -92,6 +125,62 @@ Object arguments:
 
 Takes same args as `pushState()` but replaces current history state instead of adding a new state to the browser history:
 - when you load an app that uses `pushState()`, you should call `replaceState()` at the start to define the initial app state
+
+### Real-world example: minimal client-side router
+
+Single-page applications intercept link clicks and use `pushState` to swap views without reloading. This is the core of every frontend router (React Router, Vue Router, etc.):
+
+```js
+// Define routes as path → render function pairs
+const routes = {
+    '/':        renderHome,
+    '/products': renderProducts,
+    '/about':   renderAbout,
+};
+
+function renderNotFound() {
+    document.querySelector('#app').innerHTML = '<h1>404 — Page not found</h1>';
+}
+
+function navigate(path) {
+    history.pushState({}, '', path);
+    render(path);
+}
+
+function render(path) {
+    const handler = routes[path] ?? renderNotFound;
+    handler();
+}
+
+// Intercept clicks on internal links — prevent full page reload
+document.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-link]');
+    if (!link) return;
+
+    e.preventDefault();
+    navigate(link.getAttribute('href'));
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', () => {
+    render(window.location.pathname);
+});
+
+// Render the initial view
+render(window.location.pathname);
+```
+
+Mark internal links with `data-link` to distinguish them from external links that should reload normally:
+
+```html
+<nav>
+  <a href="/" data-link>Home</a>
+  <a href="/products" data-link>Products</a>
+  <a href="/about" data-link>About</a>
+  <a href="https://example.com">External — no data-link, reloads</a>
+</nav>
+<main id="app"></main>
+```
 
 ## Example program
 
