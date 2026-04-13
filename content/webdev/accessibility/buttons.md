@@ -7,25 +7,26 @@ weight: 50
 
 According to the WCAG, buttons need to meet these six baseline criteria:
 
-Must convey a semantic button role programmatically:
-: Use the `<button>` element so it has the implicit `button` role
+Must convey a semantic button role programmatically
+: Apply the `<button>` element so it has the implicit `button` role.
 
 Must have a concise and straightforward accessible name
-: Label the button, or the user or screen reader won't know what to do with it
+: Label the button, or the user and screen reader will not know what it does.
 
 Communicates its state (pressed, etc)
-: Use ARIA attributes to convey the button's state or the state of a different element that the button controls
+: Apply ARIA attributes to convey the button's state, or the state of a different element that the button controls.
 
 Recognizable as a button
-: Buttons should look like buttons. Users spend time on other sites that use the same general style of button, and they 
-expect your site's buttons to look like theirs.
+: Buttons should look like buttons. Users spend time on other sites that follow the same general visual conventions, and they expect your site's buttons to match.
 
 Colors must have sufficient contrast
-: Must have a contrast ratio of 4:5:1 for normal text, 3:1 for large text.
-  - background color or outline of a focus indicator or border should have contrast ration of 3:1
+: Must have a contrast ratio of 4.5:1 for normal text and 3:1 for large text.
+  - The background color or outline of a focus indicator or border must have a contrast ratio of 3:1.
 
 Must be focusable and allow activation through click, touch, or key events
-: A button is an _interactive element_, which means you have to be able to perform identical actions with the mouse and keyboard by pressing `Enter` or `space`. To do this, make it tabbable.
+: A button is an *interactive element*, which means users must be able to perform identical actions with the mouse and keyboard by pressing `Enter` or `Space`. To do this, make it tabbable.
+
+The following examples cover the two main button types and ARIA state communication:
 
 ```html
 <!-- submit button -->
@@ -43,18 +44,20 @@ Must be focusable and allow activation through click, touch, or key events
 ```
 
 The button typically has two use cases:
-- submitting a form - you don't have to set this to `type="submit"` if its within a form
-- running JS after user interaction. Set this to `type="button"`. Examples include:
+
+- **Submitting a form**: You do not have to set this to `type="submit"` if it is within a form.
+- **Running JavaScript after user interaction**: Set this to `type="button"`. Examples include:
   - Opening a dialog
-  - toggling visibility on other elements
-  - running other JS functions
+  - Toggling visibility on other elements
+  - Running other JavaScript functions
 
 ## Labeling
 
 When deciding how to label a button, consider these methods, in order of preference:
+
 1. Native HTML techniques
 2. `aria-labelledby` pointing to existing text
-3. Visibly hidden content (ex: in a `<span>`)
+3. Visibly hidden content (for example, in a `<span>`)
 4. `aria-label`
 
 If the button contains text, the text is the label:
@@ -63,13 +66,13 @@ If the button contains text, the text is the label:
 <button type="button">Save</button>
 ```
 
-If the button has an image, its `alt` text is the label. These images are called _functional_ images. The `alt` text should describe its purpose:
+If the button has an image, its `alt` text is the label. These images are called *functional images*. The `alt` text should describe the button's purpose, not the image itself:
 
 ```html
 <button type="button"><img src="/path/to/svg" alt="Download"></button>
 ```
 
-If you use an SVG, use `aria-labelledby` to create a reference to the SVG title. Here, the ARIA label references the `id` in the `<title>` element, which provides the accessible name **Download**:
+If you apply an SVG, apply `aria-labelledby` to create a reference to the SVG title. Here, the ARIA label references the `id` in the `<title>` element, which provides the accessible name **Download**:
 
 ```html
 <button type="button">
@@ -79,7 +82,7 @@ If you use an SVG, use `aria-labelledby` to create a reference to the SVG title.
 </button>
 ```
 
-If you don't want to include the image in the accessibility tree (AT), omit the `alt` content from an `img`, or add `aria-hidden` to an SVG. Do this when the image is redundant or doesn't provide additional information:
+If you do not want to include the image in the accessibility tree (AT), omit the `alt` content from an `img`, or add `aria-hidden` to an SVG. Do this when the image is redundant or does not provide additional information:
 
 ```html
 <button type="button">
@@ -88,12 +91,12 @@ If you don't want to include the image in the accessibility tree (AT), omit the 
 </button>
 ```
 
-Your button might include an icon, like an arrow pointing down for a "download" button. Omit this from the AT if the button includes text:
+Your button might include a decorative icon, like a downward arrow on a "Download" button. Omit this icon from the AT when the button also includes visible text, so screen readers do not announce both:
 
 ```html
 <button type="button">
-    <span class="visually-hidden">Download</span>
-    <svg aria-labelledby="title">
+    Download
+    <svg aria-hidden="true">
         ...
     </svg>
 </button>
@@ -101,15 +104,16 @@ Your button might include an icon, like an arrow pointing down for a "download" 
 
 ## Styling
 
-Default button styles are pretty bad, but you still want to use a `<button>` element. You just need to remove its styles and add your own.
+Default browser button styles are plain, but you should still apply the `<button>` element. Remove its default styles and apply your own.
 
-Never use a `<div>` as a button for the following reasons:
-- It's not focusable by default
-- You can't activate it with `Enter` or `Space`
-- Screen readers do not announce it as a button, or at all
-- It's invalid to name generic elements with `aria-label` 
+Never apply a `<div>` as a button for the following reasons:
 
-Here are all the styles that you need to define to style a button:
+- It is not focusable by default, so keyboard users cannot reach it.
+- You cannot activate it with `Enter` or `Space`, which means keyboard users cannot trigger it.
+- Screen readers do not announce it as a button, or may not announce it at all.
+- Naming generic elements with `aria-label` is invalid per the ARIA specification.
+
+The following CSS resets browser button styles to a clean baseline you can build on:
 
 ```css
 button {
@@ -122,20 +126,20 @@ button {
 
 ## States and properties
 
-aria-expanded
-: State attribute, indicates whether a button expands or collapses the element it controls. Set to `true` or `false`.
+`aria-expanded`
+: *State attribute.* Indicates whether a button expands or collapses the element it controls. Set to `true` or `false`.
 
-aria-controls
-: Property attribute, creates a relationship between a button and another element. The related element must have an `id` attribute equal to `aria-controls`.
+`aria-controls`
+: *Property attribute.* Creates a relationship between a button and another element. The related element must have an `id` attribute whose value matches the `aria-controls` value exactly.
 
-aria-pressed
-: State attribute, indicates current "pressed" or "toggled" state of a toggle button. Set to `true` or `false`.
+`aria-pressed`
+: *State attribute.* Indicates the current "pressed" or "toggled" state of a toggle button. Set to `true` or `false`.
 
-aria-checked
-: State attribute, indicates current "checked" state of a checkbox, radio button, and other widgets, like toggle switches.
+`aria-checked`
+: *State attribute.* Indicates the current "checked" state of a checkbox, radio button, or other widget such as a toggle switch.
 
-aria-haspopup
-: Property attribute, indicates that a button controls an interactive pop-up element. Supports these values:
+`aria-haspopup`
+: *Property attribute.* Indicates that a button controls an interactive popup element. Supports these values:
   - `true` (same as `menu`)
   - `false`
   - `menu` (same as `true`)
@@ -147,19 +151,20 @@ aria-haspopup
 
 ### Hide/unhide list
 
-If a button toggles the visibility of another element needs to communicate the element's state. To do this:
-- Add `aria-expanded` to the button, not the expanded element
-- Hide the list using the `aria-expanded="false"` attribute and value
-- Use a click event on the button that toggles the `aria-expanded` attribute value
+A button that toggles the visibility of another element needs to communicate that element's state. To do this:
 
-Here is the HTML. It is an abbreviated nav that displays or hides a list using the button:
+- Add `aria-expanded` to the button, not the expanded element.
+- Hide the list by setting `aria-expanded="false"` on the button.
+- Add a click event to the button that toggles the `aria-expanded` value.
+
+Here is the HTML. It is an abbreviated navigation that shows or hides a list when the button is activated. Note that `aria-controls` and `id` must match exactly:
 
 ```html
 <nav>
     <button aria-expanded="false" aria-controls="main-nav">
         Navigation
     </button>
-    <ul id="main_nav">
+    <ul id="main-nav">
         <li>1</li>
         <li>2</li>
         <li>3</li>
@@ -167,7 +172,7 @@ Here is the HTML. It is an abbreviated nav that displays or hides a list using t
 </nav>
 ```
 
-The CSS applies styles using the `aria-expanded` attribute. Here, it uses the attribute selector and applies to the adjacent `<ul>` a rule that hides the list when the ARIA attr is set to `false`:
+The CSS applies styles based on the `aria-expanded` attribute value. It hides the adjacent `<ul>` when the attribute is `false`:
 
 ```css
 [aria-expanded="false"] + ul {
@@ -175,7 +180,7 @@ The CSS applies styles using the `aria-expanded` attribute. Here, it uses the at
 }
 ```
 
-Finally, add the JS that toggles the `aria-expanded` value on a click event:
+Finally, add the JavaScript that toggles the `aria-expanded` value on each click:
 
 ```js
 const button = document.querySelector("button");
@@ -186,26 +191,27 @@ button.addEventListener('click', (e) => {
 });
 ```
 
-> If the button is pressed to indicate that something was added as a favorite, use `aria-pressed=true` in place of `aria-expanded="true"`.
+> If the button is pressed to mark something as a favorite, apply `aria-pressed="true"` in place of `aria-expanded="true"`.
 
 ### Toggle switch
 
-You can create a toggle switch with simple HTML, semi-complicated CSS, and simple JS. Here is the HTML--note how its not type="button", but rather role="button", and it uses the `aria-checked` attribute:
+You can create a toggle switch with HTML, CSS, and JavaScript. The following HTML applies `aria-checked` rather than `aria-pressed` because the switch represents a persistent on/off state, similar to a checkbox:
 
 ```html
-<button class="toggle-btn" id="toggle" role="button" aria-checked="false">
+<button class="toggle-btn" id="toggle" aria-checked="false">
     Functional cookies
 </button>
 ```
 
-The CSS is pretty complicated. You have to create a toggle switch and its background from pseudo-elements on the button. Here is a numbered description of each rule:
-1. Button reset styles. We unset all styles and make it a flex container to center the label and the switch
-2. Create the background of the switch
-3. Create the moveable indictor of the switch. The size is calculated by taking the height of the background pseudo-element and subtracting 2x the toggle offset. This leaves a thin strip of background between the indicator and its background. You also use the offset when setting the `left` positioning of the element so it is not flush with the background.
-4. Focus styles applied to the background
-5. Apply a blur when you focus or hover
-6. Change the color of the background when the switch is toggled to the right
-7. Moves the indicator to the right
+The CSS creates the visual switch using pseudo-elements on the button. Each numbered comment corresponds to a rule below:
+
+1. Button reset styles. Unset all defaults and make it a flex container to center the label and switch.
+2. Create the pill-shaped background of the switch using `::before`.
+3. Create the circular indicator using `::after`. Its size is the background height minus twice the offset, leaving a thin gap between the indicator and the background edge. The offset also sets the initial `left` position so the indicator is not flush with the background.
+4. Apply a focus outline to the background pseudo-element when the button receives keyboard focus.
+5. Apply a soft shadow when the button is hovered or focused.
+6. Change the background color when the switch is toggled on.
+7. Move the indicator to the right when the switch is toggled on.
 
 ```css
 .toggle-btn {                                           /* 1 */
@@ -226,7 +232,7 @@ The CSS is pretty complicated. You have to create a toggle switch and its backgr
   content: "";
   display: inline-block;
   height: var(--toggle-height);
-  transition: background 0.3s box-shadow 0.3s;
+  transition: background 0.3s, box-shadow 0.3s;
   width: 3em;
 }
 
@@ -239,7 +245,7 @@ The CSS is pretty complicated. You have to create a toggle switch and its backgr
   height: var(--_size);
   left: var(--toggle-offset);
   position: absolute;
-  transform: translate 0.3s;
+  transition: translate 0.3s;
   top: var(--toggle-offset);
   width: var(--_size);
 }
@@ -262,7 +268,7 @@ The CSS is pretty complicated. You have to create a toggle switch and its backgr
 }
 ```
 
-Here is the JS. It just toggles the `isChecked` attribute that stores the `aria-checked` value:
+Here is the JavaScript. It reads the current `aria-checked` string and sets the opposite value:
 
 ```js
 const toggle = document.querySelector('#toggle');
@@ -270,15 +276,15 @@ const toggle = document.querySelector('#toggle');
 toggle.addEventListener('click', (e) => {
     const isChecked = toggle.getAttribute('aria-checked') === 'true';
     toggle.setAttribute('aria-checked', !isChecked);
-    console.log(toggle);
 });
 ```
 
 ## Make a div a button
 
-In general, you should always use buttons as buttons. If you have to use a div, make sure it does these things so it behaves exactly like a button:
-- `role="button"`
-- Focusable
-- Has focus styles
-- `keydown` event is listening for the Enter key
-- `keyup` event is listening for the Space key
+In general, always apply `<button>` for button behavior. If you must apply a `<div>`, add all of the following so it behaves exactly like a native button:
+
+- `role="button"` to announce it as a button to screen readers
+- `tabindex="0"` to make it focusable by keyboard
+- Explicit focus styles so keyboard users can see it
+- A `keydown` event listener that activates on the `Enter` key
+- A `keyup` event listener that activates on the `Space` key

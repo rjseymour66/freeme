@@ -5,24 +5,26 @@ weight: 40
 # description:
 ---
 
-Links should have a concise and descriptive text label, and users should know what to expect when they click or select it. Essential criteria includes the following:
-- **Must convey its role**: Use the `<a>` tag with an `href` attribute. It has an implicit `link` role, and a screen reader announces the role with the text. Links **should not** have click events or placeholder text--that is for a button!
-- **Have an accessible name**: Link text should be meaningful, short, understandable, and unique, or sincere, substantial, succinct, and specific. Don't use 'learn more' or 'click here'.
-- **Unique label. Concise and straightforward**: Don't have multiple links with the same text on a single page.
-- **Accessible to assistive tech**: it should communicate its current state (visited, focus-visible, hover, active)
+Links should have a concise and descriptive text label, and users should know what to expect when they click or select one. Essential criteria include the following:
+
+- **Must convey its role**: Apply the `<a>` tag with an `href` attribute. It has an implicit `link` role, and a screen reader announces the role with the text. Links should not have click events or placeholder text. That is what a button is for.
+- **Have an accessible name**: Link text should be meaningful, short, understandable, and unique. Do not write 'learn more' or 'click here'. A screen reader user who browses links in a list out of context needs "Download the Q3 report (PDF)", not "Click here".
+- **Unique label, concise and straightforward**: Do not have multiple links with the same text on a single page.
+- **Accessible to assistive tech**: The link should communicate its current state (visited, focus-visible, hover, active).
 - **Focusable with a keyboard**: By default, the `<a>` element is interactive and tabbable.
 
 ## Styles
 
-Links should look like links--select a link color and underline them. Best practices for link styles:
-- Underline links--don't rely on color alone to convey meaning. Older users and colorblind users cannot distinguish colors.
-- Provide different styles for different states, including `focus` or `focus-visible`. `focus-visible` is specific to keyboard tabbing, while `focus` activates with a mouse and JS `.focus()`
-  - `text-decoration` for underlines
-  - `outline` for focus.
-  - `box-shadow` is good for focus but does not work with forced-colors mode. If you use `box-shadow`, use a `transparent` outline because it displays in forced-colors mode
-- Make sure the link target size is large enough for users to tap on small devices. Always focus on usability, not aesthetics.
-  Touch targets like links should be 24px x 24px
-- 
+Links should look like links. Select a link color and underline them. Best practices for link styles:
+
+- Underline links. Do not rely on color alone to convey meaning. Older users and users with color blindness cannot distinguish color differences.
+- Provide different styles for different states, including `focus` or `focus-visible`. The `:focus-visible` pseudo-class is specific to keyboard tabbing, while `:focus` activates with a mouse and JavaScript `.focus()`.
+  - Apply `text-decoration` for underlines.
+  - Apply `outline` for focus.
+  - `box-shadow` works well for focus but does not display in forced-colors mode. If you apply `box-shadow`, also add a `transparent` outline because it becomes visible in forced-colors mode.
+- Make the link target large enough for users to tap on small devices. Touch targets should be at least 24px by 24px.
+
+The following CSS covers all link states:
 
 ```css
 a:link {
@@ -57,23 +59,25 @@ a:focus-visible {
 
 ## Download links
 
-If a link starts a file download, tell users the format and file size before they download it:
-- How to access the file
-- What info in the file
-- File format in case the user can't open the file on their device
-- File size for users with slow connections
+If a link starts a file download, tell users what they will get before they commit to downloading it. This is especially important for users on slow connections or mobile data. Include the following information:
 
-How to create a download link:
-- Descripting name that has format and file size
-- Add the `download` attribute. You can give this a value to name the downloaded file
-- Optionally add download icon
+- How to open the file
+- What information the file contains
+- The file format, in case the user cannot open it on their device
+- The file size for users on slow connections
+
+Create a download link as follows:
+
+- Write a descriptive name that includes the format and file size.
+- Add the `download` attribute. You can give it a value to name the downloaded file.
+- Optionally add a download icon.
 
 ```html
 <a href="#" download>View our menu (PDF, 1.2MB)</a>
 <a href="#" download="our-menu.pdf">View our menu (Adobe Illustrator)</a>
 ```
 
-Add an icon with the `[download]` attribute:
+Add an icon automatically to any element with the `[download]` attribute:
 
 ```css
 [download]::after {
@@ -87,9 +91,9 @@ Add an icon with the `[download]` attribute:
 
 ## Email links
 
-These links open in the user's default email application. Create an email link by starting the `href` attribute with `mailto:`. You can include one or more email addresses. You can also populate the subject and the body with URL-encoded text.
+These links open in the user's default email application. Create an email link by starting the `href` attribute with `mailto:`. You can include one or more email addresses and pre-populate the subject and body with URL-encoded text.
 
-Use the actual email address for the link, not generic text. This way, users can just copy the link text if they don't want to use their default email app or go through a context switch:
+Apply the actual email address as the visible link text, not generic text like "contact us". This way, users who do not want to trigger their default email app can copy the address directly from the page:
 
 ```html
 <!-- single email addr -->
@@ -107,24 +111,31 @@ To contact us, email us at <a
 ## Link images
 
 There are three types of link images:
-- Informative: Provides info that is relative to the main content of a page or section. The `alt` tag should give a brief description that provides the info you want to convey and its context.
-- Decorative: Visual design only. These don't require `alt` text.
-- Functional: Acts like a link or button and the `alt` tag serves as the text for the link or button.
 
-Here are some examples. Remember a few things:
-- If you do not provide a value for the `alt` tag, then the image will not be in the accessibility tree.
-- You still need to provide a text alternative with an `aria-label`.
-- If you don't provide an `alt` tag to hide the image, you should also include the `aria-hidden` label.
+*Informative*
+: Provides information that is relative to the main content of a page or section. The `alt` text should give a brief description that conveys the information and its context.
+
+*Decorative*
+: Visual design only. These do not require `alt` text.
+
+*Functional*
+: Acts like a link or button. The `alt` text serves as the accessible name for the link or button.
+
+The following examples cover the most common patterns. Remember these rules:
+
+- If you leave the `alt` tag empty, the image is excluded from the accessibility tree.
+- If you exclude the image from the tree, you still need to provide a text alternative with `aria-label`.
+- If you omit the `alt` tag entirely to hide the image, also add `aria-hidden="true"`.
 
 ```html
-<!-- home page img SVG -->
+<!-- Informative: home page logo linking to home -->
 <header>
     <a href="/path/to/page">
         <img src="/path/to/svg" alt="Home Page" />
     </a>
 </header>
 
-<!-- SVG directly -->
+<!-- Functional: inline SVG as link content -->
 <a href="/path/to/page">
     <svg aria-labelledby="submit" role="img">
         <title id="submit">Submit</title>
@@ -132,12 +143,12 @@ Here are some examples. Remember a few things:
     </svg>
 </a>
 
-<!-- SVG not in accessibility tree option 1 -->
+<!-- Decorative: image excluded from tree, accessible name on the link -->
 <a href="/path/to/page" aria-label="Accessible name">
     <img src="#" alt=""/>
 </a>
 
-<!-- SVG not in accessibility tree option 2 -->
+<!-- Decorative: SVG icon excluded from tree, accessible name on the link -->
 <a href="/path/to/page" aria-label="LinkedIn">
     <svg aria-hidden="true">
         ...
@@ -147,27 +158,28 @@ Here are some examples. Remember a few things:
 
 ## Context-change information
 
-If you use `target="_blank"` to open a link in a new tab, you need to indicate that the link opens in a new tab so you don't annoy or confuse users.
+If you apply `target="_blank"` to open a link in a new tab, tell users in advance so you do not surprise or disorient them.
 
-In general, you should avoid opening new tabs so the user has control over their browser. However, there are exceptions:
-- If the linked content contains information that should be read alongside the main content, like instructions for a form or other reference docs.
-- The link opens a widget like a date picker.
+In general, avoid opening new tabs because it removes the user's control over their browser. The Back button no longer works for the new tab, and screen readers announce nothing to indicate a new tab opened. Exceptions include:
 
-As a best practice, add an `aria-label` to the link with text explaining that it opens in new tab:
+- The linked content contains information the user should read alongside the main content, such as instructions for a form or reference documentation.
+- The link opens a widget such as a date picker.
+
+As a best practice, add the explanation directly in the link text:
 
 ```html
 <a href="#" target="_blank">My website (opens in new tab).</a>
 ```
 
-You might be tempted to use a the `::after` pseudo-element to add the content, but that is not picked up by translations and is dependent on CSS loading correctly.
+You might be tempted to apply the `::after` pseudo-element to inject the "opens in new tab" text, but that approach has two problems: it is not picked up by translation tools, and it depends on CSS loading correctly.
 
 ## Add links to groups of elements (cards)
 
-Cards can contain an image, a few lines of content, and a link to the content it describes. Which portion of the card should you make into a link?
+Cards can contain an image, a few lines of content, and a link to the full content. Deciding which part of the card to make into a link requires a tradeoff.
 
-The best solution available seems to be described on [Heydon Pickering's blog](https://inclusive-components.design/cards/). Basically, you add relative positioning to a card, then create an absolutely-positioned pseudo-element that stretches out over the entire card so its clickable like a button.
+The best pattern available is described on [Heydon Pickering's blog](https://inclusive-components.design/cards/). Add `position: relative` to the card, then create an absolutely positioned `::after` pseudo-element on the primary link that stretches to cover the entire card. This makes the whole card clickable while keeping a single, well-labelled link in the accessibility tree.
 
-The main drawback of this is that you cannot highlight the text within the card:
+The main limitation of this pattern is that users cannot select text within the card:
 
 ```html
 <div class="card">
@@ -204,9 +216,9 @@ The main drawback of this is that you cannot highlight the text within the card:
 }
 ```
 
-For hover and focus styles, you need to use `focus-within` because it selects the parent of any element that has focus. This example uses progressive enhancement because if the browser supports `focus-within`, it gets the box shadow and doesn't need the standard `:focus` styles.
+For hover and focus styles, apply `:focus-within` because it selects the parent of any element that has focus. This example applies *progressive enhancement*: if the browser supports `:focus-within`, the card gets the box shadow style. Older browsers that do not support `:focus-within` fall back to the standard `:focus` underline on the link.
 
-Don't combine the `hover` and `focus-within` styles in the event that `focus-within` is not supported:
+Do not combine the `hover` and `focus-within` selectors in a single rule. If `focus-within` is not supported, the combined rule would also lose the hover style:
 
 ```css
 .card a:focus {

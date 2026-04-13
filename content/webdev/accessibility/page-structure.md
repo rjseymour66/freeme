@@ -7,13 +7,13 @@ weight: 30
 
 ## Navigation landmarks
 
-Navigation is a major landmark, and there are many kinds of navigations. Distinguish between navigations with the `aria-label` attribute so screen reader users can confidently navigate your website.
+Navigation is a major landmark, and a page can have several: a main navigation, a breadcrumb trail, a local table of contents, and a footer navigation. Without labels, screen reader users cannot tell them apart. Distinguish navigations with `aria-label` so users can confidently identify and jump to the one they need.
 
-Add the `aria-current="page"` attribute to identify the nav link for the current page.
+Add the `aria-current="page"` attribute to identify which nav link corresponds to the current page.
 
 ### Main nav
 
-The main nav is nested in the `<header>` element and identifies the current page with `aria-current="page"`:
+The main navigation is nested in the `<header>` element and identifies the current page with `aria-current="page"`:
 
 ```html
 <header>
@@ -30,7 +30,7 @@ The main nav is nested in the `<header>` element and identifies the current page
 
 ### Breadcrumb nav
 
-Breadcrumbs are typically near the top of the `<body>` and identify the current page with `aria-current="page"`:
+Breadcrumbs typically appear near the top of the `<body>` and show the user's position in the site hierarchy. Mark the current page with `aria-current="page"` so screen readers announce "you are here":
 
 ```html
 <nav aria-label="Breadcrumb">
@@ -44,21 +44,23 @@ Breadcrumbs are typically near the top of the `<body>` and identify the current 
 
 ### Local nav
 
-Use this style of navigation for an in-page table of contents:
+Apply this style of navigation for an in-page table of contents on long articles or documentation pages:
 
 ```html
 <nav aria-label="Contents">
-    <li><a href="">Company</a></li>
-    <li><a href="">Licensing</a></li>
-    <li><a href="">References</a></li>
+    <ul>
+        <li><a href="">Company</a></li>
+        <li><a href="">Licensing</a></li>
+        <li><a href="">References</a></li>
+    </ul>
 </nav>
 ```
 
 ## Form landmarks
 
-Forms can include critical site elements, such as search boxes, filters, or login forms. Add a `role` to them to promote them to page landmarks and make them easily accessible to screen readers.
+Forms can include critical site elements such as search boxes, filters, and login forms. Add a `role` attribute to promote them to page landmarks and make them directly accessible to screen reader navigation shortcuts.
 
-Screen reader support for search and form landmarks is inconsistent. To provide the best accessibility, combine the element with the `role` attribute until there is support across all screen readers.
+Screen reader support for `search` and `form` landmarks is inconsistent. To provide the best coverage, combine the element with the `role` attribute until all major screen readers support both:
 
 ### form with search role
 
@@ -96,14 +98,11 @@ Screen reader support for search and form landmarks is inconsistent. To provide 
 
 ## Distinguish landmarks with labels
 
-If you have multiple landmarks of the same type--for example, navigation landmarks--you need to add labels to them so users can differentiate between them.
-
-To label landmarks, use either `aria-labelledby` or `aria-label`. Label values should consist of one or two words. Text that gives assistive technology a name (label) for an element is called an _accessible name_.
+If you have multiple landmarks of the same type on a page, add labels so users can differentiate them. To label a landmark, apply either `aria-labelledby` or `aria-label`. Label values should be one or two words. The text that gives assistive technology a name for an element is called an *accessible name*.
 
 ### aria-labelledby
 
-This label references another element on the page. This label is preferred because it references content on the page, rather than introducing new text entirely.
-
+This attribute references another element on the page as the label. It is preferred over `aria-label` because it references visible content rather than introducing new text:
 
 ```html
 <nav aria-labelledby="pagination_heading">
@@ -113,7 +112,7 @@ This label references another element on the page. This label is preferred becau
 
 ### aria-label
 
-Use this when there is no element to reference with `aria-labelledby`.
+Apply this attribute when there is no visible element to reference with `aria-labelledby`:
 
 ```html
 <nav aria-label="Main">
@@ -123,30 +122,31 @@ Use this when there is no element to reference with `aria-labelledby`.
 
 ## Main content structure
 
-Web pages can be complex. If a user cannot view the screen to understand its layout, you need to create landmarks from elements and use elements like headings and lists to give the page structure for navigation.
+Complex pages require structure so users without a visual overview can still navigate them. Headings, lists, sections, and ARIA landmarks each serve a different organizational role. Apply them together to give the page a clear hierarchy.
 
 ### Sections
 
-This element creates a generic region that groups content thematically.
+The `<section>` element creates a generic region that groups content thematically.
 
-#### generic sections
+#### Generic sections
 
-Without a label, the `<section>` element is the same as a `<div>`, but they do not have the same use cases. For example, divs are used for styling or scripting purposes, while sections always group content. Sections without a label have a role of `generic`.
+Without a label, `<section>` behaves like a `<div>` structurally, but they serve different purposes. A `<div>` is for styling or scripting. A `<section>` always groups thematically related content. Unlabeled sections have a role of `generic`.
 
-Use `generic` landmarks only when no other landmark type applies.
+Apply `generic` sections only when no other landmark type applies.
 
-#### region sections
+#### Region sections
 
-When a `<section>` or `<div>` is given an accessible name with `aria-label` or `aria-labelledby`, it have a role of `region`. This also **promotes the element to a landmark**:
+When a `<section>` or `<div>` receives an accessible name through `aria-label` or `aria-labelledby`, it gets a role of `region`. This also promotes the element to a landmark, making it reachable by screen reader navigation shortcuts:
 
 ```html
 <section aria-label="Keyword search">
     ...
 </section>
 ```
-Do not do this often. Only promote sections or divs that have important information that users should navigate to directly.
 
-A region typically starts with a heading, and its contents should be listed in a summary of the page. A `region` also identifies a scrollable area of the page. To allow keyboard users access to a scrollable area, you have to add a `tabindex=0` to the containing element:
+Reserve this for sections that contain important content users should navigate to directly. Do not promote every section to a landmark, or users will face an overwhelming list of landmarks with no meaningful hierarchy.
+
+A region typically starts with a heading. A `region` also identifies a scrollable area of the page. To allow keyboard users to scroll the area, add `tabindex="0"` to the container:
 
 ```html
 <div role="region" aria-label="Code Sample" tabindex="0">
@@ -158,33 +158,35 @@ A region typically starts with a heading, and its contents should be listed in a
 
 ### Asides
 
-An `<aside>` contains content that is related to the nearby content, or it could be separate like a quote or advertising. An `<aside>` element has a role of `complementary`.
+An `<aside>` contains content related to the nearby content, such as a pull quote, a related-links section, or advertising. The `<aside>` element has a role of `complementary`.
 
 ### Articles
 
-An article is a _particular item_ or a _separate thing_--its any group of content that you could reuse and distribute elsewhere as a self-contained composition in a document:
-- blog post
-- comment
-- news article
-- interactive widget
-- product listing
-- forum post
+An `<article>` is a self-contained composition that could be distributed or reused independently. Common examples include:
 
-Third-party software like RSS feed readers often extracts article content and display it elsewhere.
+- Blog posts
+- Comments
+- News articles
+- Interactive widgets
+- Product listings
+- Forum posts
+
+Third-party software like RSS feed readers extracts article content and displays it in other contexts. Proper `<article>` markup makes that extraction reliable.
 
 ### Lists
 
-Group content in ordered or unordered lists for these additional a11y benefits:
-- Screen readers announce the total number of items in the list, and the index of the current item
-- Screen readers can announce that an item belongs to a list of _n_ items
-- Shortcuts to jump from list to list, item to item
-- Shortcuts to list all lists on a page and access them directly
+Group related content in ordered or unordered lists for these accessibility benefits:
+
+- Screen readers announce the total number of items in the list and the index of the current item.
+- Screen readers announce that an item belongs to a list of *n* items.
+- Screen reader shortcuts let users jump between lists and between individual items.
+- Screen readers can display all lists on a page and let users jump to any of them.
 
 ## Outline documents with headings
 
-If you have a complicated page, use headings to create a quick outline:
-- Screen readers announce the content of the heading along with its heading level
-- Don't skip heading levels when nesting
-- Always present the HTML content in order so screen readers can make sense of it
-  - Interface elements that a user should interact with before your content should come first. For example, a cookie banner or language selector.
-- If you need to reorder elements, use CSS
+Headings create a navigable outline of the page. Screen reader users frequently navigate by jumping from heading to heading, the same way a sighted user scans section titles before reading. Follow these rules:
+
+- The screen reader announces the heading content and its level.
+- Do not skip heading levels when nesting. Going from `<h2>` to `<h4>` creates a gap in the outline.
+- Always order HTML content so screen readers can follow it logically. Interface elements a user should interact with before your content, such as a cookie banner or language selector, should come before the content in the markup.
+- If you need to reorder elements visually, apply CSS rather than changing the HTML order.

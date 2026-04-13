@@ -5,11 +5,27 @@ weight: 10
 # description:
 ---
 
+*Accessible Rich Internet Applications* (ARIA) is a set of HTML attributes that communicate the role, state, and properties of user interface elements to assistive technologies. Before reaching for ARIA, always check whether a native HTML element already conveys the same meaning. A `<button>` is always preferable to `<div role="button">`, and a `<nav>` is always preferable to `<div role="navigation">`.
+
 ## Rules of ARIA use
 
-https://www.w3.org/TR/using-aria/#NOTES
+The W3C defines five rules for ARIA. Apply them in order:
+
+1. **Do not add ARIA if a native HTML element or attribute already provides the semantics or behavior you need.** For example, apply `<button>` instead of `<div role="button">`. Native elements carry built-in keyboard support, focus management, and screen reader announcements that ARIA cannot fully replicate.
+
+2. **Do not change native semantics unless you have no other option.** For example, do not add `role="heading"` to a `<button>`. If you need a heading, apply the appropriate `<h1>` through `<h6>` element.
+
+3. **All interactive ARIA controls must be keyboard accessible.** If you create a custom widget with a role like `slider` or `menu`, keyboard users must be able to operate it without a mouse. This means handling `keydown` and `keyup` events in addition to `click`.
+
+4. **Do not apply `role="presentation"` or `aria-hidden="true"` to a focusable element.** Hiding a focusable element from the accessibility tree while leaving it in the tab order creates a broken experience. For example, a close button hidden with `aria-hidden="true"` is still reachable by keyboard, but the screen reader announces nothing when the button receives focus.
+
+5. **All interactive elements must have an accessible name.** An icon button with no visible label must still provide a name through `aria-label`, `aria-labelledby`, or visible text content.
+
+For the full specification, see the [W3C notes on ARIA use](https://www.w3.org/TR/using-aria/#NOTES).
 
 ## Cheatsheet
+
+The following table lists common ARIA attributes, what they communicate, and when to apply them:
 
 | ARIA Attribute     | Description                                                            | Use Case                                               | Example Snippet                                                          |
 | ------------------ | ---------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |

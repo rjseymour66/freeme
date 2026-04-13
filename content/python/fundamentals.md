@@ -1,6 +1,6 @@
 ---
 title: "Fundamentals"
-weight: 20
+weight: 30
 ---
 
 This page covers Python's core building blocks: operators, control flow, and loops. Understanding where Python differs from other languages — chained comparisons, loop `else` clauses, `match`/`case` — pays dividends throughout the rest of the language.

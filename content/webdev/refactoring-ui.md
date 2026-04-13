@@ -3,24 +3,44 @@ title: "Refactoring UI"
 # linkTitle: ""
 weight: 40
 description: >
-  Notes on web design.
+  A cheat sheet for UI design: spacing, typography, color, and visual hierarchy.
 ---
 
 ## Starting from scratch
 
-- Don't try to design the app from the get go. Start with a feature and build it, then build another feature,...
-  - Start building things as soon as possible so your imagination doesn't have to do all the heavy lifting
-  - Expect each feature to be hard to build, and design the smallest, most useful version
-- Try using a sharpie and paper for the first design. This prevents you from focusing on low-level details like typefaces
-- Design in grayscale so you don't focus too much on color--you focus on space, contrast, and size.
-- Fonts: Serifs are elegant and formal, sans-serif is playful
-- Border radius: Small border radius is more formal, larger is less formal
-- Color: Blue is neutral, pink is playful, gold is sophisticated
-- Process of elimination: take a guess at what looks best, then try the option above and below that. This requires you have systems already designed.
+Design one feature at a time, not the whole app at once. Build it, then move to the next. Starting
+to build as soon as possible prevents you from relying entirely on your imagination. Expect each
+feature to be difficult. Design the smallest, most useful version before expanding scope.
+
+For early sketches, reach for a sharpie and paper. The resistance of the medium prevents you from
+focusing on low-level details like typefaces and padding values. Design in grayscale first so you
+focus on space, contrast, and size before committing to a color palette.
+
+Every design communicates a *personality* before users read a word. Three properties drive most of
+that signal:
+
+- **Fonts:** Serifs read as elegant and formal. Sans-serif reads as playful and modern.
+- **Border radius:** A small radius (2–4px) reads as formal. A large radius (12px+) reads as casual.
+- **Color:** Blue reads as neutral and trustworthy. Pink reads as playful. Gold reads as sophisticated.
+
+Real-world examples show how these signals combine:
+
+| Trait | Formal | Playful |
+|---|---|---|
+| Border radius | 0–2px (Linear, Stripe) | 16px+ (Duolingo, Mailchimp) |
+| Font | Serif like Freight Display (NYT, Goldman Sachs) | Rounded sans-serif like Nunito (Duolingo) |
+| Color | Navy, charcoal, gold (Goldman Sachs) | Coral, bright green, teal (Duolingo, Headspace) |
+
+When you are unsure which value looks best, make your best guess, then try the option immediately
+above and below it on your scale. This approach only works when you have systems defined in advance.
 
 ### Systemize everything
 
-Define systems in advance so you don't spend tons of time deciding what to use:
+Define systems in advance so you do not spend time deciding which value to apply each time you
+design an element. A system is a constrained set of options. When you have ten spacing values
+instead of unlimited pixels, decisions are fast and output is consistent.
+
+Define systems for at least the following properties:
 
 - Font size
 - Font weight
@@ -34,35 +54,85 @@ Define systems in advance so you don't spend tons of time deciding what to use:
 - Border radius
 - Border width
 - Opacity
+- Transition duration
+- Z-index
+- Breakpoints
 
-## Heirarchy is eveything
+Tailwind CSS's default configuration is a widely adopted reference for what a complete design
+system looks like in practice. Reviewing it gives you a concrete anchor for each category above.
 
-Visual heirarchy is how important the elements in an interface appear in relation to one another. It's the most effective tool you have to make something look "designed".
+## Hierarchy is everything
+
+*Visual hierarchy* is how important elements appear relative to one another. It is the most
+effective tool for making an interface look designed rather than assembled.
+
+Three properties create hierarchy: size, weight, and color. Most designers reach for size first,
+but color and weight are often more powerful because they do not disrupt layout. On a Stripe invoice
+page, the total amount appears at 48px bold while the invoice number sits at 12px in grey. The size
+difference is large, but the weight and color do as much work as the size.
+
+De-emphasizing secondary information is as important as emphasizing primary information. If
+everything competes for attention, nothing wins.
+
+You rarely need more than two font weights to create sufficient hierarchy. A regular and a semibold
+cover most cases. GitHub's interface is a good example: navigation labels, issue titles, and body
+text all live at similar sizes but are visually distinct because of weight and color alone.
+
+Visual weight also comes from color saturation, icon size, and whitespace. A saturated element
+draws the eye even at a small size. An element surrounded by whitespace appears more important than
+an equally sized element that is crowded.
 
 ## Layout and spacing
 
-- Always start with too much white space (margin and padding) and remove it until you're happy.
-- Create a spacing system so you don't spend too much time nitpicking between values.
+Always start with too much whitespace (margin and padding) and remove it until you are happy. It
+is far easier to tighten a spacious layout than to breathe air into a cramped one.
+
+Notion's editor applies roughly 80px of horizontal padding on desktop. That feels generous at
+first, but it keeps reading comfortable and gives the content room. Contrast this with early
+Bootstrap grids, which defaulted to 15px gutters and made UIs feel dense.
+
+Create a spacing system so you do not spend time choosing between arbitrary pixel values. See the
+[Spacing and sizing system](#spacing-and-sizing-system) section for how to build one.
 
 ## Scaling layouts
 
-- Use fixed widths--not percentages--for elements that should be fixed width like sidebars. Grid layouts don't work on elements like sidebars because they scale relative to the screen size.
-- Give elements a max-wdith, and force them to shrink when the screen is smaller than the contents.
+For elements that should have a fixed width (like sidebars), set a fixed pixel value rather than a
+percentage. Grid layouts cause sidebars to scale relative to the screen, which produces awkward
+results at different breakpoints.
 
+Give elements a `max-width` and allow them to shrink when the screen is narrower than the content.
 
-Sizing relationships do not have to be a defined ratio. Remember that elements that are large on large screens need to shrink faster than elements that are already small. For example, a heading is large on a large screen, but it should be just a bit larger than the body text on a small screen. The body text should be just a bit smaller on the small screen than the large screen. So, the ratio between the element sizes is not equal between screen sizes.
+Sizing relationships do not have to follow a defined ratio across breakpoints. Elements that are
+large on large screens need to shrink faster than elements that are already small. For example, a
+heading is large on a large screen but should be only slightly larger than body text on a small
+screen. Body text should be only slightly smaller on a small screen than on a large one. The ratio
+between element sizes is not constant across screen sizes.
 
-For padding, consider the size of the element. With a button, you want more padding at larger sizes and less at a smaller size. This means that maybe the padding doesn't size with the font size--use `rem` instead of `em`.
+For padding, consider the size of the element. A button needs more padding at larger sizes and less
+at smaller sizes. This means padding should not scale with font size. Apply `rem` instead of `em`
+to pin padding to the root font size rather than the element's own font size. For example, a button
+with `padding: 0.5em 1em` collapses its padding when the button is set to a small font size.
+Switching to `padding: 0.5rem 1rem` keeps the padding consistent regardless of the button's font
+size.
+
+Fluid typography scales element sizes smoothly between a minimum and maximum value as the viewport
+grows. The [Utopia type calculator](https://utopia.fyi/type/calculator/) generates these values
+automatically.
 
 ### Spacing and sizing system
 
-See https://utopia.fyi/space/calculator/
+See the [Utopia space calculator](https://utopia.fyi/space/calculator/) for a tool that generates
+fluid spacing scales automatically.
 
-Don't think about things as multiples of each other. For example, don't make everything a multiple of 4px. Think about the relative difference between adjacent values.
+The most important rule for building a spacing scale is to think about the relative difference
+between adjacent values, not multiples of a base number. When dealing with small values, jumping
+from 4px to 8px is a significant difference. For large values like a layout container, a 4px
+difference is not noticeable.
 
-When you are dealing with small values, jumping from 4px to 8px is a big difference. For large values like a layout container, a 4px (or 4%) difference is not noticeable.
-
-To build the system, start with a base value and build a scale using multiples of that value. A good base is 16px (1rem or 1em) because it is the default font size in all browsers. Make sure no two values in the scale are closer than about 25%. In other words, create smaller values with the base value, down to 16 x 0.25, and then larger values using any scale that makes sense. For example:
+To build the system, start with a base value and build a scale using multiples of that value. A
+good base is 16px (1rem) because it is the default font size in all browsers. No two values in the
+scale should be closer than about 25% apart. Build smaller values down from the base and larger
+values up. The following variables show a complete scale:
 
 ```scss
 $padding-025: 0.25rem;
@@ -82,29 +152,36 @@ $padding-4000: 40rem;
 $padding-4800: 48rem;
 ```
 
-When you space elements, make sure to consider proximity so related elements are grouped together. Do not create ambiguity by spacing elements incorrectly. For example:
-- There should be more margin above a heading and less below so the reader knows that the heading is related to the text underneath.
-- For unordered lists, make the space between bullets greater than the line height of each bullet.
+When spacing elements, apply the principle of *proximity*: related elements should be closer
+together than unrelated ones. There should be more margin above a heading and less below it so the
+reader knows the heading belongs to the text underneath. For unordered lists, the space between
+list items should be greater than the line height of each item.
 
+A real-world example is VS Code's Settings panel, where each setting label and its control are 8px
+apart, while the gap between separate settings is 24px. That spacing alone communicates what
+belongs together before you read a word.
 
 ## Text
 
 ### Type scale
 
 Helpful links:
-- fluid typography
-- https://www.fluid-type-scale.com/
-- https://typescale.com/
-- https://utopia.fyi/type/calculator/
 
-Creating a type scale is different than a spacing scale. Picking a base and then picking a ratio to multiple or divide that base by is called a _modular scale_. The issue with a modular scale include the following:
-- It doesn't create enough values
-- There are fractional sizes
+- [Fluid type scale calculator](https://www.fluid-type-scale.com/)
+- [Modular scale calculator](https://typescale.com/)
+- [Utopia type calculator](https://utopia.fyi/type/calculator/)
 
-A modular scale might work well for an article (or documentation...), but the solution for UI design is _hand-crafted scales_, where you just select values to choose from:
+A *modular scale* picks a base size and multiplies or divides by a fixed ratio to generate a type
+scale. The problems with a modular scale include the following:
+
+- It does not create enough values for UI work
+- It produces fractional pixel sizes
+
+A modular scale works well for articles or documentation, but the solution for UI design is a
+*hand-crafted scale*, where you select values directly. The following example shows a complete
+hand-crafted scale, which maps closely to Tailwind CSS's default font size scale:
 
 ```scss
-// need better naming...
 $fs-12: 12px;
 $fs-14: 14px;
 $fs-base: 16px;
@@ -120,39 +197,54 @@ $fs-72: 72px;
 
 ### Fonts
 
-If you don't know what you're doing, use the system font stack:
+If you are not confident in a typeface choice, apply the system font stack. It renders each
+operating system's native UI font and requires no network request:
 
 ```css
--apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue;
+system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue;
 ```
 
 Otherwise, follow these rules:
-- Pick a neutral sans-serif
-- Ignore typefaces with less than 5 weights. They are usually not as well-crafted and are less popular. On Google fonts, filter your search with **Number of styles** and select **10+**.
-- Sort by popularity if you really don't know
 
-Consider letter spacing and x-height. The x-height is the size of the lowercase letter:
-- Smaller text should have higher x-height and wider letter-spacing
+- Pick a neutral sans-serif
+- Ignore typefaces with fewer than 5 weights. They are usually not as well-crafted and are less
+  popular. On Google Fonts, filter your search with **Number of styles** and select **10+**.
+- Sort by popularity if you are unsure
+
+Consider letter spacing and x-height. The *x-height* is the height of the lowercase letter x in a
+given typeface:
+
+- Smaller text should have higher x-height and wider letter spacing
 - Fonts for larger text like headings have a shorter x-height and tighter letter spacing
 
 ### Line length
 
-Paragraphs should be 45-75 characters wide. Use the `ch` unit for exact characters, or use 20-35ems.
+Paragraphs should be 45–75 characters wide. Apply the `ch` unit for exact characters, or apply
+20–35em.
+
+Real-world anchors: Medium's article body is constrained to roughly 680px, which hits the
+65-character sweet spot at 18px. The Guardian constrains its article body to roughly 600px.
 
 ### Alignment
 
-Always align by baseline, not the center.
+Always align by baseline, not by center.
 
-### Line-height
+### Line height
 
-- Line-height should be proportional to your line length. Shorter lines can use 1.5, but longer lines might need close to 2.
+- Line height should be proportional to your line length. Shorter lines can apply 1.5, but longer
+  lines may need close to 2.
 - Small text needs more line height
-- Larger text can use much less, closer to 1
+- Larger text can apply much less, closer to 1
 
 ### Links
 
-If the link is not part of the main user path, maybe you don't need special styles on them. Instead, you could use only an underline or change the color only on hover.
+If a link is not on the main user path, you may not need special styles on it. An underline or a
+color change on hover may be sufficient.
 
+In app interfaces (not content sites), suppress underlines on navigation links and reserve the
+underline for inline hyperlinks within body copy. GitHub applies this pattern: navigation labels
+are unstyled, but links within issue bodies are underlined, making the distinction between
+navigation and reference immediately clear.
 
 ### Numbers
 
@@ -160,77 +252,189 @@ Right-align numbers in a table so users can compare them by decimal place.
 
 ### Letter spacing
 
-If you selected a popular typeface, you should trust its designer and leave the letter-spacing alone.
+If you selected a popular typeface, trust its designer and leave the letter spacing alone.
 
-Here are scenarios where you might consider changeing the letter spacing:
-- Headings for fonts optimized for small sizes. Adjust the letter-spacing to something like `-0.05em;`. This strategy works only for small text fonts. In other words, you cannot use heading style fonts (ex: Oswald) and increase the spacing.
+Here are scenarios where you might consider changing the letter spacing:
 
-Lowercase letters have visual variety and are easily distinguished from each other. They have ascenders and descenders that go above the x-height and below the baseline, respectively. Uppercase letters are not as distinguishable. Increase letter spacing when you use all caps to help with this. Start with something like `0.05em`.
-
+- **Headings with fonts optimized for small sizes:** Adjust letter spacing to something like
+  `-0.05em`. This strategy works only for fonts designed for small sizes. You cannot apply it to
+  heading-specific fonts like Oswald and increase the spacing instead.
+- **All-caps text:** Lowercase letters have visual variety and are easily distinguished from each
+  other. They have ascenders and descenders that rise above the x-height and fall below the
+  baseline. Uppercase letters are not as distinguishable. Increase letter spacing when you set text
+  in all caps to compensate. Start with `0.05em`. Most badge and tag components (like GitHub's
+  label chips or Stripe's status pills) apply this technique at small sizes.
 
 ## Color
 
-> You can't rely on color alone. If color indicates a state, figure out a way to indicate the state with color and maybe an icon. Colorblind people cannot understand states if they are indicated with color only.
+> You cannot rely on color alone to communicate state. If color indicates a state, find a way to
+> indicate it with color and an icon. People with color blindness cannot understand states
+> communicated by color only.
 >
-> If you are using colors to show a difference (ex. pie chart), try using lighter and darker shades (contrast) of the same color to indicate the difference. People with colorblindness can tell the difference in contrast rather than color.
+> If you are using colors to show a difference (for example, in a pie chart), try applying lighter
+> and darker shades of the same color to indicate the difference. People with color blindness can
+> distinguish contrast differences rather than hue differences.
 
-Use HSL. The browser only understands HSL.
-- HSB is common in design software
-- Hex and RGB
+Prefer HSL (hue, saturation, lightness) over hex or RGB when writing color values. HSL represents
+colors using attributes that match human visual perception:
 
-HSL represents colors using attributes that the human-eye can intuitively perceive:
-- hue: position on the color wheel. There are 360 degrees, where 0 and 360 are equal. 0 is red, 120 is green, 240 is blue
-- saturation: how colorful or vivid the color looks. 0% is grey (no color) and 100% is vibrant and intense. Hue needs saturation, or the color is grey regardless of its degree on the color wheel.
-- lightness: how close a color is to black or white. 0% is pure black, 50% is the pure color at the given hue, and 100% is pure white.
+- **Hue:** Position on the color wheel, expressed in degrees. 0 and 360 are both red, 120 is
+  green, and 240 is blue.
+- **Saturation:** How colorful or vivid the color looks. 0% is grey and 100% is vibrant and
+  intense. A hue with 0% saturation appears grey regardless of its degree.
+- **Lightness:** How close a color is to black or white. 0% is pure black, 50% is the pure hue,
+  and 100% is pure white.
 
+Modern CSS also supports `oklch()`, which improves on HSL by providing perceptually uniform
+lightness. In HSL, increasing the lightness of a yellow shifts it far brighter than increasing the
+lightness of a blue by the same amount. OKLCH (ok, lightness, chroma, hue) corrects this. Figma
+and Tailwind CSS v3+ expose OKLCH values. It is worth knowing as a next step beyond HSL.
 
-> Don't let the lightness wash out the colors. Increase your saturation as the lightness increases from 50%.
+> Do not let lightness wash out your colors. Increase saturation as lightness increases beyond 50%.
+
+### The 60-30-10 rule
+
+A useful starting framework borrowed from interior design: allocate roughly 60% of your visual
+space to neutral colors (backgrounds, panels), 30% to your primary color (navigation, headings,
+key UI elements), and 10% to accent colors (calls to action, alerts, badges). These are not hard
+limits, but they prevent any single color from dominating the layout.
 
 ### Categories
 
-You always need more colors than you think. Your color palette should include colors from three categories: greys, primary colors, and accent colors.
+You always need more colors than you think. Your color palette should include colors from three
+categories: greys, primary colors, and accent colors.
 
 #### Greys
 
-8-10 shades.
+Greys cover text, backgrounds, panels, form controls, and borders. Build 8–10 shades and avoid
+true black. Start with a dark grey and work up to white.
 
-Use greys for text, backgrounds, panels, form controls, etc. Stay away from true black--start with dark grey and work up to white.
+Your greys do not have to be neutral grey. True grey has 0% saturation. In practice, many colors
+in designs look grey but are just very desaturated hues. You can make them warmer or cooler by
+changing their temperature:
 
-Your greys don't have to be grey. Grey has a saturation of 0%, which is no color at all. In reality, many colors in designs look grey but are just very saturated colors. You can make them warmer or cooler. This is called 'changing the temperature':
-- Cooler: saturate with blue
-- Warmer: saturate with yellow or orange
+- **Cooler:** Saturate with blue
+- **Warmer:** Saturate with yellow or orange
 
-To maintain a consistent temperature, increase the saturation for lighter and darker shades.
-
+To maintain a consistent temperature, increase saturation for lighter and darker shades.
 
 #### Primary colors
 
-5-10 shades.
-
-Primary colors determine the overall look of the site. Use for primary actions, active navigation elements. Darker shades are good for text, very light shades are great for backgrounds and alerts.
+Primary colors determine the overall personality of the site. Apply them to primary actions, active
+navigation elements, and focus states. Darker shades work well for text, and very light shades work
+well for backgrounds and alert banners. Build 5–10 shades.
 
 #### Accent colors
 
-Up to 10 different colors with 5-10 shades _each_.
+Accent colors draw the user's attention or communicate state: red for a destructive action, yellow
+for a warning, or green for a positive outcome (think callout banners). Build up to 10 different
+accent colors with 5–10 shades each.
 
-Accent colors get the user's attention or emphasize states, like red for a destructive action, yellow for a warning, or green for something positive (think callouts).
+Real-world palette examples show how these categories appear in production:
+
+| Product | Greys | Primary | Accent |
+|---|---|---|---|
+| Stripe | Cool-tinted slate | Indigo | Green (success), red (error) |
+| Linear | Near-black backgrounds | Violet | Minimal accent usage |
+| Duolingo | White backgrounds | Green | Yellow, red, blue (per subject) |
 
 ### Changing brightness
 
-When you want to change how light a color looks, you naturally increase the lightness value. All this does is move the color closer to black or white, and the color loses some of its intensity.
+When you increase a color's lightness value, the color moves closer to black or white and loses
+intensity. A better approach is to *rotate the hue* to change perceived brightness while preserving
+vibrancy:
 
-You can _rotate the hue_ to update the brightness:
-- Brighter: Rotate to the nearest bright hue, either 60 (yellow), 180 (cyan), or 300 (magenta) degrees.
-- Darker: Rotate to nearest dark hue, 0 (red), 120 (green), or 240 (blue) degrees.
+- **Brighter:** Rotate toward the nearest bright hue: 60° (yellow), 180° (cyan), or 300° (magenta)
+- **Darker:** Rotate toward the nearest dark hue: 0° (red), 120° (green), or 240° (blue)
 
 ### Text contrast
 
-Text under 18px needs to have a contrast ratio or 4.5:1, and larger text needs a ratio of 3:1. Using light text on dark backgrounds is an issue because you have to use a pretty dark background for sufficient text contrast, and this can draw attention to the wrong areas.
+Text under 18px needs a contrast ratio of at least 4.5:1. Larger text needs a ratio of at least
+3:1. Light text on dark backgrounds is problematic because achieving sufficient contrast requires a
+very dark background, which can draw attention away from the content.
 
-The solution is to use lighter backgrounds with dark text. This is called 'flipping the contrast', and it doesn't interfere with other actions on the page.
+The solution is to flip the contrast: apply a light background with dark text. This approach does
+not interfere with other interactive elements on the page.
 
-### Colored text
+### Colored text on colored backgrounds
 
-For colored text on a colored background, its not enough to tweak the lightness and saturation. This often requires that you get very close to pure white.
+For colored text on a colored background, adjusting lightness and saturation alone is often not
+enough to achieve sufficient contrast. This often requires approaching near-white.
 
-The solution is to rotate the hue closer to a brighter color like cyan (180), magenta (300), or yellow (60).
+Rotate the hue closer to a brighter color: cyan (180°), magenta (300°), or yellow (60°). For
+example, Stripe's success banners apply a green background at roughly `hsl(145, 63%, 42%)` with
+near-white text. The hue rotation is what makes the contrast work without washing out the green.
+
+## Depth and elevation
+
+Shadows communicate an element's position on the z-axis. An element close to the surface casts a
+light, diffuse shadow. An element that floats high above the surface casts a darker, tighter shadow.
+
+Build a shadow scale the same way you build a spacing scale: define a small number of named levels
+rather than choosing arbitrary values each time. The following variables show a five-level scale:
+
+```scss
+$shadow-sm:  0 1px 2px hsl(0 0% 0% / 0.05);
+$shadow-md:  0 4px 6px hsl(0 0% 0% / 0.07), 0 2px 4px hsl(0 0% 0% / 0.05);
+$shadow-lg:  0 10px 15px hsl(0 0% 0% / 0.10), 0 4px 6px hsl(0 0% 0% / 0.05);
+$shadow-xl:  0 20px 25px hsl(0 0% 0% / 0.10), 0 10px 10px hsl(0 0% 0% / 0.04);
+$shadow-2xl: 0 25px 50px hsl(0 0% 0% / 0.25);
+```
+
+Material Design's elevation system is the canonical real-world example: cards rest at elevation 1,
+dropdowns at elevation 8, and modals at elevation 24. Each level has a defined shadow and, in
+Material Design 3, a corresponding tonal color shift.
+
+Two additional rules improve shadow realism:
+
+- **Direction:** Real light comes from above. Set your `y-offset` positive (shadow falls downward)
+  and your `x-offset` to zero or near zero.
+- **Color:** Shadows are rarely pure black. Tinting the shadow with a slightly warm or cool hue
+  (matching your grey temperature) makes it feel more natural.
+
+## Interaction states
+
+Every interactive element needs five states: default, hover, focus, active, and disabled.
+Designing all five before shipping prevents jarring gaps in the experience.
+
+GitHub's primary button is a good reference:
+
+- **Default:** Green background, white label
+- **Hover:** Slightly darker green background
+- **Focus:** Green background with an offset focus ring (for keyboard navigation)
+- **Active:** Darker green, slight inset appearance
+- **Disabled:** Reduced opacity, `cursor: not-allowed`
+
+Some rules for each state:
+
+- **Hover:** A 5–10% lightness change is sufficient for most backgrounds. Avoid changing the size
+  or layout on hover.
+- **Focus:** Never remove the focus ring. Style it with `outline-offset` to keep it visually clean.
+  For example, `outline: 2px solid hsl(220, 90%, 56%); outline-offset: 2px` gives a clean,
+  accessible focus indicator.
+- **Active:** A slight darkening and inward shadow reinforces the physical metaphor of pressing.
+- **Disabled:** Reduce opacity (typically 40–50%) and remove pointer events. Do not simply grey out
+  the color, as this can look like an unintentional design choice rather than a deliberate state.
+
+## Iconography
+
+Icons communicate faster than words, but inconsistently applied icons introduce visual noise. A
+few rules keep icon usage coherent.
+
+**Stroke weight:** Do not mix icon sets with different stroke weights in the same interface. For
+example, Heroicons outline (1.5px stroke) and Feather (1px stroke) look mismatched at the same
+size. Pick one set and apply it throughout.
+
+**Size anchors:** Icons have two standard sizes in most design systems:
+
+- 16px: Inline with text, inside buttons, or in tight UI chrome
+- 24px: Standalone, in navigation, or as feature illustrations
+
+Avoid scaling outlined icons below 16px. At small sizes, the strokes blur together and legibility
+collapses. Switch to filled (solid) variants at 16px and below. Heroicons publishes both outline
+and solid variants for exactly this reason.
+
+**Optical alignment:** Icons are often designed with internal padding. When placing an icon next to
+text, align to the visual center of the icon, not the bounding box. For example, a 24px icon may
+have 2px of internal padding on each side, making the visual icon only 20px wide. Aligning to the
+bounding box produces text that appears misaligned.

@@ -1,6 +1,6 @@
 ---
 title: "Objects"
-weight: 70
+weight: 80
 ---
 
 An object is a data structure that combines data (stored as *attributes*) and behavior (defined as *methods*). In Python, everything is an object — numbers, strings, functions, and modules all follow the same object model.

@@ -15,11 +15,13 @@ The `<html>` element should include the `lang` attribute, which defines the natu
   <head>
   ...
 ```
-The value of `lang` must be a valid [BCP 47 language tag](https://appmakers.substack.com/p/bcp-47-language-codes-list?utm_campaign=post&utm_medium=web) composed of one or more subtags:
-- script subtag: defines the writing system used. Ex: `lang="sr-Latn"`
-- region subtag: 2-character country code in caps. Ex: `lang="en-GB"`. These are typically ignored by screen readers.
 
-You can also add this to HTML elements that enclose text in another language. This helps screen readers with pronunciation, but uses it sparingly because it can interrupt the document flow. This `lang` attribute specifies that the paragraph is in German:
+The value of `lang` must be a valid [BCP 47 language tag](https://appmakers.substack.com/p/bcp-47-language-codes-list?utm_campaign=post&utm_medium=web) composed of one or more subtags:
+
+- *Script subtag*: Defines the writing system. For example, `lang="sr-Latn"` specifies Serbian written in the Latin script rather than Cyrillic.
+- *Region subtag*: A two-character country code in uppercase. For example, `lang="en-GB"` specifies British English. Screen readers typically ignore the region subtag, but translation services and spell checkers rely on it.
+
+You can also add `lang` to any element that encloses text in a different language. This helps screen readers switch to the correct pronunciation engine for that passage. Apply it sparingly, because it can interrupt the document flow. This example specifies that a paragraph is written in German:
 
 ```html
 <p lang="de">
@@ -27,23 +29,27 @@ You can also add this to HTML elements that enclose text in another language. Th
     der Ewigkeit entgegengegangen, wenn nicht diejenige, die nach meinem.
 </p>
 
-<!-- Styling elements with lang attr -->
+<!-- Style elements by lang attribute -->
 <style>
 :lang(de) {
   font-style: italic
 }
 </style>
 ```
+
 ### Benefits
 
-- Helps with screen reader pronunciation 
-- Page translation: Google uses the `lang` tag to detect page language
-- Quotes: different languages use different quotes. Ex: French uses `<<quote content>>`
-- Hyphenation styles: If you add hyphens to the document, the language might add hyphens differently by langauge
-- Font selection: The browser might select a language-appropriate font for languages like Chinese
-- SEO: helps search engines with localization
-- Form controls: Helps the browser format form controls. For example, using a comma for French currency rather than a decimal (`19,99`)
+Setting `lang` correctly benefits users in the following ways:
 
+- **Screen reader pronunciation**: The screen reader switches to the correct language voice. Without `lang`, a screen reader configured for English will mispronounce French or German words.
+- **Page translation**: Google Translate detects the page language from `lang` before translating.
+- **Quotation marks**: Different languages render quotes differently. French, for example, renders `«quoted content»` when `lang="fr"` is set.
+- **Hyphenation**: The browser applies language-specific hyphenation rules when you enable CSS `hyphens`. English and German hyphenate at different syllable boundaries.
+- **Font selection**: The browser may select a language-appropriate font for scripts such as Chinese or Arabic.
+- **SEO**: Search engines apply the `lang` value to localization and regional ranking.
+- **Form controls**: The browser formats locale-specific controls correctly. For example, it displays a comma as the decimal separator for French currency (`19,99` rather than `19.99`).
+
+You can also target elements by language in CSS:
 
 ```css
 :lang(es) {
@@ -64,7 +70,7 @@ Describe the topic or purpose of the page with a unique `<title>` in the `<head>
   </head>
 ```
 
-The title can also add context:
+The title can also add context so users immediately understand where they are, even when navigating from a search engine or a shared link:
 
 ```html
 <title>Checkout (step 1 of 2) - Webstore Name</title>               <!-- Describe process -->
@@ -73,52 +79,58 @@ The title can also add context:
 <title>Page 2 - Product Search Results - Webstore Name</title>      <!-- Search results page -->
 ```
 
-We want to add context because for the following reasons:
-- User might come from an external resource like a search engine, or the page might change unexpectedly after a user action.
-- They help screen readers orient the user. Most screen readers have keyboard shortcuts to announce the page title. 
-- Good for bookmarked pages
-- Search engines use it in results
+Screen readers announce the page title first when a page loads. Most screen readers also provide a keyboard shortcut to re-read the title at any time. This means a well-written title orients users who arrive mid-flow, such as a user who clicks Back during a multi-step checkout and lands on an unmarked step. Adding context matters for these reasons:
 
-To supplement the `<title>` element, you can add even more context for social media sites with [open graph](/docs/web-dev/html/metadata/#open-graph).
+- A user may arrive from an external resource like a search engine, or the page may change unexpectedly after a user action.
+- Screen readers orient users by announcing the title. Most screen readers have keyboard shortcuts to announce the page title.
+- Bookmarked pages need descriptive titles so users can identify them later.
+- Search engines display the title in results.
 
 ### Best practices
 
-- Titles should be unique. Users should be able to ID each page if they have multiple tabs open. This is more [complicated with an SPA](https://hidde.blog/accessible-page-titles-in-a-single-page-app/).
-- Make it concise. The title is the first thing a screen reader encounters when reading a page.
-- Be descriptive. SEO is important, but not as important as the user experience. Describe the page's purpose and omit any marketing or SEO terms that improve page ranking.
-- Relevant information comes first. Use "Contact - My Website", not "My Website - Contact"
-- Add context. If the page is one of a set of pages in a step, name it accordingly. For example, "Checkout (step 1 of 2) - Webstore Name".
+Follow these guidelines when writing page titles:
+
+- **Unique**: Every page title should be distinct. Users who open multiple tabs need to distinguish them at a glance.
+- **Concise**: Keep titles short. The title is the first thing a screen reader announces on a page load.
+- **Descriptive**: Prioritize the user's task over marketing or SEO keywords. Describe the page's purpose clearly.
+- **Front-loaded**: Place the most relevant information first. Write "Contact - My Website", not "My Website - Contact".
+- **Contextual**: If the page is one step in a sequence, name it accordingly. For example, "Checkout (step 1 of 2) - Webstore Name".
+
+To supplement the `<title>` element, add even more context for social media with [open graph](/docs/web-dev/html/metadata/#open-graph).
 
 ## Viewport width
 
-Viewport settings should allow users to zoom. This `meta` tag instructs the browser to use the available width of the device as the width for the viewport:
+Viewport settings should allow users to zoom. This `meta` tag instructs the browser to set the viewport width to the device's available width:
 
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 ```
-- `width=device-width`: Sets the viewport's width to the device's available width. Always set `width` to `device-width`. If you set the width larger than the screen, there will be overflow. If you set it smaller, you might clip content or have scroll issues.
-- `initial-scale=1.0`: Sets the default zoom level to 100%. This might not be the default in browsers, so always set it explicitly.
 
-The viewport is the size of the _initial containing block_, which is the root `<html>` element. Users need to zoom for many reasons:
+- `width=device-width`: Sets the viewport width to the device's physical screen width. If you set a fixed width larger than the screen, content overflows. If you set it smaller, content clips or causes scroll issues.
+- `initial-scale=1.0`: Sets the default zoom level to 100%. Not all browsers default to this value, so always set it explicitly.
+
+The viewport is the size of the *initial containing block*, which is the root `<html>` element. Users need to zoom for many reasons:
+
 - Text is too small
-- View image details
-- Select words to copy and paste easier
-- Crop animated elements out of view to avoid distraction
-- Site was not properly designed responsively
-- Browser bug that impacts zoom level
+- Viewing image details
+- Selecting words to copy and paste
+- Cropping animated elements out of view to avoid distraction
+- The site was not properly designed responsively
+- A browser bug altered the zoom level
 - Users expect a pinch or spread gesture to zoom
 
 ### Avoid these properties
 
-These settings negatively affect zoom. Safari and Samsung Internet of Android ignore settings, and Chrome and Firefox let you force zoom, but you should still avoid them:
+The following settings restrict or disable zoom. Safari and Samsung Internet ignore them, and Chrome and Firefox let users override them, but you should still avoid them:
 
-- `maximum-scale`: Defines the maximum scale level. Default is 10 in most browsers. Leave it alone.
-- `user-scalable`: Whether zooming is allowed. `no` or `0` disables zooming.- 
+- `maximum-scale`: Defines the maximum scale level. The default is 10 in most browsers. Leave it unchanged.
+- `user-scalable`: Controls whether zooming is allowed. Setting `no` or `0` disables zooming entirely.
 
 ## Optimal asset loading
 
-The head tag can contain many different tags, links, scripts, etc that it parses line-by-line. Their order can impact loading performance if a resource takes too long to load and blocks the browser from parsing subsequent tags. Here is the ideal order of the elements, as [explained by Harry Roberts](https://csswizardry.com/ct/):
+The `<head>` element can contain many tags, links, and scripts that the browser parses line-by-line. The order of these elements directly affects loading performance. A slow or render-blocking resource delays everything that follows it, which means users wait longer before they see any content. Getting this order right is a small change with a measurable impact on perceived performance.
 
+The following template shows the recommended order, as [explained by Harry Roberts](https://csswizardry.com/ct/):
 
 ```html
 <!DOCTYPE html>
@@ -149,62 +161,67 @@ The head tag can contain many different tags, links, scripts, etc that it parses
 
 ### General rules
 
-- Remove unneccessary tags, such as low-priority scripts or redirects. You can place them in the `<body>`.
-- Self host your static assets instead of relying on 3rd parties. [This article](https://csswizardry.com/2019/05/self-host-your-static-assets/) provides a detailed explanation.
+Follow these guidelines to keep `<head>` loading fast and predictable:
+
+- Remove unnecessary tags, such as low-priority scripts or redirects. Place them in the `<body>` instead.
+- Self-host your static assets instead of relying on third parties. [This article](https://csswizardry.com/2019/05/self-host-your-static-assets/) explains why third-party requests add uncontrolled latency.
 - Always [validate](https://validator.w3.org/) your HTML.
-- Always place page metadata first, such as character encodings and viewport information.
+- Always place page metadata first, such as character encoding and viewport information.
 - Nothing that blocks rendering should come before `<title>`.
-- CSS blocks JS, so place synchronous JS before CSS.
-- Do not use `@import` in your CSS.
-- SEO and social meta tags are last.
+- CSS blocks JavaScript, so place synchronous JavaScript before CSS.
+- Do not apply `@import` inside CSS files. It creates a second request chain and delays rendering.
+- Place SEO and social meta tags last.
 
 ## Landmarks for semantic structure
 
 > Follow the [ARIA rules](https://www.w3.org/TR/using-aria/#firstrule).
 
-You need to include semantic regions so users can understand how the page is structured. Landmarks are regions that represent the organization and structure of a web page.
+*Landmarks* are regions that define the organization and structure of a web page. Screen reader users rely on them to jump directly to the section they need, the same way sighted users scan visual layout. Without landmarks, a screen reader user must listen to the entire page from the top to find the main content.
 
-You can define landmarks with the appropriate HTML element (implicit) or use `role` (explicit) if no appropriate element exists. Prefer elements with implicit roles, rather than elements with explicit roles. You don't need to specify a role on on elements with implicit roles.
+Define landmarks with the appropriate HTML element (*implicit* role) or with `role` (*explicit*) when no appropriate element exists. Prefer elements with implicit roles. You do not need to specify a `role` on elements that already carry one.
 
 ### Major landmarks
 
-Landmarks are different from page regions. Every element in the page should be in one of these common landmarks: `banner` (`<header>`), `main` (`<main>`), and `contentInfo` (`<footer>`).
-
+Every element on the page should belong to one of these three common landmarks: `banner` (`<header>`), `main` (`<main>`), and `contentInfo` (`<footer>`).
 
 #### banner landmark
 
-There should be one `banner` landmark on each page.  
+There should be one `banner` landmark on each page.
 
-The `<header>` has as a role of `banner` and contains site-oriented content such as a logo, skip links, main/global navigation, secondary nav, search, and any other content that is visibile on all pages. If the `<header>` is nested in an element such as `<article>` or `<aside>`, then it is not a `banner` landmark.
+The `<header>` element carries a role of `banner` and contains site-wide content such as a logo, skip links, global navigation, secondary navigation, search, and any other content visible on all pages. If the `<header>` is nested inside an `<article>` or `<aside>`, it is not a `banner` landmark.
 
-The banner doesn't need to be at the top--it can be in a sidebar.
+The banner does not have to appear at the top of the page. It can be placed in a sidebar.
 
 #### main landmark
 
-There should be one `main` landmark on the page, and it should be a direct descendant of the `<html>` or `<body>` element. It's OK to wrap it in a div, if necessary.
+There should be one `main` landmark per page. It should be a direct descendant of the `<html>` or `<body>` element. Wrapping it in a `<div>` is acceptable when layout requires it.
 
-For SPAs, hide all inactive `main` landmarks.
+For single-page applications (SPAs), hide all inactive `main` landmarks.
 
-#### contentInfo
+#### contentInfo landmark
 
-You can have multiple `<footer>` elements, but you should designate only one as a `contentInfo` landmark.
+You can have multiple `<footer>` elements, but designate only one as the `contentInfo` landmark.
 
-Contains site-oriented content like copyright data, secondary nav, other links. If the `<footer>` is nested in an element such as `<article>` or `<aside>`, then it is not a `contentInfo` landmark.
+It contains site-wide content such as copyright information, secondary navigation, and other links. If the `<footer>` is nested inside an `<article>` or `<aside>`, it is not a `contentInfo` landmark.
 
 ### ARIA roles
 
+The following table maps semantic HTML elements to their implicit ARIA roles:
+
 | Element   | ARIA Role       | Conditions                                 |
 | --------- | --------------- | ------------------------------------------ |
-| `header`  | `banner`        | Only when a direct descendent of `<body>`. |
+| `header`  | `banner`        | Only when a direct descendant of `<body>`. |
 | `nav`     | `navigation`    |                                            |
 | `main`    | `main`          |                                            |
 | `section` | `region`        |                                            |
 | `form`    | `form`          |                                            |
 | `search`  | `search`        | Or form with `role="search"`               |
 | `aside`   | `complementary` |                                            |
-| `footer`  | `contentInfo`   | Only when a direct descendent of `<body>`. |
+| `footer`  | `contentInfo`   | Only when a direct descendant of `<body>`. |
 
 ### Benefits
 
-- Orient screen reader users
-- Navigation: screen reader users can jump between landmarks with shortcuts
+Semantic landmarks provide these advantages for screen reader users:
+
+- **Orientation**: The screen reader announces the landmark type when the user enters it
+- **Navigation**: Screen reader users can jump between landmarks with keyboard shortcuts

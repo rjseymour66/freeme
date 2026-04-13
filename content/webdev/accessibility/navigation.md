@@ -8,7 +8,7 @@ weight: 80
 
 ## Main nav
 
-The main navigation of a site should follow this basic outline:
+The main navigation of a site should follow this basic outline. The `aria-label="Main"` attribute distinguishes this navigation landmark from other `<nav>` elements on the page (such as breadcrumbs or a footer navigation), so screen reader users can jump directly to the right one:
 
 ```html
 <header>
@@ -25,15 +25,19 @@ The main navigation of a site should follow this basic outline:
     </nav>
 </header>
 ```
-- You don't have to add `role="list"` to the navigation ul because the `<nav>` element maintains any native semantic information for list children, regardless of the styles.
-- The skip link lets users skip over the interactive elements between the skip link and the target. Here, the target is the main navigation. Use this if there are more than two interactive elements before the main navigation.
+
+- You do not need to add `role="list"` to the navigation `<ul>` because the `<nav>` element preserves the native semantic information for list children, regardless of CSS styles applied.
+- The skip link lets users jump past interactive elements between the skip link and the target. Apply one if there are more than two interactive elements before the main navigation.
 
 
 ## aria-current
 
-Indicates to the screen reader which page (or element in a set) the user is on. This is a good alternative to `class="active"`, but you can use both if you'd like.
+`aria-current` tells a screen reader which item in a set of related elements is the active one. It is a better alternative to `class="active"` because class names are invisible to assistive technologies. You can apply both if you need the class for styling.
 
-`aria-current` accepts the following values, each described in detail in the [MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-current#values) docs:
+For example, on a product site with a four-item navigation, a screen reader user who cannot see the visual "active" highlight needs `aria-current="page"` to know they are viewing the Products page. Without it, they must read the URL or page title to orient themselves.
+
+`aria-current` accepts the following values, each described in the [MDN docs](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-current#values):
+
 - `page`
 - `step`
 - `location`
@@ -42,9 +46,7 @@ Indicates to the screen reader which page (or element in a set) the user is on. 
 - `true`
 - `false`
 
-
-
-Use the `aria-current` selector to style the current page:
+Apply the `aria-current` attribute selector to style the current page in CSS:
 
 ```css
 a {
@@ -69,27 +71,30 @@ a:focus-visible {
 
 ## Lists
 
-The `<list>` element has an implicit role of `list`. When a screen reader encounters a `list`, it announces how many items are in the list.
+The `<ul>` and `<ol>` elements have an implicit role of `list`. When a screen reader encounters a list, it announces how many items are in it, and announces each item's position as the user navigates (for example, "item 2 of 5").
 
-Because all lists have an implicit role of `list`, you might think that you don't have to explicitly add the `list` role. However, if you remove the list discs or change any other visual indicators that identify the element and its children as a list, you should include `role="list"`.
+Because all lists have an implicit `list` role, you might think you never need to add it explicitly. However, if you remove the list bullets or change other visual indicators that identify the element as a list, some browsers (notably Safari with VoiceOver) remove the semantic role. In that case, add `role="list"` explicitly.
 
-Alternately, you could set `list-style-type: "";`. This doesn't remove the semantic information from the list.
+Alternatively, set `list-style-type: "";` to an empty string. This keeps the semantic information intact without displaying bullets.
 
-> If you wrap the list in a `<nav>` element, you do not have to add the `list` role.
+> If you wrap the list in a `<nav>` element, you do not need to add `role="list"`.
 
 
 ## Examples
 
 ### Hamburger for narrow viewports
 
-This involves the following steps:
-1. Create styles for narrow viewports
-2. Hide the nav list in a sidebar
-3. Let users toggle its visibility
+> **Note:** This example is a work in progress. The JavaScript toggle has a known bug (see below) and the full implementation requires additional testing.
 
-This example did not work at all, but here is are the styles to figure out later:
+This pattern involves the following steps:
+
+1. Create styles for narrow viewports.
+2. Hide the nav list in a sidebar.
+3. Let users toggle its visibility with a button.
 
 #### HTML
+
+The button lives inside a `<template>` element so JavaScript can inject it only in environments that support scripting. This is a progressive enhancement approach: the navigation list is always visible, and the hamburger button only appears when JavaScript runs.
 
 ```html
 <header>
@@ -120,19 +125,21 @@ This example did not work at all, but here is are the styles to figure out later
         </template>
       </nav>
     </header>
-    <main role="Main">
+    <main>
       ...
     </main>
 ```
 
 #### CSS
 
+CSS custom properties drive the responsive behavior. The narrow viewport defaults set the navigation to a fixed sidebar. The `@media` query at `48em` switches to a horizontal row by resetting the custom properties:
+
 ```css
 nav {
   position: var(--nav-position), fixed;
   inset-block-start: 1rem;
   inset-block-end: 1rem;
-  z-index: 1; /* added */
+  z-index: 1;
 }
 
 ul {
@@ -143,8 +150,6 @@ ul {
   list-style: none;
   margin: 0;
   padding: 0;
-
-  
 }
 
 nav ul {
@@ -214,6 +219,10 @@ ul {
 
 #### JS
 
+The JavaScript injects the button from the template and handles two events. The `keyup` handler closes the menu when the user presses `Escape` and returns focus to the button. The `click` handler toggles `aria-expanded`.
+
+Note: the comparison `button.getAttribute('aria-expanded') === 'true'` is required because `getAttribute` always returns a string, not a boolean. Comparing against the boolean `true` would always evaluate to `false` and the menu would never close.
+
 ```js
 const nav = document.querySelector('nav');
 const list = nav.querySelector('ul');
@@ -224,13 +233,13 @@ const button = burgerClone.querySelector('button');
 
 nav.addEventListener('keyup', e => {
     if (e.code === 'Escape') {
-        button.setAttribute('aria-expanded', false);
+        button.setAttribute('aria-expanded', 'false');
         button.focus();
     }
 });
 
 button.addEventListener('click', e => {
-    const isOpen = button.getAttribute('aria-expanded') === true;
+    const isOpen = button.getAttribute('aria-expanded') === 'true';
     button.setAttribute('aria-expanded', !isOpen);
 });
 

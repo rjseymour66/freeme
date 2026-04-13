@@ -5,25 +5,38 @@ weight: 110
 # description:
 ---
 
-To make a form a landmark, use the `role="form"` and add an accessible name with `aria-label="<name>"`.
+Consider a product listing page where users can filter by brand, price range, and availability. When a user applies a filter, the page updates with new results. A sighted user sees the list change. A screen reader user hears nothing unless you explicitly notify them. This page covers how to build accessible filter interfaces.
+
+To make a form a landmark, add `role="form"` and give it an accessible name with `aria-label="<name>"`.
 
 ## Types of filters
 
 There are two kinds of form filters:
-- Interactive: Updates when a user clicks a filter. Gets immediate feedback, but there is a performance hit because parts of the page must reload.
-- Batch: Users select several options before submitting the form, but it might yield zero results.
+
+*Interactive*
+: Updates immediately when a user selects a filter. Provides fast feedback, but requires a partial page reload on every change.
+
+*Batch*
+: Users select several options before submitting. Reduces page reloads but may yield zero results if the user combines too many filters.
 
 ## Client-side scripting
 
-Server-side rendering requires a full page load, so users are aware of changes to the page. Client-side rendering changes the DOM, which provides only visual feedback.
+Server-side rendering causes a full page reload, so the browser announces the new page title and the screen reader user knows the results changed. Client-side rendering updates the DOM without a page load, which provides only visual feedback. You must notify screen reader users explicitly.
 
-You have two options to notify users about the filter results:
-- Move focus from the submit button to the region. Add `tabindex="-1"` to the HTML and use the `focus()` method
-- Output the results to a live region. The screen reader will announce changes to a live region.
+You have two options to notify users about filter results:
+
+*Move focus to the results region*
+: Add `tabindex="-1"` to the results container and call `focus()` after the update. The screen reader announces the region label and then reads the first item.
+
+*Output the results count to a live region*
+: A live region (`role="status"`) announces its text content automatically whenever it changes. This approach does not interrupt the user's current position in the page.
+
+Choose focus movement when the results are the primary next action and the user should start reading immediately. Choose a live region when you want to notify the user without interrupting their current context, such as when applying a filter from a sidebar while the results are in a separate column.
 
 Here is the HTML:
-- `tabindex="-1"` makes it focusable by JS
-- The `<div>` is labeled as a region and labeled by the heading
+
+- `tabindex="-1"` makes the results container focusable by JavaScript without adding it to the tab order.
+- The `<div>` is labeled as a region and given an accessible name by its heading.
 
 ```html
 <div id="results" role="region" aria-labelledby="results_heading" tabindex="-1">
@@ -38,7 +51,7 @@ Here is the HTML:
 ```
 
 
-Here is the basic JS. There are two implementations of the `finishQuery()` function so you can either focus with JS or output the list to a live region:
+Here is the JavaScript. The two `finishQuery` implementations are alternatives. Choose one and delete the other:
 
 ```js
 const form = document.querySelector('form');
@@ -47,17 +60,21 @@ const list = document.querySelector('ol');
 const liveRegion = document.querySelector('[role="status"]');
 let records, filtered;
 
-// Option 1: Focus region with JS
+// Option 1: Move focus to the results region
+// Use this when the user should immediately start reading the new results.
 function finishQuery() {
-    results.focus()
+    results.focus();
 }
 
-// Option 2: Output to live region
-function finishQuery() {
-    const total = records.length;
-    const found = filtered.length;
-    liveRegion.textContent = `Showing ${found} or ${total} records`;
-}
+// Option 2: Announce the result count via a live region
+// Use this when you want to notify without moving focus away from the filters.
+// (Remove Option 1 if you choose this approach.)
+//
+// function finishQuery() {
+//     const total = records.length;
+//     const found = filtered.length;
+//     liveRegion.textContent = `Showing ${found} of ${total} records`;
+// }
 
 // Create a list of the results
 function showResults() {
@@ -119,7 +136,7 @@ async function getRecords() {
     ];
 }
 
-// Fetch data add the event listener to the form
+// Fetch data and add the event listener to the form
 getRecords().then(data => {
     records = data;
     filtered = data;
@@ -129,10 +146,11 @@ getRecords().then(data => {
 
 ### Pagination
 
-Pagination helps you manage lots of results data. Some tips:
-- wrap the pagination list in a `<nav>` element to create a landmark
-- use `aria-current="page"` on the current page
-- add a skip link a the beginning of the results region so users can access the pagination instead of cycling through the results first
+Pagination manages large result sets by dividing them across pages. Follow these practices:
+
+- Wrap the pagination list in a `<nav>` element to create a landmark.
+- Apply `aria-current="page"` to the active page link. This tells screen reader users which page they are on, the same way `aria-current="page"` works in a navigation menu.
+- Add a skip link at the beginning of the results region so users can jump directly to pagination without tabbing through all the results.
 
 ```html
 <nav class="pagination" aria-labelledby="pagination_heading">
@@ -146,7 +164,7 @@ Pagination helps you manage lots of results data. Some tips:
 
 ### Sorting results
 
-Here is an example of a live region for the sorting results:
+The following HTML applies a live region to announce sort changes. When the user selects a sort option, JavaScript updates the live region text and the screen reader announces it automatically:
 
 ```html
 <fieldset id="sorting">

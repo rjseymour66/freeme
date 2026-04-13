@@ -5,89 +5,93 @@ weight: 70
 # description:
 ---
 
+Keyboard navigation is not just for users with motor disabilities. Power users, developers, and anyone who prefers not to reach for a mouse all rely on it. If a user cannot see where focus is on the page, they cannot navigate your site with a keyboard. Focus management is the foundation of keyboard accessibility.
+
 ## Tips
 
-- Don't create custom modal elements, or you have to manage the focus. The native `<dialog>` element manages focus automatically.
+- Do not create custom modal elements if you can avoid it. The native `<dialog>` element manages focus automatically: it traps focus inside the dialog while it is open and returns focus to the triggering element when it closes. A custom modal requires you to implement all of that behavior yourself.
 
 ## Styles
 
-Adding focus styles is one of the most important things you can do for keyboard accessibility. You need to add styles to elements so users can tab to elements on the page. Default user agent styles are sufficient, but not great.
+Adding focus styles is one of the most important things you can do for keyboard accessibility. You need visible styles on elements so users can track which element is currently active as they tab through the page. Default browser styles are sufficient but inconsistent across browsers. Define your own to ensure consistency.
 
-> Don't remove an element's outline!
+> Never remove an element's outline.
 
 ### :focus
 
-Applies when the user focuses an element with the keyboard, mouse, or any other input.
+Applies when the user focuses an element with the keyboard, mouse, or any other input method.
 
 ### :focus-visible
 
-From `MDN`:
+From MDN:
 
-The `:focus-visible` pseudo-class applies while an element matches the :focus pseudo-class and the UA (User Agent) determines via heuristics that the focus should be made evident on the element.
+The `:focus-visible` pseudo-class applies while an element matches the `:focus` pseudo-class and the user agent determines via heuristics that the focus should be made evident on the element.
 
-The heurisitics include the following:
-- user interacts with the page using a keyboard or another nonpointing device
-- the element supports keyboard input, such as an input or textarea element
-- if you move focus to a new element with JS, and the previous element showed focus, the new element shows focus too
-- if there is a user preference in the browser
+In practice, this means `:focus-visible` applies for keyboard users but not for mouse clicks. When a mouse user clicks a button, they can already see where they clicked. When a keyboard user tabs to a button, they need a visible ring to track their position. The heuristics include the following:
 
-### :focus-within
+- The user is interacting with the page via keyboard or another non-pointing device
+- The element supports keyboard input, such as an `<input>` or `<textarea>`
+- Focus moved to a new element via JavaScript and the previous element showed a visible focus indicator
+- The browser has a user preference to always show focus indicators
 
-Applies styles to any element whose descendants match `:focus` conditions. So if you have an input nested in a label, and you select the input, you can change the label styles by using `:focus-within` on it.
-
-### Examples
-
-Make sure your focus styles meet W3C color contrast guidelines. For forced contrast mode, combine `box-shadow` and transparent outlines:
+Use `:focus-visible` for visible focus rings so mouse users do not see unnecessary outlines while keyboard users always do:
 
 ```css
-/* global focus-visible styles */
-:focus-visible {
-  outline: 0.25em solid;
-  outline-offset: 0.25em;
-}
-
-/* focus audio/video when child element is focused */
-:is(video, audio):focus-within {
-    box-shadow: 0 0 10px 3px rgb(0 0 0 / 0.2);
-}
-```
-
-These declarations provide different styles for keyboard and non-keyboard users:
-
-```css
-/* keyboard */
+/* Apply focus ring only for keyboard users */
 .button:focus-visible {
   outline: 0.25em dashed black;
 }
 
-/* non-keyboard */
+/* Mouse users get a subtler shadow instead */
 .button:focus:not(:focus-visible) {
   outline: none;
   box-shadow: 1px 1px 5px rgba(1, 1, 0, 0.7);
 }
 ```
 
+### :focus-within
+
+Applies styles to any element whose descendants match `:focus`. If you have an `<input>` nested in a `<label>`, you can change the label's styles when the input receives focus by applying `:focus-within` to the label.
+
+### Examples
+
+Make sure your focus styles meet W3C color contrast guidelines. For *forced-colors mode* (a Windows accessibility setting that overrides all colors), combine `box-shadow` with a transparent outline. The transparent outline becomes visible in forced-colors mode even though it is invisible normally:
+
+```css
+/* Global focus-visible styles */
+:focus-visible {
+  outline: 0.25em solid;
+  outline-offset: 0.25em;
+}
+
+/* Focus audio/video when a child element is focused */
+:is(video, audio):focus-within {
+    box-shadow: 0 0 10px 3px rgb(0 0 0 / 0.2);
+}
+```
+
 ## Make elements focusable
 
-Most interactive elements are focusable by default, but here are some circumstances that you need to add focus:
-- you need to move focus, but the element or its children are not focusable
-- want to add focus to scrollable areas
-- you use a custom element
+Most interactive elements are focusable by default. You need to explicitly manage focus in these situations:
+
+- You need to move focus programmatically, but the target element is not natively focusable
+- You want to add focus to a scrollable container so keyboard users can scroll it
+- You are building a custom interactive widget
 
 ### tabindex
 
-`tabindex` lets you make an element focusable. Use `tabindex=0` to add the element to its natural sequence in the tab order, which is determined by the HTML structure.
+`tabindex` lets you control which elements are focusable and in what order. Apply `tabindex="0"` to add an element to the natural tab order determined by the HTML structure.
 
-Use `tabindex="-1"` to make an element focusable with JS `focus()` but NOT keyboard accessible, or remove an element from the tab order but still access with JS.
+Apply `tabindex="-1"` to make an element focusable via the JavaScript `focus()` method without adding it to the keyboard tab order. This is the correct approach for elements that should receive focus programmatically, such as a modal dialog that should receive focus when it opens, but that users should not tab to directly.
 
-> Do not assign a tabindex value higher than `0`. This alters the natural sequence of the tab order and the element gets preference over others. This can confuse navigation.
+> Do not assign a `tabindex` value higher than `0`. A positive value overrides the natural tab order and gives that element priority over others. This disrupts navigation in ways users do not expect.
 
 
 ## Skip content
 
-Some parts of a web page contain multiple interactive elements, and tabbing through them all can be cumbersome. For example, a navigation menu. You can add "skip links" to these areas that link to the next section in the content so users don't have to tab through all the interactive elements.
+Pages with long navigation menus or repeated header content force keyboard users to tab through many interactive elements to reach the main content. On a page with twelve navigation links, a keyboard user must press Tab twelve times on every page load before reaching the first paragraph.
 
-Skip links should only be visible when it is focus:
+A *skip link* solves this by jumping focus directly to the main content. The link should only be visible when it has focus, so it does not clutter the visual design for mouse users:
 
 ```html
 <a href="#content" class="skip-link">Skip to content</a>
@@ -95,10 +99,10 @@ Skip links should only be visible when it is focus:
 <p id="content">Here is the main content!</p>
 ```
 
-The CSS hides the skip link when it is not active or in focus:
+The CSS hides the skip link when it is not focused or active:
 
 ```css
-/* visible styles */
+/* Visible styles */
 .skip-link {
   background-color: #fff;
   position: absolute;
@@ -106,7 +110,7 @@ The CSS hides the skip link when it is not active or in focus:
   display: block;
 }
 
-/* hide skip link */
+/* Hide skip link */
 .skip-link:not(:focus):not(:active) {
   clip-path: inset(50%);
   height: 1px;

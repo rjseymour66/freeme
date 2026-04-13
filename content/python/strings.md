@@ -1,6 +1,6 @@
 ---
 title: "Strings"
-weight: 30
+weight: 40
 ---
 
 Strings in Python are immutable sequences of Unicode characters. Every string method returns a new string — modifying a string always creates a new object rather than changing the original.

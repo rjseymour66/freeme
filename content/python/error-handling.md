@@ -1,6 +1,6 @@
 ---
 title: "Error handling"
-weight: 80
+weight: 90
 ---
 
 Python signals errors and unusual conditions through *exceptions*. When code raises an exception, Python unwinds the call stack looking for a matching `except` clause. If it finds none, the program terminates and prints a traceback.

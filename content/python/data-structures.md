@@ -1,6 +1,6 @@
 ---
 title: "Data structures"
-weight: 40
+weight: 50
 ---
 
 Python provides four core sequence and collection types: tuples, lists, dictionaries, and sets. Choosing the right type affects both correctness and performance.

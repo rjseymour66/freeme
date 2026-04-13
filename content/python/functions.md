@@ -1,6 +1,6 @@
 ---
 title: "Functions"
-weight: 60
+weight: 70
 ---
 
 Functions are the primary unit of reusable logic in Python. When you call a function with arguments, Python copies the argument values into the function's parameters. Because Python is dynamically typed, parameters accept any type — type hints make the expected types explicit without enforcing them at runtime.

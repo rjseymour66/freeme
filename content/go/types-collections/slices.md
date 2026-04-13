@@ -5,161 +5,172 @@ weight = 20
 draft = false
 +++
 
-The slice type is a dynamic array with no fixed size. A slice has three fields:
-- Pointer: Points to the underlying array.
-- Length: Number of elements the slice can access from the array.
-- Capacity: Size of the underlying array, or number of elements that the slice has available for growth.
+A *slice* in Go is a dynamically sized view into an array. A slice has three fields:
 
-You cannot create a slice with a capacity that's smaller than the length.
+*Pointer*
+: Points to the element in the underlying array where the slice begins.
+
+*Length*
+: The number of elements the slice can access.
+
+*Capacity*
+: The number of elements between the start of the slice and the end of the underlying array.
+
+You cannot create a slice with a capacity smaller than its length.
 
 {{< admonition "slice vs array" note >}}
-If you specify a value inside the `[]` operator (`[4]varName`), then you are creating an array. If you do not specify a value, you create a slice:
+If you specify a value inside the `[]` operator (`[4]varName`), you are creating an array. If you do not specify a value, you create a slice:
 
 ```go
 array := [3]int{10, 20, 30}
 slice := []int{10, 20, 30}
 ```
 
-An _array_ is a value. They are of a fixed size, and the elements in the array are initialized to their zero value.
+An *array* is a value. It has a fixed size, and Go initializes its elements to their zero value.
 
-A _slice_ is a pointer to an array. It has no specified length, and its zero value is `nil`.
-'Slicing' does not copy the slice's data, it creates a new slice value that points to the original array. So `s = slice[2:]` creates slice `s` that begins with second element of `slice`, and they both point to the same underlying data structure. So, modifying elements of a slice changes the  
+A *slice* is a reference to an underlying array. It has no specified length, and its zero value is `nil`. Slicing does not copy data: it creates a new slice header pointing to the original array. Modifying elements through a slice modifies the underlying array, which any other slice pointing to the same array will also see.
 {{< /admonition >}}
 
 
 ## Creating a slice
 
-Declare a slice with curly brackets, followed by the data type: `[]<type>`. Slices can contain elements of the same type only:
-1. Standard "nil slice" declaration. Unlike an array that has elements of the type's default value, a slice can have a length of zero. A nil slice is the most common way to create slices, and can be used with many of the standard library and built-in functions that work with slices.
-2. Slice literal. This is the idiomatic way to create slices. It requires that you define the contents when you create the slice.
-3. Empty slice. This is useful when you want to represent an empty collection. For example, when a database query returns zero results.
+The slice type syntax is `[]type` with no length specified. Go provides three declaration forms:
+
+1. **Nil slice:** The zero value for a slice. Its length is zero and it has no underlying array. Most standard library functions that accept slices also accept nil slices.
+2. **Slice literal:** The idiomatic form when you know the values upfront.
+3. **Empty slice:** Represents an empty but non-nil collection. Prefer this when you need to distinguish "no results" from "uninitialized," for example when marshaling to JSON (`null` vs `[]`).
+
+The following example shows all three forms:
 
 ```go
 func main() {
-	var integers []int 												// 1
-	var stones = []string{"jagger", "richards", "wyman", "watts"} 	// 2
-	slice := []int{}                    							// 3
+	var integers []int                                              // 1
+	var stones = []string{"jagger", "richards", "wyman", "watts"}  // 2
+	slice := []int{}                                               // 3
 }
 ```
 ### make
 
-You can also create a slice with the `make` function. `make` requires that you pass the type and length. You can optionally pass a capacity. If the capacity is omitted, it defaults to the given length.
+`make` allocates a slice with a given type, length, and optional capacity. Pass a capacity when you know the approximate final size upfront. Pre-allocating avoids repeated reallocation as the slice grows.
 
-`make` initializes the slice to its default values:
-1. No capacity
-2. Capacity
+`make` zeroes every element in the allocated backing array:
+
+1. **Length only:** Capacity defaults to the given length.
+2. **Length and capacity:** Allocates a backing array of size 10, but the slice can only access the first 8 elements until you append past the length.
 
 ```go
 func main() {
-	eight := make([]int, 8) 		// 1
-	tenCap := make([]int, 8, 10)  	// 2
+	eight := make([]int, 8)       // 1
+	tenCap := make([]int, 8, 10)  // 2
 }
 ```
 
 ### new
 
-The `new` method returns a pointer to a slice. It does not initialize the slice, it zeroes it:
+`new` allocates a zeroed slice header and returns a pointer to it. The pointer points to a nil slice: length 0, capacity 0, and no underlying array.
+
+The following example shows the zero state of a `*[]int` allocated with `new`:
 
 ```go
 func main() {
 	var zeroes *[]int = new([]int)
-	fmt.Println(zeroes) 			// &[]
+	fmt.Println(zeroes) // &[]
 }
 ```
+
+`new` is rarely used with slices in practice. Reach for a nil slice declaration or `make` instead.
 ## As function arguments
 
-Pass slices by value, because slices only contain a pointer to the underlying array, its length, and capacity. This is why slices are great--no need for passing pointers.
+Pass slices by value. A slice header is only 24 bytes on 64-bit systems (8 bytes each for the pointer, length, and capacity), so copying it is cheap regardless of how large the underlying array is.
 
-On 64-bit machines, each component of the slice requires 8 bytes (24 total).
+The following example passes a large slice without allocating a pointer:
 
 ```go
-bigSlice := make([]int, 1e9)
+func main() {
+	bigSlice := make([]int, 1e9)
+	bigSlice = process(bigSlice)
+}
 
-slice = fName(slice)
-
-func fName(slice []int) []int {
-    return slice
+func process(slice []int) []int {
+	return slice
 }
 ```
+
+The callee receives its own copy of the slice header, but both headers point to the same underlying array. Writes to existing elements in the callee are visible to the caller. Only appends that exceed capacity are invisible, because `append` allocates a new array in that case.
 
 
 ## Variadic slices
 
-The `...` operator creates a variadic slice, and is also called _slice unpacking notation_. The `...` operator represents the elements of the slice when used as a function parameter or argument:
-1. As a parameter, expand a slice to a list of values.
-2. As an argument, pass each element of a slice to a function as a list of values.
-3. Append the two slices together and display the results.
+The `...` operator has two related uses in Go. In a function signature, it declares a *variadic parameter* that accepts any number of arguments of the same type. At the call site, it unpacks a slice into individual arguments, which is also called *slice unpacking notation*.
+
+The following example shows both uses, plus unpacking with `append`:
+
+1. **Variadic parameter:** `args ...string` accepts zero or more string arguments.
+2. **Slice unpacking at the call site:** `flag.Args()...` passes each element of the slice as a separate argument.
+3. **Unpacking with `append`:** Appends all elements of `s2` into `s1`.
 
 ```go
-func someFunc(r io.Reader, args ...string) {} 	// 1
+func someFunc(r io.Reader, args ...string) {} // 1
 
 func main() {
-	someFunc(os.Stdin, flag.Args()...) 			// 2
+	someFunc(os.Stdin, flag.Args()...) // 2
 
 	s1 := []int{1, 2}
 	s2 := []int{3, 4}
-	combined := append(s1, s2...) 				// 3 [1 2 3 4]
+	combined := append(s1, s2...) // 3 [1 2 3 4]
 }
 ```
 
 ## Functions
 
 ### len
-_len(slice)_
 
-Returns the number of elements in the given slice:
+`len(slice)` returns the number of elements in the slice:
 
 ```go
 func main() {
 	var stones = []string{"jagger", "richards", "wyman", "watts"}
-	fmt.Println(len(stones)) 	// 4
+	fmt.Println(len(stones)) // 4
 }
 ```
 
 ### cap
 
-_cap(slice)_
-
-Returns the length of the slice's underlying array. When you expand a slice beyond its original capacity, the capacity is always doubled when the existing capacity of the slice is under 1,000 elements.
+`cap(slice)` returns the capacity of the slice’s underlying array. When a slice grows beyond its capacity, the runtime allocates a new, larger array. For small slices, the runtime typically doubles the capacity; the exact growth factor depends on the Go version and element size.
 
 ```go
 func main() {
 	tenCap := make([]int, 8, 10)
-	fmt.Println(cap(tenCap)) 		// 10
+	fmt.Println(cap(tenCap)) // 10
 }
 ```
 
 ### copy
 
-_copy(dest, src)_
-
-Copies the contents of the `src` slice into the `dest` slice. The `dest` and `src` slices must share the same underlying array. This is commonly used to increase the capacity of an existing slice.
-
-If `dest` and `src` are different lengths, it copies up to the smaller number of elements. 
-
+`copy(dst, src)` copies elements from `src` into `dst` and returns the number of elements copied. If `dst` and `src` have different lengths, `copy` copies up to the shorter length. Use `copy` to duplicate a slice into an independent backing array, for example to avoid mutating shared memory.
 
 ### append
 
-_append(slice, value)_
+`append(slice, value)` appends one or more values to the end of a slice and returns the updated slice. Always assign the return value back to the slice variable.
 
-Appends `value` to the end of `slice`.
-
-When there’s no available capacity in the underlying array for a slice, the `append` function creates a new underlying array, copies the existing values that are being referenced, and assigns the new value. So, if you append to the 3rd index of a slice with length 2, you get a new underlying array of length 3 with a capacity doubled the original array.
+When the slice has no remaining capacity, `append` allocates a new underlying array, copies existing elements, and appends the new value. The original slice is unaffected. The following example shows this growth in action in the "Append" subsection under Modifying.
 
 ## Accessing elements
 
-Get an element in a slice with its index:
+Access individual elements by index using `slice[i]`. Indices are zero-based, and Go panics at runtime if you access an out-of-bounds index.
+
+The following example accesses a single element:
 
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
-	third := numbers[2] 					// 2
+	third := numbers[2] // 2
 }
 ```
 
 ### for loop
 
-Use a classic C-style loop to perform access each element in a slice:
+A classic C-style loop works well when you need the index to compute something or modify elements in place:
 
 ```go
 func main() {
@@ -173,7 +184,7 @@ func main() {
 
 ### for ... range
 
-The `for...range` loop gives you access to the index of each element:
+`range` returns the index and a copy of the value at each position. It is the idiomatic way to iterate over a slice when you do not need to modify elements:
 
 ```go
 func main() {
@@ -185,105 +196,95 @@ func main() {
 }
 ```
 
+If you only need the values, discard the index with `_`:
+
+```go
+for _, v := range numbers {
+	fmt.Println(v)
+}
+```
+
 ## Slicing
 
-Slice a slice to access a range of numbers. Use the following syntax to 'slice' a slice into a new slice: 
+A *slice expression* extracts a portion of a slice without copying the underlying data. The result shares the same backing array as the original.
 
-`slice[<start>:<end>:<capacity>]`
+The syntax is:
 
-_start_
-: Inclusive. The index position of the element that the new slice begins with. For example, `newTest := test[1:]` means "take everything from element at index 1 to the end of the slice, and place it in `newTest`.
+`slice[start:end:capacity]`
 
-  If you don't use a starting index, the slice starts at 0.
+*start*
+: Inclusive. The index of the first element in the new slice. Defaults to `0` if omitted.
 
-_end_
-: Non-inclusive. The index of the existing slice where you stop copying values to the new slice. The new slice ends with the value at `[end-1]`.
+*end*
+: Non-inclusive. The index where the slice stops. The new slice ends at `end - 1`. Defaults to `len(slice)` if omitted.
 
-  If you don't use an ending index, the slice ends at the last element.
+*capacity*
+: The capacity of the new slice. Defaults to `cap(slice) - start` if omitted.
 
-_capacity_
-: The capacity for the new slice. When you append to a slice that goes beyond the slice capacity, the capacity is doubled when its length is less than 1,000.
-
+The following example shows common slice expressions:
 
 ```go
 func main() {
 	slice := []int{0, 1, 2, 3, 4, 5, 6}
 
-	firstSecond := slice[1:3] 	// [1 2]
-	noStart := slice[:4]		// [0 1 2 3]
-	noEnd := slice[2:] 			// [2 3 4 5 6]
-	copy := slice[:] 			// [0 1 2 3 4 5 6]
-}
-```
-
-### Convert array to slice
-
-Omit both the start and end indices to convert an array into a slice:
-
-```go
-func main() {
-	array := [5]int{1, 2, 3, 4, 5}
-	slice := array[:]
+	firstSecond := slice[1:3] // [1 2]
+	noStart := slice[:4]      // [0 1 2 3]
+	noEnd := slice[2:]        // [2 3 4 5 6]
+	full := slice[:]          // [0 1 2 3 4 5 6]
 }
 ```
 
 ### Calculating slices
 
-The start, end, and capacity values have a formula that you can use to correctly calculate slicing. For example, the following slice creates a new slice with 1 element, and the capacity of 2:
+The three-index form `slice[start:end:capacity]` lets you control the capacity of the resulting slice, which limits how far `append` can grow before allocating a new array. The values follow these formulas:
+
+| Value | Role | Formula |
+| :---- | :--- | :------ |
+| `start` | First element, inclusive | |
+| `end` | Last element, non-inclusive | `start + number of elements you want` |
+| `capacity` | Size of the new slice's backing window | `start + number of elements to include in capacity` |
+
+The following example creates a slice with length 1 and capacity 2 from a larger slice:
 
 ```go
-newSlice := slice[2:3:4]
+source := []int{0, 1, 2, 3, 4}
+newSlice := source[2:3:4]
+// Length:   3 - 2 = 1
+// Capacity: 4 - 2 = 2
 ```
-| Value | Description                                                                  | Formula                                                |
-| :---- | :--------------------------------------------------------------------------- | :----------------------------------------------------- |
-| 2     | start. The first element in the original slice, inclusive.                   |                                                        |
-| 3     | end. The index of the existing slice where the slicing stops, non-inclusive. | start + number of elements you want in the slice.      |
-| 4     | capacity. Size of the new slice.                                             | start + number of elements to include in the capacity. |
-
-
-
-```go
-newSlice := slice[1:3]              // Length:   3 - 1 = 2
-                                    // Capacity: 5 - 1 = 4
-
-// Slice the third element and restrict the capacity.
-// Contains a length of 1 element and capacity of 2 elements.
-slice := source[2:3:4]
-```
-
-You can use the built-in function called append, which can grow a slice quickly with efficiency. You can also reduce the size of a slice by slicing out a part of the underlying memory.
 
 
 ## Modifying
 
-A slice can change in size, so you can append to the 
+A slice is mutable. You can assign to existing elements by index or grow the slice with `append`.
 
 ### Index
 
-You can modify an element at a given index. This replaces the existing element in the array with the given element:
+Assign a new value to any element by index. This replaces the existing element in the underlying array:
 
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
-	numbers[4] = 7                          // [0 1 2 3 7 5 6]
+	numbers[4] = 7 // [0 1 2 3 7 5 6]
 }
 ```
 
 ### Append
 
-Use `append` one or more elements of the same type to the end of a slice:
-1. Append a single element.
-2. Append multiple elements.
-3. Create a new array of the same type.
-4. Append the entire array with the _slice unpacking notation_.
+`append` adds one or more elements of the same type to the end of a slice:
+
+1. **Single element:** Appends one value.
+2. **Multiple elements:** Appends several values in one call.
+3. **Another slice:** Create a second slice, then unpack it with `...` to append all its elements.
+
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
 
-	numbers = append(numbers, 7) 			// 1 [0 1 2 3 4 5 6 7]
-	numbers = append(numbers, 8, 9) 		// 2 [0 1 2 3 4 5 6 7 8 9]
-	newNums := []int{10, 11, 12, 13} 		// 3
-	numbers = append(numbers, newNums...) 	// 4 [0 1 2 3 4 5 6 7 8 9 10 11 12 13]
+	numbers = append(numbers, 7)          // 1 [0 1 2 3 4 5 6 7]
+	numbers = append(numbers, 8, 9)       // 2 [0 1 2 3 4 5 6 7 8 9]
+	newNums := []int{10, 11, 12, 13}      // 3
+	numbers = append(numbers, newNums...) //   [0 1 2 3 4 5 6 7 8 9 10 11 12 13]
 }
 ```
 
@@ -291,51 +292,49 @@ func main() {
 
 #### In the middle
 
-You can insert an element in a slice without replacing the element. This requires that you use `append` with some index
-1. Create a slice.
-2. This step requires that you create a new slice from the existing slice, then append a portion of the existing slice with the unpacking notation. You need to know the index that you want to insert the new element:
-   1. `numbers[:2+1]`: Create a slice from the start of the original slice to the index directly preceding where you want to insert the new element, then add 1. The `+1` reserves a space for the new element that you want to add. For example, if you want to insert the element at index 6, use `[:6+1]`. In the following example, `numbers[:2+1]` creates a slice that is equivalent to `numbers[:3]`, which is `[0 1 2 2]`
-   2. Append a slice that begins at index 2 to the end of the slice, using the unpacking notation. This creates a new slice `[2 3 4 5 6]`.
-   3. When you append the second slice to the first, you get `[0 1 2 2 3 4 5 6]`.
-3. The second `2` at index 3 is replaced with `99`, giving you `[0 1 2 99 3 4 5 6]`.
+To insert an element without replacing an existing one, combine two `append` calls:
+
+1. Declare the original slice.
+2. Open a gap at the target index by appending the tail onto a truncated head. `numbers[:2+1]` reserves one extra slot at index 2, giving `[0 1 2 2]`. Appending `numbers[2:]...` fills in the tail, producing `[0 1 2 2 3 4 5 6]`.
+3. Assign the new value into the reserved slot at index 3.
 
 ```go
 func main() {
-	numbers := []int{0, 1, 2, 3, 4, 5, 6} 				// 1
-	numbers = append(numbers[:2+1], numbers[2:]...) 	// 2
-	numbers[3] = 99 									// 3 [0 1 2 99 3 4 5 6]
+	numbers := []int{0, 1, 2, 3, 4, 5, 6}          // 1
+	numbers = append(numbers[:2+1], numbers[2:]...) // 2
+	numbers[3] = 99                                 // 3 [0 1 2 99 3 4 5 6]
 }
 ```
 
 #### At the beginning
 
-Adding an element at the first element in a slice requires that you use the unpacking notation. Just create a slice literal with the value you want to insert, the append the original slice:
+To prepend a value, create a one-element slice literal and unpack the original slice into it:
 
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
-	numbers = append([]int{99}, numbers...) 	// [99 0 1 2 3 4 5 6]
+	numbers = append([]int{99}, numbers...) // [99 0 1 2 3 4 5 6]
 }
 ```
 
 #### Multiple elements
 
-Inserting multiple elements is tricky. A slice is a pointer to an underlying array, which means that you can't slice elements in-place. You need to create a new slice that contains the values that you want to follow the inserted elements:
+Inserting multiple elements requires saving the tail first, because `append` modifies the underlying array in place and would overwrite elements you still need:
 
-1. Original slice.
-2. Create a slice of values that you want to insert.
-3. Create a new slice that starts with an empty slice, and appends a portion of the original slice with unpacking notation. This portion should start at the element that you want to place after the inserted elements. For example, if you want to insert 3 elements starting at index 3, append `slice[3:]`.
-4. Append up to index 3 (non-inclusive), and then unpack the inserted elements into the slice.
-5. Append the `tail` slice, which appends values after the inserted values.
+1. Declare the original slice.
+2. Declare the values to insert.
+3. Save the tail — the elements that should follow the inserted values — into a new independent slice.
+4. Truncate the original to the insertion point, then append the inserted values.
+5. Append the saved tail.
 
 ```go
 func main() {
-	numbers := []int{0, 1, 2, 3, 4, 5, 6} 		// 1
-	inserted := []int{100, 101, 103} 			// 2
+	numbers := []int{0, 1, 2, 3, 4, 5, 6}     // 1
+	inserted := []int{100, 101, 103}           // 2
 
-	tail := append([]int{}, numbers[3:]...) 	// 3
-	numbers = append(numbers[:3], inserted...) 	// 4
-	numbers = append(numbers, tail...)  		// 5 [0 1 2 100 101 103 3 4 5 6]
+	tail := append([]int{}, numbers[3:]...)    // 3
+	numbers = append(numbers[:3], inserted...) // 4
+	numbers = append(numbers, tail...)         // 5 [0 1 2 100 101 103 3 4 5 6]
 }
 ```
 
@@ -343,69 +342,68 @@ func main() {
 
 #### At the beginning or end
 
-Removing elements from the beginning or end of the slice is simple---you just reslice:
-1. Reslice from the second element (index `1`) to the end of the slice.
-2. Reslice from the start of the slice, to the length of the origial slice minus 1. Slices are 0-indexed, so you access the last element in a 7-element slice with `numbers[:6]`, which is equivalent to `numbers[:len(numbers)-1]` (length is 7, so 7-1 = 6).
+Removing the first or last element is a reslice operation:
+
+1. Reslice from index `1` to drop the first element.
+2. Reslice to `len(numbers) - 1` to drop the last element.
 
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
-	rmFirst := numbers[1:] 					// 1 [1 2 3 4 5 6]
-	rmLast := numbers[:len(numbers)-1] 		// 2 [0 1 2 3 4 5]
+	rmFirst := numbers[1:]             // 1 [1 2 3 4 5 6]
+	rmLast := numbers[:len(numbers)-1] // 2 [0 1 2 3 4 5]
 }
 ```
 
 #### From the middle
 
-To remove elements from a slice, append the head of the slice to the tail, removing elements in between:
-1. The head of the slice takes the slice up to but not including the element at index 2, so the head is indices 0 and 1. The tail uses slice unpacking notation to append from index 3 to the end of the slice, so the head is indices 3, 4, and so on. This removes element two.
+To remove elements from the middle, append the head of the slice to the tail, skipping the elements to remove:
 
 {{< admonition "" warning >}}
-The following example is demonstration purposes only. If you were to run this example, you receive the following:
+The following example is for demonstration purposes only. Running it produces unexpected output:
 
 ```go
 [0 1 6 6 5 6]
 [0 1 6 6]
 ```
 
-This is because append modifies the `numbers` array, and `rmTwo` and `rmMore` both point to `numbers` as their underlying array.
+`append` modifies the underlying array in place. Both `rmTwo` and `rmMore` share `numbers` as their backing array, so the second `append` overwrites memory that `rmTwo` is still pointing to.
 {{< /admonition >}}
 
 ```go
 func main() {
 	numbers := []int{0, 1, 2, 3, 4, 5, 6}
-	rmTwo := append(numbers[:2], numbers[3:]...) 	// 1 [0 1 3 4 5 6]
-	rmMore := append(numbers[:2], numbers[5:]...) 	// [0 1 5 6]
+	rmTwo := append(numbers[:2], numbers[3:]...)  // [0 1 3 4 5 6]
+	rmMore := append(numbers[:2], numbers[5:]...) // [0 1 5 6]
 }
 ```
 
 ## Concurrency safety
 
-Slices are not safe for concurrent use. If more than one goroutine makes changes to a slice, you should use a mutex to lock the slice, make modifications, and unlock when work is complete.
+Slices are not safe for concurrent reads and writes. If multiple goroutines modify a slice simultaneously, protect access with a `sync.Mutex`:
 
-This 
-1. Create the mutex.
-2. At the start of the function, start the lock.
-3. Do some work.
-4. Unlock the mutex.
+1. Declare the mutex alongside the shared slice.
+2. Lock the mutex at the start of any function that writes to the slice.
+3. Perform the work.
+4. Unlock the mutex when the work is complete.
 
 ```go
 var shared []int = []int{1, 2, 3, 4, 5, 6}
-var mutex sync.Mutex 								// 1
+var mutex sync.Mutex // 1
 
 func increase(num int) {
-	mutex.Lock() 									// 2
-	fmt.Printf("[+%d a] : %v\n", num, shared) 		// 3
+	mutex.Lock() // 2
+	fmt.Printf("[+%d a] : %v\n", num, shared) // 3
 	for i := 0; i < len(shared); i++ {
 		time.Sleep(20 * time.Microsecond)
 		shared[i] = shared[i] + 1
 	}
 	fmt.Printf("[+%d b] : %v\n", num, shared)
-	mutex.Unlock() 									// 4
+	mutex.Unlock() // 4
 }
 ```
 
-When you call the function in a goroutine, only one goroutine can access the slice at a time:
+With the mutex in place, only one goroutine can access the slice at a time:
 
 ```go
 func main() {
@@ -419,72 +417,58 @@ func main() {
 
 ## Sorting
 
-The `sort` package provides methods to sort elements in a slice.
+The `sort` package provides functions to sort slices of common types and custom types.
 
 ### int, float64, string
 
-Sort these types with the `Ints`, `Float64s`, and `Strings` methods in the `sort` package:
+Sort these types with `sort.Ints`, `sort.Float64s`, and `sort.Strings`:
 
 ```go
 func main() {
 	integers := []int{2, 4, 1, 8, 3, 4}
 	floats := []float64{3.14, 6.54, 33.4, 9.1}
-	strings := []string{"zebra", "elephant", "giraffe", "cat", "apple"}
+	strs := []string{"zebra", "elephant", "giraffe", "cat", "apple"}
 
-	sort.Ints(integers) 		// [1 2 3 4 4 8]
-	sort.Float64s(floats) 		// [3.14 6.54 9.1 33.4]
-	sort.Strings(strings) 		// [apple cat elephant giraffe zebra]
+	sort.Ints(integers)   // [1 2 3 4 4 8]
+	sort.Float64s(floats) // [3.14 6.54 9.1 33.4]
+	sort.Strings(strs)    // [apple cat elephant giraffe zebra]
 }
 ```
 
-
 ### Reverse sort
 
-You can reverse sort a sorted slice with a `for` loop:
-1. Create the slice.
-2. Sort the slice with the `sort` package method.
-3. Reverse the slice with a `for` loop. This loop starts work from the middle of the slice and swaps the left side with the right side:
-   1. `len(integers) / 2` determines how many swaps you have to do. Subtract 1 from this value because we are working with indices, and slices are 0-indexed. This makes sure it starts at the last valid index in the first half.
-   2. `len(integers) - 1 - i` finds the correct element from the opposite side to swap with. If you are swapping the second element (index 1), you need to find its opposite: 6 - 1 - 1 = 4.
-      ```bash
-	    0 [1] 2 3 [4] 5
-	  { 1 [2] 3 4 [6]  8 } 
-	  ```
-   3. This line uses parallel assignment to swap the elements. 
-     
+Sort the slice first, then reverse it with a loop that swaps elements from the outside in. The loop runs for `len/2` iterations, and each iteration swaps index `i` with its mirror index `len - 1 - i`:
 
 ```go
 func main() {
-	integers := []int{2, 4, 1, 8, 3, 6} 							// 1
+	integers := []int{2, 4, 1, 8, 3, 6}
 
-	sort.Ints(integers) 											// 2
+	sort.Ints(integers)
 
-	for i := len(integers)/2 - 1; i >= 0; i-- { 					// 3, 3.1
-		opp := len(integers) - 1 - i 								// 3.2
-		integers[i], integers[opp] = integers[opp], integers[i] 	// 3.3
+	for i := len(integers)/2 - 1; i >= 0; i-- {
+		opp := len(integers) - 1 - i
+		integers[i], integers[opp] = integers[opp], integers[i]
 	}
 }
 ```
 
 ### Slice method
 
-`sort` also has a `Slice` method, which sorts the given slice using second argument, a `less` function that returns a boolean. The `sort` package repeatedly calls the `less` function to compare two consecutive elements to see whether they should be swapped:
-1. `Slice` is called on all consecutive elements in the slice, which is represented by indices `i` and `j`. If it returns `true`, it swaps the elements.
-2. For ascending order, use greater than (`>`). In plain English, if `i` is greater than `j`, swap the elements. For descending order, use less than `<`.
+`sort.Slice` sorts a slice using a `less` function you provide. The function receives two indices `i` and `j` and returns `true` if the element at `i` should come before the element at `j`. For ascending order, return `slice[i] < slice[j]`. For descending order, return `slice[i] > slice[j]`:
 
 ```go
 func main() {
 	floats := []float64{3.14, 6.54, 33.4, 9.1}
 
-	sort.Slice(floats, func(i, j int) bool { 		// 1
-		return floats[i] > floats[j] 				// 2
+	sort.Slice(floats, func(i, j int) bool {
+		return floats[i] > floats[j] // descending
 	})
 }
 ```
 
 ### Sort interface
 
-The `Sort` interface is three methods that you must implement for a slice type. This is usually more performant than `sort.Slice`:
+Implementing `sort.Interface` on a custom slice type is more performant than `sort.Slice` and makes the sort reusable. The interface requires three methods:
 
 ```go
 Len() int
@@ -492,36 +476,29 @@ Less(i, j int) bool
 Swap(i, j int)
 ```
 
-To implement this, you need to implement this on a slice type because you are sorting a slice. So, create a type alias of a slice of custom type:
-1. Create a custom type.
-2. Create a type alias on a slice. This lets you attach methods to your custom time to satisfy the `Sort` interface. This is named `ByAge` because we are sorting by the `Age` field.
+Because the methods must be attached to a named type, define a type alias for your slice:
+
+1. Define the struct you want to sort.
+2. Define a named slice type. This is named `ByAge` because it sorts by the `Age` field.
 
 ```go
-type Person struct { 		// 1
+type Person struct { // 1
 	Name string
 	Age  int
 }
 
-type ByAge []Person 		// 2
+type ByAge []Person // 2
 ```
 
-Next, implement the interface with the `ByAge` type:
+Implement the three interface methods on `ByAge`:
 
 ```go
-func (a ByAge) Len() int {
-	return len(a)
-}
-
-func (a ByAge) Less(i, j int) bool {
-	return a[i].Age < a[j].Age
-}
-
-func (a ByAge) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
+func (a ByAge) Len() int           { return len(a) }
+func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
+func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 ```
 
-Finally, you can call the `Sort` method on a slice of `Person` structs. First, you have to cast the `[]Person` slice to `[]ByAge`:
+Pass a `ByAge`-cast slice to `sort.Sort`. Wrap it in `sort.Reverse` to invert the order:
 
 ```go
 func main() {
@@ -533,10 +510,10 @@ func main() {
 		{"Luke", 44},
 	}
 
-	sort.Sort(ByAge(people)) 				// [{Rick 10} {Sally 21} {Billy 35} {Luke 44} {Mufasa 68}]
-	sorted := sort.IsSorted(ByAge(people)) 	// true
+	sort.Sort(ByAge(people))               // [{Rick 10} {Sally 21} {Billy 35} {Luke 44} {Mufasa 68}]
+	sorted := sort.IsSorted(ByAge(people)) // true
 
-	sort.Sort(sort.Reverse(ByAge(people))) 	// [{Mufasa 68} {Luke 44} {Billy 35} {Sally 21} {Rick 10}]
-	sorted = sort.IsSorted(ByAge(people)) 	// false
+	sort.Sort(sort.Reverse(ByAge(people))) // [{Mufasa 68} {Luke 44} {Billy 35} {Sally 21} {Rick 10}]
+	sorted = sort.IsSorted(ByAge(people))  // false
 }
 ```

@@ -1,6 +1,6 @@
 ---
 title: "Functional programming"
-weight: 90
+weight: 100
 ---
 
 Python supports functional programming patterns: passing functions as arguments, applying functions to sequences, and composing small functions into pipelines. The built-in `map()`, `filter()`, and `reduce()` functions are the main tools — though list comprehensions often express the same ideas more clearly.

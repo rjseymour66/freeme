@@ -1,6 +1,6 @@
 ---
 title: "Dictionaries and sets"
-weight: 50
+weight: 60
 ---
 
 ## Dictionaries
