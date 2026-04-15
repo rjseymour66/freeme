@@ -6,28 +6,30 @@ draft = false
 +++
 
 {{< admonition "Layer support" note >}}
-Check which browsers support layers at https://caniuse.com. There is also a [polyfill for layers]( https://www.oddbird.net/2022/06/21/cascade-layers-polyfill/) if there is no support.
+Check which browsers support layers at https://caniuse.com. There is also a [polyfill for layers](https://www.oddbird.net/2022/06/21/cascade-layers-polyfill/) if there is no support.
 {{< /admonition >}}
 
-Layers let you group and partition your styles and assign a priority order to them so that that you can control which styles take precedence. Styles that are not in a layer take precedence over styles in a layer.
+Cascade layers let you group styles into named buckets and declare an explicit priority order between those buckets. This gives you reliable control over which styles win when rules conflict, without relying on specificity tricks or source order. Styles that are not in a layer always take precedence over styles that are in a layer.
 
-This solves a problem where you might want a ruleset with lower specificity to take precedence over others. For example, if you have a style that selects all links, but you also have a button link that you want to style differently without increasing the specificity:
+Without layers, specificity determines which rule applies. Consider a design system where a global `a:any-link` rule has higher specificity than a `.button-link` modifier:
 
 ```css
-/* 0, 1, 1 specificity */
+/* 0,1,1 specificity — wins */
 a:any-link {
     color: red;
 }
 
-/* 0, 1, 0 specificity */
+/* 0,1,0 specificity — loses, even though you want it to apply */
 .button-link {
     color: blue;
 }
 ```
 
+To fix this without layers, you'd have to increase `.button-link`'s specificity, adding more complexity each time a conflict appears. Layers solve this by letting you assign an explicit priority order, so layer position determines precedence instead of selector specificity.
+
 ## Syntax
 
-Use the `@layer` at-rule to define a layer. The layer that occurs later in the stylesheet takes precedence over layers that appear before them. To solve the problem described above:
+Apply the `@layer` at-rule to define a layer. A layer that appears later in the stylesheet takes precedence over layers that appear before it. In this example, the `theme` layer overrides the `global` layer's link styles because it is declared last:
 
 ```css
 @layer global {
@@ -55,7 +57,7 @@ Use the `@layer` at-rule to define a layer. The layer that occurs later in the s
 Styles that are not in a layer take precedence over styles in a layer. If you use layers, place all styles inside a layer. Unlayered styles are good for debugging.
 {{< /admonition >}}
 
-You should decide the priority order of layers and declare them upfront. Here, layers are declared in a single line at the top of the stylesheet in increasing order of precedence:
+Decide the priority order of layers and declare them upfront. Declare all layers in a single line at the top of the stylesheet, in increasing order of precedence:
 
 {{< highlight css "hl_lines=1" >}}
 @layer reset, lowest, higher, highest;
@@ -66,9 +68,9 @@ You should decide the priority order of layers and declare them upfront. Here, l
 @layer highest {...}
 {{< /highlight >}}
 
-Otherwise, layers are prioritized by where they occur in the stylesheet. You can define a layer, and then add styles to that layer later in the stylesheet without changing its priority---its priority is already established by the first `@layer` clause.
+If you do not declare layers upfront, the browser orders them by where they appear in the stylesheet. You can define a layer, then add styles to it later in the stylesheet without changing its priority. The first `@layer` declaration establishes the priority.
 
-In this example, the `lowest` layer still has the lowest priority even though it appears twice, after another stylesheet:
+In this example, the `lowest` layer still has the lowest priority even though it appears twice, after another layer:
 
 ```css
 @layer lowest {

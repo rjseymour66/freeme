@@ -7,16 +7,9 @@ description:
 
 ## Location
 
-The Location object is represented by the `location` property on the Window and Document object, and it represents the current URL of the document displayed in the window:
-- `window.location` is the same as `document.location`
-- `document.URL` is the URL string
-- provides an API for loading new documents in the window
-- `href` property and `toString()` method return the URL
-- `hash` returns the fragment identifier
-- `search` returns the part of the URL that starts with a `?` - the query string
+The *Location* object, accessible as `window.location` or `document.location`, represents the current URL of the document displayed in the window and provides an API for loading new documents. The `href` property and `toString()` method return the full URL string. The `hash` property returns the fragment identifier, and `search` returns the query string, which is the portion of the URL starting with `?`. The `document.URL` property also returns the URL as a plain string.
 
-`URL` objects have a `searchParams` property that is a parsed representation of the `search` property
-- Location object does not have the `searchParams` property - you need to make a URL object out of the location object and then you can parse the query parameters:
+`URL` objects have a `searchParams` property that is a parsed representation of the `search` property. The `Location` object does not have `searchParams`, so to parse query parameters you need to construct a `URL` object from `window.location`:
 
 ```js
 // http://127.0.0.1:5500/index.html?q=test
@@ -59,28 +52,27 @@ A URL like `/products?category=shoes&sort=price&page=2` is now shareable and boo
 
 ### Loading new documents
 
-You can change the document that the browser loads by assigning `window.location` a new URL string or fragment:
-- `window.location = 'http://www.google.com';` - absolute
-- `window.location = 'headings.html';` - relative
-- `location = '#section1';` - fragment
-- `replace()` method takes a string URL and loads a new page, and then also replaces the calling document in the browser's history.
-  - Use case: if the user's browser doesn' not support features on your JS page, you can use `replace('https://static-site.com')` to replace it with a static version.
-- `reload()` method makes the document reload
+You can load a new document by assigning a URL string to `window.location`. Assign an absolute URL, a relative URL, or a fragment identifier:
+
+```js
+window.location = 'http://www.google.com'; // absolute URL
+window.location = 'headings.html';          // relative URL
+location = '#section1';                     // fragment identifier
+```
+
+The `replace()` method loads a new page and replaces the calling document in the browser history, so it does not add a new entry. If the user's browser does not support features on your page, you can call `replace('https://static-site.com')` to redirect to a static version. The `reload()` method reloads the current document.
 
 ## Browsing history
 
-The History object represents the history for the window:
-- comes from early days of the web when everything happened on the server
-  - modern web pages load content dynamically, so they are not always loading pages from the server
-  - these applications manage history - really viewing previous app states - with hashchange events or `pushState()`
-- browsing history is a list of documents and document states
-- length is stored in `list` property
-- scripts are not allowed access to history URLs, for security
-- history object methods:
-  - `back()`: go to previous page in history
-  - `forward()`: go to previous page in history
-  - `go()`: takes a positive or negative integer to jump that many pages forward or backward
-- child window elements like `<iframe>` navigate forwards or backwards with the main window
+The *History* object represents the browsing history for the window. It originates from the early days of the web, when every navigation loaded a new document from the server. Modern web pages load content dynamically without full page reloads, so applications manage history by tracking application states rather than server-fetched documents. They do this using hashchange events or `pushState()`.
+
+Browsing history is a list of documents and document states. The `length` property stores the number of entries. Scripts cannot access the URLs in the history list for security reasons. Child window elements such as `<iframe>` navigate forward or backward alongside the main window.
+
+The History object provides three navigation methods:
+
+- **`back()`:** Go to the previous page in history
+- **`forward()`:** Go to the next page in history
+- **`go()`:** Takes a positive or negative integer to jump that many pages forward or backward
 
 ```js
 history.back()
@@ -89,42 +81,41 @@ history.go(-3)      // press back button 3x
 history.go(0)       // reload current page
 ```
 
-### hashchange Events
+### hashchange events
 
-hashchange events use the `location.hash` property:
-- `location.hash` takes an arbitrary fragment identifier - just don't pick a name of an existing element ID so there is no chance it will scroll to the fragment
-  - create a unique fragment identifier to for each state of your application to let the user use browsing history
-  - setting the property updates the URL and adds an entry into the browser history
-  - when you set the fragment explicitly or when it changes, a 'hashchange' event is fired on the Window object to notify you that the user is using browsing history
-- This method is hacky
+hashchange events rely on the `location.hash` property. Set `location.hash` to an arbitrary fragment identifier to represent the current application state. Avoid reusing an existing element ID so the browser does not scroll to that element. Each time you set the property, the browser updates the URL and adds an entry to the browser history. When the fragment changes, a `hashchange` event fires on the `Window` object, notifying you that the user has navigated.
 
+This approach is considered a legacy technique, but it is simpler to implement than `pushState()` and works in all browsers.
 
-#### Steps:
-1. Define a fragment - encode the state information that your app needs to render the page into a short string of text
-2. Write a function that convers page state into a string
-3. Write a functino that parses the string to re-create the page state it represents
-4. Write `window.onhashchange` or `window.addEventListener('hashchange', ()=>{})` that reads the fragment in `location.hash` and converts that string into a representation of that state
-5. When the user initiates a new state, don't render it directly - encode the state as a string and set `location.hash` to that string. This triggers the hashchange event and the handler will display the new state  
+#### Steps
+
+1. Define a fragment: encode the state information your app needs to render the page into a short string.
+2. Write a function that converts page state into a string.
+3. Write a function that parses the string to re-create the page state it represents.
+4. Write a `hashchange` handler that reads `location.hash` and converts the string back into application state:
+
+```js
+window.addEventListener('hashchange', () => {
+    const state = parseState(location.hash.slice(1));
+    renderState(state);
+});
+```
+
+5. When the user initiates a new state, do not render it directly. Encode the state as a string and set `location.hash` to that string. This triggers the `hashchange` event and the handler displays the new state.
 
 ### pushState()
 
-`history.pushState()` uses a 'popstate' event to track history:
-- adds an object that represents the state to the browser history
-- when the user clicks forward or back, it fires a 'popstate' event with a copy of the saved state object and the app recreates the state
-  
-- Also saves a URL for each state, which means users can bookmark states
+`history.pushState()` uses a `popstate` event to track history. It adds an object representing the current application state to the browser history. When the user clicks the forward or back button, the browser fires a `popstate` event with a copy of the saved state object, and the application recreates the state. Unlike hashchange, `pushState()` also saves a URL for each state, so users can bookmark individual states.
 
-Object arguments:
-- First arg: the object - supports Map, Set, Date, and typed arrays with ArrayBuffers - it is serialized with the structured clone algorithm, which is more robust than `JSON.stringify()`
-  - The event object for the `popstate` event has a `state` property that contains a copy of the object that you pass
-- Second arg: string that was supposed to be title for state, but its not generally supported, so pass empty string
-- Third arg: optional, a URL displayed in location bar immediately and if the user returns to this state with browser back or forward button
-  - users can bookmark, but you have to restore the state by parsing the URL
+`pushState()` accepts three arguments:
+
+- **First argument:** The state object. Supports `Map`, `Set`, `Date`, and typed arrays with `ArrayBuffer`. The browser serializes it with the structured clone algorithm, which is more robust than `JSON.stringify()`. The `popstate` event object exposes a copy of this object through its `state` property.
+- **Second argument:** A title string. It was intended to name the state, but browsers do not generally support it. Pass an empty string.
+- **Third argument (optional):** A URL displayed in the location bar immediately and when the user returns to this state with the back or forward button. Users can bookmark it, but you must restore the state by parsing the URL.
 
 ### replaceState()
 
-Takes same args as `pushState()` but replaces current history state instead of adding a new state to the browser history:
-- when you load an app that uses `pushState()`, you should call `replaceState()` at the start to define the initial app state
+`replaceState()` takes the same arguments as `pushState()` but replaces the current history entry instead of adding a new one. Call `replaceState()` when the application first loads to define the initial state, so the user's first back-button press does not land on a blank entry.
 
 ### Real-world example: minimal client-side router
 
@@ -139,7 +130,7 @@ const routes = {
 };
 
 function renderNotFound() {
-    document.querySelector('#app').innerHTML = '<h1>404 — Page not found</h1>';
+    document.querySelector('#app').innerHTML = '<h1>404 - Page not found</h1>';
 }
 
 function navigate(path) {
@@ -177,16 +168,16 @@ Mark internal links with `data-link` to distinguish them from external links tha
   <a href="/" data-link>Home</a>
   <a href="/products" data-link>Products</a>
   <a href="/about" data-link>About</a>
-  <a href="https://example.com">External — no data-link, reloads</a>
+  <a href="https://example.com">External - no data-link, reloads</a>
 </nav>
 <main id="app"></main>
 ```
 
 ## Example program
 
-This is a number guessing program that demonstrates `pushState()` and `replaceState()`:
+The following program implements a number guessing game that demonstrates `pushState()` and `replaceState()`:
 
-### JS
+### JavaScript
 
 ```js
 class GameState {
@@ -269,9 +260,9 @@ class GameState {
         if (this.guess === null) {
             input.placeholder = 'Type your guess and hit Enter';
         } else if (this.guess < this.secret) {
-            input.placehoder = `${this.guess} is too low. Guess again.`;
+            input.placeholder = `${this.guess} is too low. Guess again.`;
         } else if (this.guess > this.secret) {
-            input.placehoder = `${this.guess} is too high. Guess again.`;
+            input.placeholder = `${this.guess} is too high. Guess again.`;
         } else {
             input.placeholder = document.title = `${this.guess} is correct!`;
             heading.textContent = `You win in ${this.numGuesses} guesses!`;
@@ -299,11 +290,11 @@ class GameState {
 
 // Initialize, update, save, and render the state obj when appropriate
 
-// either load existig game from URL or start new game
+// either load existing game from URL or start new game
 let gamestate = GameState.fromURL(window.location) || GameState.newGame();
 
 // save initial state with replaceState
-history.replaceState(gamestate, gamestate.toURL());
+history.replaceState(gamestate, "", gamestate.toURL());
 
 // display initial state
 gamestate.render();
@@ -379,8 +370,8 @@ window.onpopstate = event => {
 </head>
 <body>
     <h1 id="heading">I'm thinking of a number...</h1>
-    <!-- visual representatino of the numbers that are not yet ruled out -->
-    <div class="container">
+    <!-- visual representation of the numbers that are not yet ruled out -->
+    <div id="container">
         <div id="range"></div>
     </div>
     <!-- where user enters guess -->

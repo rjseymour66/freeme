@@ -5,165 +5,188 @@ weight: 50
 description:
 ---
 
+JavaScript is event-driven: the browser generates an event whenever something changes in
+the document or the browser itself. A page finishing its load, a user clicking a button,
+or a cursor moving across the screen all produce events. Any HTML element can be an event
+target, and you register functions — called event handlers — to run when a specific event
+occurs on a specific element.
 
+## Further reading
 
-JS uses event-driven programming, like all GUI apps. This means that the browser generates an event when something interesting happens to the document or browser:
-- For example:
-  - Browser finishes loading a document
-  - User clicks button
-  - Moves mouse across the screen
-- Events can occur on any element within an HTML doc
-- JS can register a function to invoke when a specific event happens
+- [Eloquent JavaScript: "Handling Events"](https://eloquentjavascript.net/15_event.html) —
+  a deep dive into the event model with interactive examples.
+- [MDN: Introduction to Events](https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events) —
+  the reference guide for event types, properties, and browser compatibility.
 
-## Links
+## Event model
 
-- [Eloquent Javascript "Handling Events"](https://eloquentjavascript.net/15_event.html)
-- [MDN Intro to Events](https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events)
+The JavaScript event model has five core concepts.
 
-## Event Model
+The **event type** is a string that names the kind of event — for example, `mousemove`,
+`keydown`, or `load`. You'll also see it called the event name.
 
-There are three important parts of the event model:
+The **event target** is the object on which the event occurred. Targets are usually a
+`Window`, `Document`, or `Element`, but a `Worker` object can also be a target.
 
-- **Event type**: A string that specifies the type of event - also called 'event name'. Ex: 'mousemove', 'keydown', 'load'
+The **event handler** (also called an event listener) is the function that responds to
+an event. You register a handler by telling the browser which event type to watch for
+and which target to watch. When that event fires on that target, the browser calls your
+function. You'll also hear this described as the handler being fired, triggered, or
+dispatched.
 
-- **Event target**: Object on which the event occurred, usually a Window, Document, or Element object but can also be a Worker object. Ex: Load event on window, selecting a `<button>` element.
+The **event object** is a JavaScript object the browser passes to your handler as its
+argument. Every event object has at least two properties:
 
-- **Event handler, event listener**: Function that handles or responds to an event. Handler and listener are synonymous, but sometimes they are used according to how the function addresses the event.
-  
-  Applications register the handlers with the browser by specifying the event type and event target. When an event of that type occurs on the target, the browser calls the function.
+- `type`: the event type string
+- `target`: the object the event occurred on
 
-  When a handler is invoked, we also call it 'fired', 'triggered', or 'dispatched'.
+Some events carry additional properties. Mouse events, for example, include `clientX`
+and `clientY` for the cursor's window coordinates.
 
-- **Event object**: A JS object that contains details about the event, and are passed as an arg to the event handler. All events have the following properties:
-  - `type`: specifies the event type
-  - `target`: event target
-  
-  Some objects have additional properties, such as the screen coordinates for a mouse event.
+**Event propagation** is how the browser decides which handlers to call beyond the
+immediate target. Most DOM events bubble up the document tree — a click on a `<button>`
+inside a `<div>` also triggers any click handlers on that `<div>`, its parent, and so on
+up to `Window`. A handler can stop this process using a method on the event object.
+`load` and `Worker` events don't propagate. Event capturing runs the same process in
+reverse: a handler on a container element intercepts the event before it reaches its
+target.
 
-- **Event propagation**: This is the process that the browser uses to decide which objects to trigger event handlers on.
-  
-  Load or Worker events don't propagate.
+## Event categories
 
-  Some events in the document propagate, also called 'bubbling up' the document tree. An event handler can stop the propagation with a special method on the event object.
+Browser events fall into five general categories.
 
-  _Event capturing_ is when an event handler registered to a container element can intercept an event before it gets to its target.
+- **Device-dependent input events** are tied to a specific input device such as a mouse
+  or keyboard. Examples include `mousedown` and `keydown`.
 
-## Categories
+- **Device-independent input events** are not tied to a specific device, which makes
+  them useful for touch screens and stylus input. For example, `pointerdown` works as a
+  device-agnostic alternative to `mousedown`, and `input` works as an alternative to
+  `keydown`.
 
-There are a lot of event categories. This list groups events in general categories:
-- Device-dependent input events: Tied to specific input device, like mouse or keyboard
-- Device-independent input events: Not tied to a device. Ex: click events. These are often device-agnostic alternatives to device-dependent events. For example, 'input' event instead of 'keydown', or 'pointerdown', instead of 'mousedown'. These are useful for touch screens, stylus pens, etc.
-- UI events: High-level events, often on form elements. Ex: 'focus', 'change', 'submit'.
-- State-change events: Triggered by browser or network activity, not users. Signal a life-cycle or state-related change, such as 'load' or 'DOMContentLoaded'. For network connection, the browser fires 'online' and 'offline'.
-- API-specific events: Web APIs, like audio or video, have their own event types. These events are because the API is asynchronous, and they were developed before Promises were made, so you needed to be able to determine when an event occurred.
+- **UI events** are high-level events on form elements, such as `focus`, `change`, and
+  `submit`.
+
+- **State-change events** are triggered by browser or network activity, not user
+  interaction. They signal lifecycle changes — for example, `load` and `DOMContentLoaded`
+  fire when a page finishes loading, and `online`/`offline` fire when the network
+  connection changes.
+
+- **API-specific events** are defined by individual Web APIs such as the Audio or Video
+  APIs. These exist because many Web APIs were designed before Promises, so they relied
+  on events to signal when asynchronous operations completed.
 
 ## Registering event handlers
 
-Two ways to register an event handler:
-- Set property on the event target (old, legacy way)
-- Pass the handler to the object's or element's `addEventListener()` method
+You have two ways to register an event handler: assign a function directly to a property
+on the event target, or pass your handler to the target's `addEventListener()` method.
+Prefer `addEventListener()` in almost all cases.
 
-### Set property
+### Assign a property on the event target
 
-Not recommended because you can only register one event handler to the event target.
-
-Set the property with `on<eventname>`. For example, `window.onload`:
+Each event type has a corresponding property named `on` + the event name — for example,
+`onclick`, `onkeydown`, or `onload`. Assigning a function to that property registers it
+as the handler:
 
 ```js
-window.onload = function() {
-    alert('The window just loaded!')
-}
+window.onload = function () {
+    document.querySelector('#app').classList.remove('loading');
+};
 ```
+
+The limitation is that you can only assign one handler per event type this way. A second
+assignment overwrites the first. Use `addEventListener()` instead when you need multiple
+handlers or cleaner separation of concerns.
 
 #### onload
 
-`onload` is fired after a specific element is loaded. It is most commonly used on the `window` element, but you can use it on any element.
+The `onload` event fires after an element finishes loading. On `window`, it fires after
+the entire page — including images and stylesheets — has loaded. On `document`, its
+behavior varies by browser, so avoid `document.onload`.
 
-`onload` behaves differently for the `window` and `document` objects, depending on the browser. If you add it to the `document` object, you can access any node in the DOM bc the event fires after the DOM loads.
+Instead, use `DOMContentLoaded` with `addEventListener`. It fires as soon as the HTML is
+parsed and the DOM is ready, without waiting for images or other resources:
 
-Use `DOMContentLoaded()` method with `addEventListener` as a substitute for `document.onload`:
-
-```js 
-document.addEventListener("DOMContentLoaded", (e) => {
-    console.log(e);
+```js
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('#search-input').focus();
 });
-
-// or assign a function called unique() to the body
-
-<body onload="unique()"></body>
 ```
 
+This is the standard pattern for any setup code that needs the DOM but doesn't depend on
+images or external resources being fully loaded.
 
 ### Set event handler attributes
 
-Not a best practice, avoid when possible. The way the browser executes these event handlers is confusing because it uses unexpected variables.
+You can also register handlers as HTML attributes directly on elements:
 
-You just add the body of a function as an HTML element property. Then, the browser converts your string into a function behind the scenes. For example:
-
-```js
-<body onload="alert('The window loaded!');">
-    ...
-</body>
+```html
+<button onclick="handleSubmit()">Submit</button>
 ```
+
+Avoid this approach. The browser wraps your attribute string in a function with an unusual
+scope chain — the element itself and any ancestor `<form>` are in scope, which can shadow
+variable names in surprising ways. It also mixes behavior into your markup, making the
+code harder to maintain. Use `addEventListener()` instead.
 
 ### addEventListener()
 
-All objects that can be an event target have an `addEventListener()` method that you can use to register events for that target.
-
-`<target>.addEventListener(<event-type>, <function>, <capture>)`
-
-Takes 3 arguments:
-1. Event type that you are registering the handler for. Ex: 'click'
-2. Function that is invoked when the specified type of event occurs
-3. Capturing definition. Accepts a Boolean or object
+Any object that can be an event target has an `addEventListener()` method. Call it with
+the event type string, the handler function, and an optional third argument that controls
+capturing behavior:
 
 ```js
-let button = document.querySelector('.btn');
+const button = document.querySelector('.btn');
 button.addEventListener('click', () => console.log(button.textContent));
-button.addEventListener('click', () => console.log('registered another listener'));
+button.addEventListener('click', () => console.log('second listener'));
 ```
 
-When you register more than one handler to an object, the handlers fire in the order they are registered:
-- You can't register more than one handler with identical arguments, it only fires once
+You can register multiple handlers on the same target for the same event type — they fire
+in registration order. Registering the same handler function with identical arguments more
+than once has no effect; it fires only once.
 
-Remove an event listener with `removeEventListener()`:
-- Takes the same args as `addEventListener()`, including the third optional argument
+Remove a handler with `removeEventListener()`, passing the same arguments you used to
+register it. Because anonymous functions can't be referenced again, you need a named
+function to remove a listener:
 
 ```js
 let clickCount = 0;
 
-let logSecondListener = () => {
-    console.log("Registered another listener");
+const logOnce = () => {
+    console.log('Listener fired');
     clickCount++;
-    if (clickCount > 0) {
-        button.removeEventListener('click', logSecondListener);
+    if (clickCount === 1) {
+        button.removeEventListener('click', logOnce);
     }
 };
 
-let button = document.querySelector('.btn');
+const button = document.querySelector('.btn');
 button.addEventListener('click', () => console.log(button.textContent));
-button.addEventListener('click', logSecondListener);
+button.addEventListener('click', logOnce);
 ```
 
-The third argument is optional, and can either be a Boolean or an object that specifies the exact behavior you want:
+The third argument to `addEventListener()` is either a Boolean or an options object:
+
 ```js
-document.addEventListener('click', logSecondListener, {
-capture: true,
-once: true,
-passive: true
+document.addEventListener('click', handler, {
+    capture: true,
+    once: true,
+    passive: true,
 });
 ```
-If you pass `true`, then the event handler is registered as a _capturing handler_.
 
-If you pass the object:
-- `capture`: Boolean, determines whether the event handler is a _capturing handler_
-- `once`: Boolean, automatically remove the handler after it is invoked once
-- `passive`: Boolean, controls `preventDefault()` behavior. If `true`, the handler will never call `preventDefault()`. Lets the web browser know that it can use its default behavior when the handler is running.
-  Firefox and Chrome make `touchmove` and `mousewheel` events passive by default, because the browser needs to be able to scroll when users are touching the screen.
+Pass `true` to register the handler as a capturing handler (equivalent to
+`{ capture: true }`). The options object supports three properties:
 
-**`once` — run a handler exactly one time:**
+- `capture`: registers the handler in the capturing phase rather than the bubbling phase.
+- `once`: removes the handler automatically after it fires once.
+- `passive`: promises the browser your handler won't call `preventDefault()`, which lets
+  it optimize scrolling and touch behavior. Firefox and Chrome make `touchmove` and
+  `mousewheel` passive by default for this reason.
 
-Use `once: true` whenever you need a setup step that should only happen once — for example, showing a welcome tooltip or tracking first interaction:
+**`once` — run a handler exactly one time**
+
+Use `once: true` for setup steps that should only happen once, like showing a welcome
+tooltip or tracking a first interaction:
 
 ```js
 // Show an onboarding tooltip only on the user's first click
@@ -171,249 +194,264 @@ document.addEventListener('click', () => {
     showOnboardingTooltip();
 }, { once: true });
 
-// Or: log when a video is first played (not on every resume)
+// Log when a video is first played, not on every resume
 videoEl.addEventListener('play', () => {
     analytics.track('video_first_play', { id: videoEl.dataset.id });
 }, { once: true });
 ```
 
-**`passive: true` — improve scroll performance:**
+**`passive: true` — keep scrolling smooth**
 
-Scroll and touch handlers can block the browser's rendering pipeline unless you explicitly promise not to call `preventDefault()`. Mark them passive to keep scrolling smooth:
+Scroll and touch handlers can block the browser's rendering pipeline unless you explicitly
+promise not to call `preventDefault()`. Mark them passive to keep scrolling responsive:
 
 ```js
-// Lets the browser scroll immediately without waiting for your handler
 window.addEventListener('scroll', () => {
     updateProgressBar();
 }, { passive: true });
 ```
 
-### Add handler on each node in group
+### Register a handler on multiple elements
 
-1. Grab the elements with `querySelectorAll()` to get a nodelist.
-2. Use `forEach()` to add an event listener to all the nodes:
+Use `querySelectorAll()` to get a `NodeList`, then call `forEach()` to attach a handler
+to each element:
 
-   ```html
-   <div id="container">
-     <button id="1">Click Me</button>
-     <button id="2">Click Me</button>
-     <button id="3">Click Me</button>
-   </div>
-   ```
+```html
+<div id="toolbar">
+    <button data-command="bold">Bold</button>
+    <button data-command="italic">Italic</button>
+    <button data-command="underline">Underline</button>
+</div>
+```
 
-   ```js
-   // buttons is a node list. It looks and acts much like an array.
-   const buttons = document.querySelectorAll("button");
+```js
+const buttons = document.querySelectorAll('#toolbar button');
 
-   // we use the .forEach method to iterate through each button
-   buttons.forEach((button) => {
-     // and for each one we add a 'click' listener
-     button.addEventListener("click", () => {
-       alert(button.id);
-     });
-   });
-   ```
+buttons.forEach((button) => {
+    button.addEventListener('click', () => {
+        document.execCommand(button.dataset.command);
+    });
+});
+```
 
-### Mouse event handlers 
+This works well for static sets of elements. If elements are added or removed at runtime,
+use event delegation on the parent instead — covered in the next section.
 
-| Event          | Description                                                                 |
-| -------------- | :-------------------------------------------------------------------------- |
-| `ondbclick`    | when the mouse is double-clicked                                            |
-| `onmousedown`  | when the mouse clicks on top of an element without the click being released |
-| `onmouseup`    | when the mouse click on top of an element is released                       |
-| `onmouseenter` | when the mouse moves onto an element                                        |
-| `onmouseleave` | when the mouse leaves an element and all of its children                    |
-| `onmousemove`  | when the mouse moves over an element                                        |
-| `onmouseout`   | when the mouse leaves an individual element                                 |
-| `onmouseover`  | when the mouse hovers over an element                                       |
+### Mouse events reference
+
+| Event        | Fires when                                                          |
+| ------------ | ------------------------------------------------------------------- |
+| `dblclick`   | The user double-clicks an element.                                  |
+| `mousedown`  | A mouse button is pressed on an element, before it's released.      |
+| `mouseup`    | A pressed mouse button is released over an element.                 |
+| `mouseenter` | The cursor moves onto an element. Does not bubble.                  |
+| `mouseleave` | The cursor leaves an element and all its children. Does not bubble. |
+| `mousemove`  | The cursor moves while over an element. Fires continuously.         |
+| `mouseout`   | The cursor leaves an element or any of its children. Bubbles.       |
+| `mouseover`  | The cursor enters an element or any of its children. Bubbles.       |
+
+Use these strings with `addEventListener()` — for example,
+`button.addEventListener('dblclick', handler)`.
 
 ## Event handler invocation
 
-- Event handlers should not return anything. If you do not want a handler to perform a default action, call `preventDefault()`.
-- Event handlers are invoked in the order that they are registed.
+The browser ignores any value an event handler returns. To cancel the browser's default
+behavior for an event — such as preventing a form from submitting or a link from
+navigating — call `preventDefault()` on the event object inside the handler. Don't rely
+on `return false`; that pattern works in jQuery but not with native `addEventListener()`.
+
+Handlers on the same target fire in the order they were registered.
 
 ### Event object
 
-When the browser invokes an event handler, it passes an Event object as the single argument:
+When the browser calls your handler, it passes an `Event` object as the first argument:
 
 ```js
-button.addEventListener('click', e => console.log(e));
+button.addEventListener('click', (e) => {
+    console.log(e.target, e.type, e.timeStamp);
+});
 ```
-Event object useful properties:
-- `type`: Type of event
-- `target`: Object that the event occurred on
-- `currentTarget`: If the event propagates, the object that the current event was registered on
-- `timeStamp`: Timestamp (in milliseconds), but not absolute time. Calculate elapsed time between two events by subtracting the first `timeStamp` from the second.
-- `isTrusted`: `true` if the event handler was dispatched from the browser, and `false` if dispatched from JS script.
-- `bubbles`: Boolean, whether the event bubbles up the DOM.
-- `cancelable`: Boolean, whether the event can be prevented.
-- `defaultPrevented`: Boolean, whether `event.preventDefault()` was called.
 
-Some events have special properties. For example, mouse events have the `clientX` property that shows the window coordinates.
+Every event object exposes these core properties:
 
-#### Event target property
+- `type`: The event type string, such as `'click'` or `'keydown'`.
+- `target`: The element where the event originated.
+- `currentTarget`: The element the handler is attached to. During bubbling, `target` and
+  `currentTarget` differ — `target` stays fixed on the origin element while
+  `currentTarget` changes as the event travels up the DOM.
+- `timeStamp`: Milliseconds elapsed since the page loaded. Subtract two timestamps to
+  calculate the time between events.
+- `isTrusted`: `true` if the browser generated the event; `false` if your code dispatched
+  it programmatically.
+- `bubbles`: Whether the event bubbles up the DOM.
+- `cancelable`: Whether you can suppress the browser's default behavior with
+  `preventDefault()`.
+- `defaultPrevented`: Whether `preventDefault()` has already been called on this event.
 
-The event that you pass to the event handler callback has a number of properties, including the `target` property. The `target` is the HTML element that fired the event:
+Some event types carry additional properties. Mouse events include `clientX` and `clientY`
+for the cursor's coordinates relative to the viewport, and `KeyboardEvent` includes `key`
+for the pressed key's value.
 
-```js 
-function triggerSomething() {
-  console.dir(event.target);
+### Event handler context
+
+Inside a regular function handler, `this` refers to the element the handler is attached
+to — the same as `e.currentTarget`. Inside an arrow function, `this` inherits from the
+surrounding lexical scope:
+
+```js
+button.addEventListener('click', function () {
+    console.log(this);          // the <button> element
+});
+
+button.addEventListener('click', () => {
+    console.log(this);          // the enclosing scope's this (often Window)
+});
+```
+
+This matters most in class-based components. If you define a handler as an arrow function
+class field, `this` reliably refers to the class instance — no `.bind()` needed:
+
+```js
+class Modal {
+    constructor() {
+        document.addEventListener('keydown', this.handleKey);
+    }
+
+    handleKey = (e) => {
+        if (e.key === 'Escape') this.close();
+    };
 }
-```
-
-The following example changes the innerHTML of the button's parent element when clicked:
-
-```js 
-<div id="welcome">Hi there!</div>
-<form>
-  <input type="text" name="firstname" placeholder="First name" />
-  <input type="text" name="lastname" placeholder="Last name" />
-  <input type="button" onclick="sendInfo()" value="Submit" />
-</form>
-<script>
-  function sendInfo() {
-    let p = event.target.parentElement;
-    message("Welcome " + p.firstname.value + " " + p.lastname.value);
-  }
-  function message(m) {
-    document.getElementById("welcome").innerHTML = m;
-  }
-</script>
-```
-
-#### Event handler context
-
-The `this` value is the event target, unless you use an arrow function. Arrow functions have the same `this` value as the scope in which they are defined:
-
-```js
-button.addEventListener('click', function () { console.log(this); });   // <button class="btn">Click me!</button>
-button.addEventListener('click', () => console.log(this));              // Window {window: Window, self: Window,...}
 ```
 
 ### Event propagation
 
-Event propagation is not about triggering event handlers, its about how an event on a nested element goes up the DOM tree - it 'bubbles' up the DOM.
+When an event fires on a DOM element, it travels through three phases.
 
-Event propagation doesn't happen on the Window or a different standalone object. It happens on the Document or a document Element object:
-- Events 'bubble up' - the events on its parent, grandparent, etc elements are fired, all the way up to the Window object
-- This is an alternative to registering event handlers on lots of elements.
-  - register an event handler on an ancestor element instead of lots of its descendant elements. When you click on an descendant element, it bubbles up to the Window
-- These events DO NOT bubble:
-  - 'focus'
-  - 'blur'
-  - 'scroll;'
-- 'load' event on a document elements bubble, but stop at the Document object - doesn't bubble up to the Window object
+In the **capturing phase**, the event descends from `Window` down through the DOM to the
+event target. Handlers registered with `{ capture: true }` fire during this phase.
+Capturing is useful for intercepting events before they reach their target — for example,
+tracking mouse drags across a container regardless of which child element the drag started
+on.
 
-#### Phases of event propagation:
-1. Capturing phase - event handlers registered as capturing handlers fire first. This is like bubbling in reverse: Window capturing handlers fire, then Document capturing handlers fire, etc, all the way down to the parent of the event target. Handlers on the event target are not fired.
-   
-   Capturing event handlers is useful in debugging and for handling mouse drags.
-2. Invocation of event handlers of the target object
-3. Event bubbling
+In the **target phase**, the handlers attached directly to the element that triggered the
+event fire.
+
+In the **bubbling phase**, the event travels back up the DOM — from the target's parent,
+to its grandparent, and so on up to `Window`. Any handler for the same event type on
+those ancestor elements fires in turn. This is what makes event delegation possible: you
+can register one handler on a parent and respond to events from any descendant.
+
+Not all events bubble. `focus`, `blur`, and `scroll` don't propagate. The `load` event
+bubbles on document elements but stops at `Document` — it doesn't reach `Window`.
 
 ### Event cancellation
 
-The browser responds to many user events by default: entering text, scrolling, etc. 
-- If you register a handler to one of these events, you can stop this default behavior with the `preventDefault()` method of the object.
-- To stop event bubbling, call the event object's `stopPropagation()` method. Still lets you call other event handlers on the event object
-- To stop all events on the event object, call `stopImmediatePropagation()`
+The browser performs a default action for many events: following a link on `click`,
+submitting a form on `submit`, scrolling on `wheel`. Call `preventDefault()` on the event
+object to suppress that default action while still allowing your handler — and any other
+handlers — to run.
+
+Call `stopPropagation()` to prevent the event from bubbling further up the DOM. Other
+handlers attached to the same element still fire; only ancestor handlers are skipped.
+
+Call `stopImmediatePropagation()` to do both: stop bubbling and prevent any remaining
+handlers on the same element from firing.
 
 ```js
-// --- stopPropagation() --- //
-container.addEventListener('click', e => {
-        console.log(`${e.target} triggered an ${e.type}`);
-    }
-);
+const container = document.querySelector('#container');
+const button = document.querySelector('#container button');
 
-button.addEventListener('click', e => {     // does not bubble up and fire container click event
-    console.log('clicked the button');
-    e.stopPropagation();
+// stopPropagation: button click doesn't reach the container handler
+container.addEventListener('click', () => {
+    console.log('container clicked');
 });
 
-// --- stopImmediatePropagation() --- //
-button.addEventListener('click', e => {
-    console.log('clicked the button');
-    e.stopImmediatePropagation();           // this handler was registered first, so
-});                                         // fires before the second handler
+button.addEventListener('click', (e) => {
+    e.stopPropagation();
+    console.log('button clicked — container handler skipped');
+});
 
-button.addEventListener('click', () => console.log('second event listener'));   // this will not fire
+// stopImmediatePropagation: second button handler never fires
+button.addEventListener('click', (e) => {
+    e.stopImmediatePropagation();
+    console.log('first handler — stops here');
+});
+
+button.addEventListener('click', () => {
+    console.log('second handler — never fires');
+});
 ```
 
 ### Event delegation
 
-https://javascript.info/event-delegation
+Event delegation uses bubbling to handle events on many elements with a single handler on
+their parent. Rather than attaching a listener to every child, you attach one to the
+ancestor and inspect `e.target` to determine which child was clicked.
 
-You can manage event bubbling by using the 3rd parameter for `addEventListener`, `useCapture`:
-
-```js
-document.addEventListener("DOMContentLoaded", func(), useCapture;)
-```
-
-`useCapture` is a Boolean. This enables _event delegation_: instead of adding event handlers to every element in a block of HTML, you define a wrapper and assign the event to the wrapper element. This wrapper element applies the event handler to its child elements.
-
-#### Real-world example: dynamic todo list
-
-Event delegation is essential when list items are added or removed dynamically. Registering one listener on the parent is more efficient than registering one on every `<li>`:
+This is especially useful when child elements are added or removed dynamically — new
+elements are covered automatically because they bubble up to the same parent.
 
 ```js
 const list = document.querySelector('#todo-list');
 
-// One listener handles clicks on all current AND future items
 list.addEventListener('click', (e) => {
-    // Target a specific element type using matches()
     if (e.target.matches('.delete-btn')) {
-        const item = e.target.closest('li');
-        item.remove();
+        e.target.closest('li').remove();
     }
 
     if (e.target.matches('.complete-btn')) {
-        const item = e.target.closest('li');
-        item.classList.toggle('done');
+        e.target.closest('li').classList.toggle('done');
     }
 });
 
-// Adding a new item works automatically — no new listener needed
 function addTodo(text) {
     const li = document.createElement('li');
-    li.innerHTML = `
-        <span>${text}</span>
-        <button class="complete-btn">Done</button>
-        <button class="delete-btn">Delete</button>
-    `;
+
+    const span = document.createElement('span');
+    span.textContent = text;           // textContent avoids XSS with user-provided text
+
+    li.append(
+        span,
+        Object.assign(document.createElement('button'), {
+            className: 'complete-btn',
+            textContent: 'Done',
+        }),
+        Object.assign(document.createElement('button'), {
+            className: 'delete-btn',
+            textContent: 'Delete',
+        }),
+    );
+
     list.appendChild(li);
 }
 ```
 
 ## Custom events
 
-You can create and dispatch your own events using `CustomEvent`. This is useful for communicating between components without tight coupling:
+`CustomEvent` lets you define and dispatch your own event types, which is the cleanest
+way to communicate between components without importing or directly calling each other:
 
 ```js
-// Dispatch a custom event with a payload
 function notifyUserLoggedIn(user) {
     const event = new CustomEvent('userLoggedIn', {
-        bubbles: true,      // event bubbles up the DOM
-        detail: { user },   // payload accessible at e.detail
+        bubbles: true,
+        detail: { user },       // payload accessible at e.detail
     });
     document.dispatchEvent(event);
 }
 
-// Listen for it anywhere in the document
 document.addEventListener('userLoggedIn', (e) => {
     const { user } = e.detail;
-    console.log(`Welcome, ${user.name}!`);
     updateNavBar(user);
 });
 
-// Trigger it
 notifyUserLoggedIn({ name: 'Alice', role: 'admin' });
 ```
 
-Custom events let one part of your app signal changes without importing or calling the other part directly.
-
 ## Debouncing events
 
-High-frequency events like `input`, `scroll`, and `resize` fire many times per second. Debouncing delays execution until the user stops firing the event for a set period:
+High-frequency events like `input`, `scroll`, and `resize` fire many times per second.
+Debouncing delays your handler until the event stops firing for a set period:
 
 ```js
 function debounce(fn, delay) {
@@ -424,7 +462,6 @@ function debounce(fn, delay) {
     };
 }
 
-// Real-world use: search-as-you-type
 const searchInput = document.querySelector('#search');
 
 const search = debounce(async (query) => {
@@ -437,4 +474,5 @@ const search = debounce(async (query) => {
 searchInput.addEventListener('input', (e) => search(e.target.value));
 ```
 
-Without debouncing, the above would fire a network request on every keystroke. With a 300ms delay, it waits until the user pauses.
+Without debouncing, every keystroke fires a network request. With a 300ms delay, the
+handler waits until the user pauses.

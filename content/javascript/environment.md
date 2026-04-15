@@ -14,182 +14,272 @@ description:
 
 ## HTML <script\> tags
 
-The `<script>` tag includes the JS in the HTML page so the browser can execute it.
-- JS can be inline between the `<script>` and `</script>` tags
-- More common to use the `src` attribute in the `<script>` tag to specify the URL of a JS file. Still requires the `</script>` closing tag
-  - Separates content and behavior
-  - Create a single JS page that can be reused for multiple HTML files
-  - JS file is only downloaded once and subsequently can be retreived from the cache
-  - `src` takes an arbitrary URL - you can import JS code that is exported by other web servers
-- JS files use `.js` extension
+The `<script>` tag tells the browser where to find JavaScript and how to load
+it. You can write JavaScript inline between opening and closing `<script>` tags,
+but the more common approach is to reference an external file with the `src`
+attribute. Even when you specify `src`, the closing `</script>` tag is still
+required. External scripts separate content from behavior, can be shared across
+multiple HTML files, and are downloaded once and retrieved from cache on
+subsequent page loads. The `src` attribute accepts any URL, so you can also load
+scripts hosted on other servers. JavaScript files use the `.js` extension.
 
 ### `type` attribute
 
-There are two reasons to use the `type` attribute:
-- specify the script as a module
-- embed data into the web page without displaying it
+The `type` attribute has two practical uses:
 
-Historically, people used `type="application/javascript"`, but that has been deprecated for a long time.
+- **Declare a module:** Mark the script as an ES module so the browser applies
+  module scoping and import rules.
+- **Embed hidden data:** Include structured data in the page without rendering
+  it. This is common in server-rendered apps that need to pass data to the
+  client without a separate HTTP request. For example:
+
+```html
+<script type="application/json" id="config">
+  { "userId": 42, "theme": "dark" }
+</script>
+```
+
+```js
+const config = JSON.parse(document.getElementById('config').textContent);
+```
+
+Historically, developers set `type="application/javascript"`, but that value
+has been deprecated. Omit the attribute unless you are declaring a module.
 
 #### Modules
 
-If you are using modules and NOT using a code bundler that combines all modules into a single JS file, you have to load the top-level JS file with the `type=module` attribute:
+Without a bundler that combines all modules into a single file, declare your
+entry point with `type="module"` so the browser resolves its dependencies:
 
 ```html
 <script src="index.js" type="module"></script>
 ```
-This loads the top-level module, which loads all dependent modules.
+
+This loads the top-level module and fetches all dependent modules automatically.
 
 ### `async` and `defer`
 
-When the HTML parser encounters a `<script>` tag, it has to run the script before it continues to make sure it doesn't output any HTML
-- Called _synchronous_ or _blocking_ script execution
-- This is because when JS first came out, there was no API for manipulating the DOM - JS had to generate content while the document was loading, using the `document.write()` method to inject text into the HTML doc.
-- `document.write()` is bad style
-- This slows down page loads
+When the HTML parser encounters a `<script>` tag, it stops parsing and runs
+the script immediately. This is called *synchronous* or *blocking* script
+execution. JavaScript originally required this behavior because `document.write()`
+was the only way to inject content during page load. Today, `document.write()`
+is considered bad practice, and blocking execution slows page loads unnecessarily.
 
-Can include boolean `defer` or `async` attributes:
+You can attach the `defer` or `async` boolean attributes to any external script
+to let the parser continue while the script downloads:
 
 ```html
-<script defer src="index.js"></script>
-<script async src="index.js"></script>
+<script defer src="analytics.js"></script>
+<script async src="widget.js"></script>
 ```
 
-These attributes tell the browser that the HTML document does not use `document.write()`, so it can continue parsing the HTML doc:
-- `defer`: Execute the script after the document is fully loaded and parsed and is ready to be manipulated
-- `async`: Execute the script ASAP, but do not block parsing to download the script
-- If both are present, `async` takes precedence over `defer`
-- Scripts run in the order that they are listed in the HTML doc, so async scripts might run out of order
-- Module scripts:
-  - run as `defer`, by default
-  - If you add `async`, the code executes as soon as the module and its dependencies are loaded
-- You can just put the `<script>` tag at the end of the doc to get the same behavior as `defer` and `async`
-  - Use these if you have to load scripts in the head
+Both attributes signal to the browser that the page does not rely on
+`document.write()`. Their behavior differs in when the script executes:
+
+- **`defer`:** Executes the script after the document is fully parsed. Scripts
+  run in document order, making `defer` the right choice for your own
+  application code that needs to query or modify the DOM.
+- **`async`:** Downloads the script without blocking parsing and executes it
+  as soon as it is available, regardless of document order. Use `async` for
+  independent third-party scripts like analytics or ad widgets that do not
+  depend on your application code.
+- **Precedence:** If both attributes are present, `async` takes precedence.
+
+Module scripts defer by default. Adding `async` to a module causes it to
+execute as soon as the module and all its dependencies finish loading,
+regardless of document order.
+
+If you cannot add `defer` or `async`, placing the `<script>` tag at the bottom
+of `<body>` produces equivalent behavior. Reserve `defer` and `async` for
+scripts that must load in `<head>`.
 
 ## DOM
 
-Document Object Model is the API for working with the Document object
-- Document object represents the HTML doc displayed in the browser
-- HTML documents contain nested HTML elements formed in a tree
-- DOM API mirrors tree structure of HTML doc
-  - For each HTML element, there is a JS object
-  - For each string of text, there is a text object
-  - These elements are classes, and they are subclasses of the Node class
-  - JS can query and traverse the Nodes with the DOM API
-  - Node trees use familial language - parent, child, sibling, descendant, ancestors
-- DOM API can create Element and Text nodes and insert them in relation to other Element objects
-- There is a JS class for each HTML tag type
-  - Ex: HTMLBodyElement class, HTMLTableElement class
-  - There is an instance of the JS class - called a JS element object - for each occurrence of the HTML tag in the document
-  - Each JS element object has properties that correspond to HTML tag attributes
-  - Some JS classes define attributes that are not available on the HTML tag
+The *Document Object Model* (DOM) is the API for working with the Document
+object, which represents the HTML page displayed in the browser.
 
-## BOM 
+HTML documents consist of nested elements arranged in a tree. The DOM mirrors
+this structure by representing each HTML element as a JavaScript object and
+each string of text as a text object. Both types are instances of classes that
+extend the base `Node` class. The DOM API lets you query and traverse these
+nodes using familial terminology: parent, child, sibling, descendant, and
+ancestor.
 
-The BOM is what lets JS communicate with the browser, including the following: 
-- Window object 
-- History
-- Navigator 
-- Location
+The DOM API also lets you create new `Element` and `Text` nodes and insert them
+relative to existing elements, making it the primary tool for dynamic content
+manipulation.
 
-To see all the properties of the BOM (an any other JS object), use `console.dir()`:
+JavaScript provides a dedicated class for each HTML tag type. For example,
+`<body>` maps to `HTMLBodyElement` and `<table>` maps to `HTMLTableElement`. For
+each occurrence of a tag in the document, the browser creates an instance of the
+corresponding class, called an *element object*. Each element object exposes
+properties that map to the tag's HTML attributes. Some classes also expose
+additional properties that have no direct HTML attribute equivalent.
 
-```js 
-console.dir(window)     // access window properties with dot notation
-window.history.length   // DOM representation:
-window.document         // go back one page in history
-window.history.go(-1)
+The following example illustrates all three of these concepts using an
+`<input>` element:
+
+```js
+const input = document.querySelector('input[name="email"]');
+
+console.log(input instanceof HTMLInputElement); // true
+console.log(input.type);     // "email" — maps to the HTML `type` attribute
+console.log(input.validity); // ValidityState — no direct HTML attribute equivalent
 ```
 
-### Window navigator 
+## BOM
 
-Contains information about the browser, such as the what the browser is, the version, and the OS running the browser:
+The *Browser Object Model* (BOM) is the API that lets JavaScript communicate
+with the browser itself, outside the document. It includes four core objects:
 
-```js 
+- **Window:** The global browser window and the root of the BOM
+- **History:** The browser's session history for the current tab
+- **Navigator:** Information about the browser and the device running it
+- **Location:** The URL of the current page
+
+To inspect all BOM properties, pass `window` to `console.dir()`. You can then
+access any property with dot notation:
+
+```js
+console.dir(window)       // inspect all BOM properties
+window.history.length     // number of entries in the session history
+window.document           // the DOM document for the current page
+window.history.go(-1)     // go back one page in history
+```
+
+### Window `navigator`
+
+The `navigator` object contains information about the browser, including its
+name, version, and the operating system running it. It is globally available,
+so you can reference it without the `window.` prefix:
+
+```js
 console.dir(window.navigator)
 // navigator is globally available
 console.dir(navigator)
 ```
 
-### Window location object 
+### Window `location` object
 
-Contains the URL of the current web page. You can override parts of this to make the browser go to a different page:
+The `location` object holds the URL of the current page. You can read individual
+URL components or assign a new value to navigate the browser to a different page:
 
-```js 
+```js
 console.dir(window.location)
 // location is globally available
 console.dir(location)
 ```
 
+For example, assigning `location.href` redirects the user immediately:
+
+```js
+location.href = '/login'; // redirects to the login page
+```
+
 ## Global object
 
-There is one global object per browser or tab, and all JS code running in the window or tab shares the same global object:
-- JS's standard library is defined on the global object, and it is the entrypoint for some web APIs, such as `document` and `fetch()`
-- In web browsers, the global object is also the `window` object, which represents the current web browser window
-  - Best practice to use `window.` prefix when calling the global object. Ex: `window.innerWidth`
+Each browser tab has exactly one global object. All JavaScript code running in
+that tab shares it. JavaScript's standard library is defined on the global
+object, and it serves as the entrypoint for core web APIs such as `document`
+and `fetch()`.
 
+In web browsers, the global object is also the `window` object, which
+represents the current browser window. The best practice is to access global
+properties with the `window.` prefix to make the scope explicit. For example,
+`window.innerWidth` returns the width of the browser viewport in pixels.
 
 ## Namespaces
 
-Modules: constants, variables, funcs, and classes defined in a module are private and need to be explicitly exported, and then can be imported by another module
+In a *module*, every constant, variable, function, and class is private by
+default. To share code between modules, you must explicitly export it and import
+it in the consuming module.
 
-Non-modules: All scripts share a namespace and can share vars, funcs, etc. 
-- Be careful with naming conflicts
-- `var` and `function` declarations create shared global object properties. This means that you can invoke them with `window.<function>`
-- ES6 `let`, `const`, and `class` do not create properties on the global object, but still be mindful of namespaces
+In a non-module script, all scripts on the page share a single namespace, which
+creates the risk of naming conflicts. Declarations made with `var` and `function`
+become properties of the global object, making them callable with the `window.`
+prefix. For example:
+
+```js
+var greeting = 'hello';
+function sayHi() { return greeting; }
+
+console.log(window.greeting); // "hello"
+console.log(window.sayHi());  // "hello"
+```
+
+ES6 declarations (`let`, `const`, and `class`) do not create properties on the
+global object, but naming conflicts can still occur across scripts. Prefer
+modules to avoid this problem entirely.
 
 ## Program execution
 
-A JS program is all JS code in or referenced from a document that shares a global Window object
-- non-module scripts also share a top-level namespace
-- an `<iframe>` has a different global Window object and Document object, so its a separate program
-  - If the container and contained document are on the same server, they can communicate with each other
+A JavaScript program consists of all JavaScript code in or referenced from a
+document that shares a global `Window` object. Non-module scripts also share a
+top-level namespace. An `<iframe>` has its own `Window` and `Document` objects,
+making it a separate program. If the containing page and the embedded document
+are served from the same origin, the two programs can communicate with each
+other.
 
 ### First phase
 
-Load JS content:
-- Document content is loaded
-- This stage should take less than a second
-- Code in inline and external `<script>` elements are run in the order they appear in the document, taking into account `defer` and `async` attributes.
-  - Each script is run from top to bottom
-- Some scripts just define functions and classes for the second phase
-  - Ex: Register event handlers or callbacks
+The first phase loads and runs all JavaScript content. The browser processes
+inline and external `<script>` elements in document order, accounting for
+`defer` and `async` attributes, running each script from top to bottom. This
+phase typically completes in under a second. Many scripts in this phase do
+nothing except define functions and classes, or register event handlers and
+callbacks for the second phase.
 
-Detailed breakdown:
-1. Browser creates a Document object and parses the web page. Adds Element objects and Text nodes as it parses the HTML.
-   - `document.readyState` is `loading`
-2. HTML parser adds to the document any `<script>` tags without `defer`, `async`, or modules. Can use `document.write()` to maniupulate the DOM, but these scripts generally just register event handlers
-3. If the HTML parser encounters an `async` `<script>` tag, it downloads the script and continues parsing the document.
-   Do not use the `document.write()` method with this event
-4. `document.readyState` changes to `interactive`
-5. `defer` scripts are executed in the order they are encountered in the document. They have access to the complete document - but do NOT use `document.write()`. Async scripts might also be executed.
-6. `DOMContentLoaded` event is fired on the Document object. This begins the transition to phase 2. `async` scripts might still be executed.
-7. Document is completely loaded, but might be waiting on images or other content. After all content is loaded and `async` scripts are loaded `document.readyState` is changed to `complete` and the browser fires a `load` event on the Window object.
-8. Completely in second phase, event handlers are invoked asynchronously.
+The following steps describe the first phase in detail:
+
+1. The browser creates a `Document` object and begins parsing the page, adding
+   `Element` objects and `Text` nodes as it encounters HTML.
+   `document.readyState` is `"loading"`.
+2. The HTML parser executes any `<script>` tags without `defer`, `async`, or
+   `type="module"` immediately. These scripts can call `document.write()`, but
+   most just register event handlers.
+3. When the parser encounters an `async` `<script>`, it downloads the script in
+   the background and continues parsing. Do not call `document.write()` in an
+   async script.
+4. `document.readyState` changes to `"interactive"`.
+5. `defer` scripts execute in document order. They have full access to the
+   parsed document. Do not call `document.write()` in deferred scripts. Any
+   remaining `async` scripts may also execute at this point.
+6. The browser fires the `DOMContentLoaded` event on the `Document` object,
+   marking the transition to the second phase. Some `async` scripts may still
+   be running.
+7. The document is fully parsed, but may still be waiting on images and other
+   resources. Once all resources finish loading, `document.readyState` changes
+   to `"complete"` and the browser fires a `load` event on the `Window` object.
+8. The second phase begins. Event handlers are invoked asynchronously in
+   response to user and browser events.
 
 ### Second phase
 
-Asychronous and event-driven:
-- In response to events, the browser executes event handlers and callbacks that were registed in the first phase
-- This phase lasts as long as the document is displayed in the browser
-- Event examples:
-  - mouse clicks, keystrokes
-  - network activity
-  - document resource loading
-  - elapsed time
-  - errors in JS code
+The second phase is asynchronous and event-driven. In response to events, the
+browser executes the handlers and callbacks registered during the first phase.
+This phase continues for as long as the document is open. Events that trigger
+callbacks include:
 
-First events to occur are `DOMContentLoaded` and 'load' events:
-- These events are used as a trigger or starting signal for JS actions like registering handlers on the `load` event.
+- Mouse clicks and keystrokes
+- Network activity
+- Document resource loading
+- Elapsed time (timers)
+- JavaScript errors
 
-| **Event**          | **When It Fires**                                   | **Use Case**                                |
-| ------------------ | :-------------------------------------------------- | :------------------------------------------ |
-| `DOMContentLoaded` | After HTML is parsed, before full page load         | Run JS that doesn’t depend on images or CSS |
-| `load`             | After the entire page (CSS, images, etc.) loads     | Initialize app after all resources load     |
-| `pageshow`         | Similar to `load`, also fires on back/forward cache | Detect when page is restored from cache     |
-| `beforeunload`     | When the user is about to leave                     | Show warnings or save data                  |
-| `unload`           | When the page is closing                            | Clean up resources (e.g., logs, API calls)  |
-| `visibilitychange` | When the page is hidden or visible                  | Pause/resume background tasks               |
+The first two events of the second phase are `DOMContentLoaded` and `load`.
+Both serve as starting signals for JavaScript initialization. The following
+table summarizes the key page lifecycle events:
+
+| **Event** | **When it fires** | **Use case** |
+| --- | --- | --- |
+| `DOMContentLoaded` | After HTML is parsed, before full page load | Run JS that does not depend on images or CSS |
+| `load` | After the entire page (CSS, images, etc.) loads | Initialize app after all resources load |
+| `pageshow` | Similar to `load`, also fires on back/forward cache | Detect when page is restored from cache |
+| `beforeunload` | When the user is about to leave | Show warnings or save data |
+| `unload` | When the page is closing | Clean up resources (for example, logs, API calls) |
+| `visibilitychange` | When the page is hidden or becomes visible | Pause or resume background tasks |
+
+The following example registers handlers for both primary events:
 
 ```js
 document.addEventListener('DOMContentLoaded', () => console.log('DOM ready'));
@@ -201,7 +291,8 @@ window.addEventListener('load', () => console.log('page fully loaded'));
 
 ### Real-world example: initializing UI components
 
-`DOMContentLoaded` is the right place to attach event listeners and query the DOM. Use `load` only when you depend on images or stylesheets being available:
+`DOMContentLoaded` is the right place to attach event listeners and query the
+DOM. Use `load` only when you depend on images or stylesheets being available:
 
 ```js
 document.addEventListener('DOMContentLoaded', () => {
@@ -235,106 +326,182 @@ document.addEventListener('DOMContentLoaded', () => {
 
 ### Threading model
 
-JS is single-threaded:
-- there are no locks, deadlocks, race conditions
-- no two event handlers can execute at the same time
-- the browser does not respond to user input when scripts and event handlers are executing, so you can't write code that runs too long
+JavaScript is single-threaded. Only one task executes at a time, which
+eliminates locks, deadlocks, and race conditions. No two event handlers ever
+run simultaneously. Because the browser cannot respond to user input while a
+script is executing, long-running scripts block the UI. Keep individual tasks
+short.
 
-Web worker - a controlled form of concurrency
-- background thread that can perform tasks without freezing the UI
-- can't access the document, does not share its state with other workers or main thread
-- communicates with the main thread and other workers through asynchronous message events
+*Web workers* provide a controlled form of concurrency. A worker runs in a
+background thread and can perform compute-heavy tasks without freezing the UI.
+Workers cannot access the DOM and do not share state with other workers or the
+main thread. They communicate through asynchronous message events:
+
+```js
+// main.js
+const worker = new Worker('worker.js');
+worker.postMessage({ data: largeArray });
+worker.onmessage = (e) => console.log('Result:', e.data.result);
+
+// worker.js
+self.onmessage = (e) => {
+    const result = heavyComputation(e.data.data);
+    self.postMessage({ result });
+};
+```
 
 ## Input/Output
 
-JS takes the following inputs:
-- Document, which JS accesses with the DOM API
-- User input - mouse clicks, keyboard, text, etc
-- URL of document being displayed, avaialble with `document.URL`
-- HTTP cookie req header with `document.cookie`. Cookies are usually server side, but JS can read/write them in browser
-- Global `navigator` property - gives info about the web browser:
+JavaScript reads from several browser-provided inputs:
+
+- **Document:** The HTML page itself, accessed through the DOM API
+- **User input:** Mouse clicks, keyboard events, and text entry
+- **Current URL:** Available as `document.URL`
+- **HTTP cookies:** Readable and writable via `document.cookie`. Cookies are
+  typically managed server-side, but JavaScript can read and write them in
+  the browser.
+- **`navigator` object:** Provides information about the browser and device,
+  including:
   - `navigator.userAgent`
   - `navigator.language`
   - `navigator.hardwareConcurrency`
-- Global `screen` property - info about user's display size
+- **`screen` object:** Provides information about the user's display, including:
   - `screen.width`
   - `screen.height`
-- `navigator` and `screen` objects are like env vars
 
-Produces output:
-- In the DOM
-- In the console, but this is for debugging
+The `navigator` and `screen` objects behave like environment variables: they
+expose read-only context about the runtime that your code can inspect but not
+change. For example, you can read `navigator.language` to serve localized
+content or check `navigator.hardwareConcurrency` to decide how many Web Workers
+to spawn:
+
+```js
+if (navigator.language.startsWith('fr')) {
+    loadContent('fr');
+}
+
+const workerCount = Math.min(navigator.hardwareConcurrency, 4);
+```
+
+JavaScript produces output primarily by modifying the DOM. Console output is
+available but intended for debugging, not user-facing content.
 
 ## Errors
 
-JS programs don't crash, they just don't do what they're supposed to and then log errors to the console:
-- You can set a few properties on the `window` object to handle errors. Mostly useful for telemetry
+JavaScript programs do not crash the way native applications do. When an error
+occurs, the program stops executing the current task, logs the error to the
+console, and continues running. You can assign handler functions to properties
+on the `window` object to intercept errors programmatically, which is most
+useful for telemetry and error reporting services.
+
+Assign a function to `window.onerror` to catch uncaught runtime errors and
+unexpected failures:
 
 ```js
-// log errors and unexpected failures
-window.onerror()
+window.onerror = function(message, source, line, col, error) {
+    reportToTelemetry({ message, source, line, col, error });
+};
+```
 
-// when a Promise is rejected and there is no .catch() 
-window.onunhandledrejection()
-window.addEventListener('unhandledrejection', function(e) {...})
+To catch unhandled Promise rejections, assign to `window.onunhandledrejection`
+or register a listener with `addEventListener`:
+
+```js
+window.onunhandledrejection = (e) => console.error('Unhandled rejection:', e.reason);
+
+window.addEventListener('unhandledrejection', function(e) {
+    reportToTelemetry({ reason: e.reason });
+});
 ```
 
 ## Web security
 
 ### Restrictions
 
-- JS cannot read or write to the filesystem
-- JS cannot access general-purpose networks. JS can only make HTTP reqs and use Websockets
+JavaScript runs in a security sandbox with two core restrictions. First, it
+cannot read or write to the filesystem. Second, it cannot access
+general-purpose networks. JavaScript can only communicate over HTTP requests
+and WebSockets.
 
 ### Same-origin policy
 
-A JS script can only read properties of windows and documents that share the same origin:
-- **origin** - protocol, host, and port of the URL that loaded the document
-- origin of the document that the script is embedded in, not the script itself
-  - If Host A serves a web page with a script loaded from Host B, then the script origin is Host A
-- Different web server = different origin
-- Different scheme = different origin
-- Different port on same server = different origin
-- iframes can't read properties of the page hosting them
+A JavaScript script can only read properties of windows and documents that
+share the same *origin*. An origin is the combination of protocol, host, and
+port from the URL that loaded the document. The origin is determined by the
+document the script is embedded in, not the script's own URL. If Host A serves
+a page that loads a script from Host B, that script's origin is Host A.
 
-Applies to HTTP reqs too:
-- By default, JS can make HTTP reqs to the web server that loaded the document, but cannot make reqs to other web servers unless you use CORS or set the `document.domain`
-  - `document.domain`: when a site has multiple subdomains (_docs.example.com_, _support.example.com_, _example.com_), the different sites might need to access properties from other subdomains. A script with the _docs.example.com_ origin can set `document.domain` to `example.com` to access those files.
-  - CORS: **Cross-Origin Resource Sharing**. Lets a server decide which origins they can serve.
-    - Adds `Origin` request header that lists origins they will support
-    - Adds `Access-Control-Allow-Origin` response header
+Each of the following conditions produces a different origin:
+
+- A different web server
+- A different scheme (for example, `http` versus `https`)
+- A different port on the same server
+
+`<iframe>` elements cannot read properties of the page hosting them.
+
+The same-origin policy also applies to HTTP requests. By default, JavaScript
+can only make requests to the server that loaded the document. To communicate
+with a different server, you must use one of two mechanisms.
+
+**`document.domain`:** When a site spans multiple subdomains (for example,
+_docs.example.com_, _support.example.com_, and _example.com_), scripts on one
+subdomain may need to access properties on another. A script with the
+_docs.example.com_ origin can set `document.domain` to `example.com` to share
+access with the other subdomains.
+
+**Cross-Origin Resource Sharing (CORS):** Lets a server declare which origins
+it will accept requests from. The browser adds an `Origin` header to
+cross-origin requests, and the server responds with an
+`Access-Control-Allow-Origin` header to permit or deny access.
 
 ### Cross-site scripting
 
-When an attacker injects HTML tags or scripts into your website:
-- If you dynamically generate content based on user input, then you must sanitize it by removing any embedded HTML tags, or you are vulnerable
-- Called 'cross-site' because more than one site is involved:
-  - The site that injects HTML might get users to click on something
-  - Then the site runs code from the malicious site. Then they can ready cookie info or track keystrokes, among other things
-- Prevention options:
-  - Remove HTML tags from untrusted data before you create dynamic content
-  - Always display untrusted content in an iframe with the `sandbox` attribute set. This disables scripting and other things
+*Cross-site scripting* (XSS) occurs when an attacker injects HTML or JavaScript
+into your website. It is called "cross-site" because the attack involves more
+than one site: the attacker's site tricks users into triggering code that runs
+in the context of your site, which can then read cookie data or log keystrokes.
 
+If you dynamically generate content from user input, you must sanitize that
+input. Without sanitization, an attacker can embed a `<script>` tag in a form
+field and have it execute in other users' browsers.
 
+Two prevention approaches are available:
 
-## Event loop 
+- Remove HTML tags from all untrusted data before inserting it into the DOM.
+- Display untrusted content inside an `<iframe>` with the `sandbox` attribute
+  set. The `sandbox` attribute disables scripting and other potentially
+  dangerous browser behaviors.
 
-Javascript is a single-threaded language. This means that only one thing can happen at a time: tasks must wait for previously executing tasks to complete.
+## Event loop
 
-The single executor is called the _event loop_. The event loop executes all of the Javascript work. Even though JavaScript is single-threaded, it achieves concurrency with the _call stack_ and the _callback queue_.
+JavaScript is a single-threaded language. Only one thing can happen at a time:
+tasks must wait for previously executing tasks to complete.
 
-### Call stack and callback queue 
+The single executor is called the *event loop*. The event loop executes all
+JavaScript work. Even though JavaScript is single-threaded, it achieves
+concurrency with the *call stack* and the *callback queue*.
 
-The call stack is a queue of all actions that are pending execution. The event loop constantly monitors the call stack and completes pending tasks, one-by-one, from the top of the stack. 
+### Call stack and callback queue
 
-When you use a callback, Javascript outsources the callback task to the browser's web API. When the callback completes, it goes into the callback queue. When the call stack is empty, the event loop checks the callback queue to see if there is any pending work. If there are callbacks waiting in the queue, they are executed one-by-one, from the top of the queue. After each callback is executed, the event loop checks the call stack to see if there is any work to do before executing another callback.
+The call stack is a queue of all actions pending execution. The event loop
+constantly monitors the call stack and completes pending tasks, one by one,
+from the top of the stack.
+
+When you use a callback, JavaScript outsources the callback task to the
+browser's web API. When the callback completes, it moves into the callback
+queue. When the call stack is empty, the event loop checks the callback queue
+for pending work. If callbacks are waiting, they execute one by one from the
+top of the queue. After each callback runs, the event loop checks the call
+stack again before executing the next callback.
 
 ### Microtasks vs macrotasks
 
 The callback queue has two tiers with different priorities:
 
-- **Macrotasks** (`setTimeout`, `setInterval`, I/O, UI events): one runs per event loop turn.
-- **Microtasks** (Promises, `queueMicrotask`, `MutationObserver`): the entire microtask queue drains before the next macrotask begins.
+- **Macrotasks** (`setTimeout`, `setInterval`, I/O, UI events): one runs per
+  event loop turn.
+- **Microtasks** (Promises, `queueMicrotask`, `MutationObserver`): the entire
+  microtask queue drains before the next macrotask begins.
 
 ```js
 console.log('1: sync');
@@ -352,7 +519,9 @@ console.log('2: sync');
 // 4: macrotask
 ```
 
-This explains a common surprise: `await` resumes as a microtask, so code after `await` runs *before* any pending `setTimeout` callbacks — even `setTimeout(..., 0)`:
+This explains a common surprise: `await` resumes as a microtask, so code after
+`await` runs before any pending `setTimeout` callbacks. This applies even to
+`setTimeout(..., 0)`:
 
 ```js
 async function run() {
@@ -368,4 +537,6 @@ console.log('B');
 // Output: A, B, C, D
 ```
 
-Knowing this order matters when you're sequencing async work: prefer Promises over `setTimeout` when you need something to run as soon as the current call stack is clear. 
+Knowing this order matters when you are sequencing async work: prefer Promises
+over `setTimeout` when you need something to run as soon as the current call
+stack is clear.
