@@ -5,34 +5,33 @@ weight: 110
 description:
 ---
 
-An asynchronous program must stop computing while it waits for data to arrive, or for some other event to occur:
-- For example, JS in the browser is event-driven — it waits for the user to do something and then runs code
-- Historically, these events were handled with callbacks
+Asynchronous programs must wait for data to arrive or for some event to occur before they can continue. In the browser, JavaScript is event-driven: it waits for the user to act and then runs code in response. Callbacks originally handled these deferred operations.
 
-There are three important JS features that help with async programs:
-- **Promises**: objects that represent the result of an async operation that has not yet completed
-- **async/await keywords**: let you structure Promise-based code as if it is synchronous
-- **async iterators and the `for/await` loop**: work with streams of async events in loops
+Three language features now give you structured ways to work with async operations:
+
+- **Promises**: Objects that represent the result of an async operation that has not yet completed
+- **`async`/`await`**: Keywords that let you structure Promise-based code as if it were synchronous
+- **Async iterators and the `for/await` loop**: Work with streams of async events in loops
 
 ## The core mental model
 
-JavaScript runs on a single thread. It cannot literally pause and wait — doing so would freeze the browser. Instead, async operations are *registered* and a callback (or Promise) runs when the result is ready. The rest of your code continues running in the meantime.
+JavaScript runs on a single thread. It cannot literally pause and wait. Doing so would freeze the browser. Instead, async operations are *registered* and a callback (or Promise) runs when the result is ready. The rest of your code continues running in the meantime.
 
 Think of it like ordering at a coffee shop:
+
 - **Synchronous**: you stand at the counter and block the queue until your drink is ready.
-- **Asynchronous (callback)**: you give them your name; they call it when it's ready.
-- **Promise**: you get a numbered ticket stub. You can do other things; the ticket resolves when the drink is ready.
-- **async/await**: same as Promise, but reads like you're standing at the counter — the syntax hides the waiting.
+- **Asynchronous (callback)**: you give them your name. They call it when it is ready.
+- **Promise**: you get a numbered ticket stub. You can do other things. The ticket resolves when the drink is ready.
+- **`async`/`await`**: same as a Promise, but reads like you are standing at the counter. The syntax hides the waiting.
 
 ## Callbacks
 
-A callback is a function passed into another function, to be executed at a later time when an operation completes:
-- You don't know *when* the async function will run, but you know *where* — inside the function you passed it to
+A callback is a function passed into another function, to be executed at a later time when an operation completes. You do not know *when* the async function will run, but you know *where*: inside the function you passed it to.
 
-Callbacks work fine for a single async step, but chaining multiple steps produces deeply nested code known as **callback hell**:
+Callbacks work fine for a single async step, but chaining multiple steps produces deeply nested code known as *callback hell*:
 
 ```js
-// Three sequential steps — deeply nested, error-prone to read
+// Three sequential steps: deeply nested, error-prone to read
 login(username, password, (err, user) => {
     if (err) return handleError(err);
 
@@ -47,23 +46,24 @@ login(username, password, (err, user) => {
 });
 ```
 
-Each level adds indentation, and error handling requires a separate check at every step. Promises eliminate this by making each step return a value you can chain off of.
+Each level adds indentation, and error handling requires a separate check at every step. Promises eliminate this by making each step return a value you can chain from.
 
 ## Promises
 
 A Promise is an object that represents a value that is not yet available, but will be at some point in the future (or will fail trying). A Promise is always in one of three states:
 
-| State         | Meaning                                                     |
-| ------------- | ----------------------------------------------------------- |
-| **Pending**   | The async operation has not finished yet                    |
-| **Fulfilled** | The operation completed successfully — a value is available |
-| **Rejected**  | The operation failed — a reason (error) is available        |
+| State | Meaning |
+|:---|:---|
+| **Pending** | The async operation has not finished yet |
+| **Fulfilled** | The operation completed successfully. A value is available. |
+| **Rejected** | The operation failed. A reason (error) is available. |
 
 Once a Promise settles (fulfills or rejects), it never changes state.
 
 You create a Promise with the `new Promise()` constructor, which takes a function with two parameters:
-- `resolve(value)` — call this when the operation succeeds
-- `reject(reason)` — call this when the operation fails
+
+- `resolve(value)`: call this when the operation succeeds
+- `reject(reason)`: call this when the operation fails
 
 ```js
 const fetchScore = new Promise((resolve, reject) => {
@@ -88,7 +88,7 @@ fetchScore
 Each `.then()` returns a *new* Promise. The value you return from one `.then()` callback becomes the input to the next. This lets you write sequential async steps as a flat chain instead of nested callbacks:
 
 ```js
-// Three sequential steps — flat, readable, one error handler covers all of them
+// Three sequential steps: flat, readable, one error handler covers all of them
 login(username, password)
     .then(user    => getProfile(user.id))
     .then(profile => getRecommendations(profile.interests))
@@ -96,7 +96,7 @@ login(username, password)
     .catch(err    => handleError(err));   // catches any rejection in the chain
 ```
 
-The same logic rewritten for comparison with the callback version above — same steps, dramatically easier to follow.
+The code performs the same three steps as the callback example above. The flat chain is dramatically easier to follow.
 
 ### Error handling
 
@@ -120,12 +120,12 @@ fetch('/api/user')
 
 Run multiple Promises concurrently instead of sequentially when the operations are independent.
 
-#### Promise.all — all must succeed
+#### Promise.all: all must succeed
 
 Resolves when *every* Promise resolves. Rejects immediately if *any* Promise rejects:
 
 ```js
-// Fetch user, posts, and notifications in parallel — 3× faster than sequential
+// Fetch user, posts, and notifications in parallel: 3× faster than sequential
 const [user, posts, notifications] = await Promise.all([
     fetch('/api/user').then(r => r.json()),
     fetch('/api/posts').then(r => r.json()),
@@ -133,13 +133,13 @@ const [user, posts, notifications] = await Promise.all([
 ]);
 ```
 
-#### Promise.allSettled — collect all results regardless of failure
+#### Promise.allSettled: collect all results regardless of failure
 
 Resolves when every Promise settles. Never rejects. Each result has a `status` of `'fulfilled'` or `'rejected'`:
 
 ```js
 const results = await Promise.allSettled([
-    fetch('/api/analytics'),    // might fail — analytics is non-critical
+    fetch('/api/analytics'),    // might fail: analytics is non-critical
     fetch('/api/user'),
     fetch('/api/config'),
 ]);
@@ -153,7 +153,7 @@ results.forEach(result => {
 });
 ```
 
-#### Promise.race — first one wins
+#### Promise.race: first one wins
 
 Resolves or rejects with the result of the first Promise that settles. Useful for timeouts:
 
@@ -171,15 +171,16 @@ const data = await withTimeout(fetch('/api/slow-endpoint').then(r => r.json()), 
 
 ## async and await
 
-`async`/`await` is syntactic sugar over Promises — it does not introduce new async behavior, it just makes Promise-based code *read* like synchronous code. Under the hood, every `await` is a `.then()`.
+`async`/`await` is syntactic sugar over Promises. It does not introduce new async behavior. It makes Promise-based code *read* like synchronous code. Under the hood, every `await` is a `.then()`.
 
-Rules:
-- `await` can only be used inside a function declared with `async`
-- `await` pauses execution of the *current async function* only — the rest of your program continues running
-- An `async` function always returns a Promise, even if you return a plain value
+The `async`/`await` syntax follows three rules:
+
+- `await` can only be used inside a function declared with `async`.
+- `await` pauses execution of the *current async function* only. The rest of your program continues running.
+- An `async` function always returns a Promise, even if you return a plain value.
 
 ```js
-// .then() chain and async/await are equivalent — same behavior, different syntax
+// .then() chain and async/await are equivalent: same behavior, different syntax
 
 // Promise chain
 fetch(url)
@@ -221,10 +222,10 @@ async function loadUserDashboard(userId) {
 
 ### Sequential vs parallel execution
 
-This is the most common `async/await` mistake. `await` inside a loop or in sequence causes each request to wait for the previous one:
+Awaiting independent operations in sequence is the most common `async/await` mistake. `await` inside a loop or in sequence causes each request to wait for the previous one:
 
 ```js
-// SLOW — requests run one after another (sequential)
+// SLOW: requests run one after another (sequential)
 async function loadSlow() {
     const user    = await fetchUser();     // waits ~200ms
     const posts   = await fetchPosts();   // then waits ~150ms
@@ -232,7 +233,7 @@ async function loadSlow() {
     // Total: ~450ms
 }
 
-// FAST — requests run at the same time (parallel)
+// FAST: requests run at the same time (parallel)
 async function loadFast() {
     const [user, posts, friends] = await Promise.all([
         fetchUser(),
@@ -247,44 +248,44 @@ Use `Promise.all` when the operations are independent. Use sequential `await` on
 
 ### Avoiding common mistakes
 
-**Forgetting `await`:**
+#### Forgetting `await`
 
 ```js
-// BUG — result is a Promise object, not the parsed JSON
+// BUG: result is a Promise object, not the parsed JSON
 const data = fetch('/api/data').then(r => r.json());
-console.log(data.name);  // undefined — data is a Promise, not an object
+console.log(data.name);  // undefined: data is a Promise, not an object
 
 // CORRECT
 const data = await fetch('/api/data').then(r => r.json());
 console.log(data.name);  // works
 ```
 
-**`await` in a `forEach` loop — does not work:**
+#### `await` in a `forEach` loop: does not work
 
 ```js
-// BUG — forEach does not wait for async callbacks
+// BUG: forEach does not wait for async callbacks
 const ids = [1, 2, 3];
 ids.forEach(async (id) => {
     const user = await fetchUser(id);  // runs concurrently, order not guaranteed
     console.log(user);
 });
 
-// CORRECT option 1 — sequential (one at a time)
+// CORRECT option 1: sequential (one at a time)
 for (const id of ids) {
     const user = await fetchUser(id);
     console.log(user);
 }
 
-// CORRECT option 2 — parallel (all at once)
+// CORRECT option 2: parallel (all at once)
 const users = await Promise.all(ids.map(id => fetchUser(id)));
 ```
 
-**Unhandled rejections:**
+#### Unhandled rejections
 
 Every `async` function that can fail needs either a `try/catch` or a `.catch()` at the call site. Unhandled rejections log errors and, in Node.js, crash the process:
 
 ```js
-// BUG — if loadUser rejects, the error is silently swallowed
+// BUG: if loadUser rejects, the error is silently swallowed
 async function init() {
     loadUser();   // forgot await AND no .catch()
 }

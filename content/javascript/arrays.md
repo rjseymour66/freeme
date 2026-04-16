@@ -1,231 +1,205 @@
 ---
 title: "Arrays"
-# linkTitle: "CSS"
 weight: 120
 description: >
   Helpful Array methods with examples.
 ---
 
-Can use the `new` keyword, but much easier to just assign an array to a variable:
+You can create an array with the `new` keyword, but the array literal syntax is more common:
 
-```js 
-arr1 = new Array("purple", "green", "yellow");
-arr2 = new Array(10);       // creates an array with 10 undefined values
+```js
+let arr1 = new Array("purple", "green", "yellow");
+let arr2 = new Array(10);       // creates an array with 10 undefined values
 
-bestAr = ["black", "orange", "pink"];
+let bestAr = ["black", "orange", "pink"];
 ```
 
-A single array can hold elements of a different type: 
-```js 
+A single array can hold elements of different types:
+
+```js
 let arr = ["hi there", 5, true];
 console.log(typeof arr[0]); // string
 console.log(typeof arr[1]); // number
 console.log(typeof arr[2]); // boolean
 ```
 
-You can change the values of elements of a `const` array, but you can not reassign it to a new array:
-
-```js 
-// let array
-let lArr = [1, 2, 3, 4, 5]
-lArr = ["one", "two", "three", "four", "five"]
-
-lArr
-(5) ['one', 'two', 'three', 'four', 'five']
-
-// cannot reassign const array
-const cArr = [1, 2, 3, 4, 5]
-cArr = ["one", "two", "three", "four", "five"]
-VM1349:1 Uncaught TypeError: Assignment to constant variable.
-    at <anonymous>:1:6
-```
-
-## Properties 
-
-fruit = ["apple", "banana", "pear"]
-(3) ['apple', 'banana', 'pear']
-fruit.length
-3
-
+You can change the values of elements in a `const` array, but you cannot reassign it to a new array:
 
 ```js
-arr.length          // length is a technically a property
+// let array: can be reassigned
+let lArr = [1, 2, 3, 4, 5];
+lArr = ["one", "two", "three", "four", "five"];
+console.log(lArr); // ['one', 'two', 'three', 'four', 'five']
 
-// **************** push ****************//
-// adds elements to the end of the array and
-// it returns the new length of the array
-array.push(val)
-let lenArray = array.push(val)
+// const array: elements can change, but the binding cannot be reassigned
+const cArr = [1, 2, 3, 4, 5];
+cArr = ["one", "two", "three", "four", "five"]; // TypeError: Assignment to constant variable
+```
 
-// **************** splice ****************//
-// adds elements at a specific index, and optionally deletes
-// any elements with the second argument
-// splice(start, numDel, els...)
-> let fruits = ['apple', 'banana', 'orange']
-> fruits.splice(2, 0, 'kiwi', 'grape')
+## Properties
 
-> fruits
-[ 'apple', 'banana', 'kiwi', 'grape', 'orange' ]
+### length
 
-> fruits.splice(2, 1, 'pear')
-[ 'kiwi' ]
+`length` returns the number of elements in an array:
 
-> fruits
-[ 'apple', 'banana', 'pear', 'grape', 'orange' ]
+```js
+const fruit = ["apple", "banana", "pear"];
+console.log(fruit.length); // 3
+```
 
-// Use splice and only the first two arguments to delete a range of elements from an array.
-// Both arguments are inclusive.
-> nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-> nums.splice(1, 5)
-[ 1, 2, 3, 4, 5 ]
-> nums
-[ 0, 6, 7, 8, 9 ]
+### push()
 
+`push()` adds one or more elements to the end of an array and returns the new length:
 
-// **************** concat ****************//
-// concat combines arrays
-> let a = [1, 2, 3]
-> let b = [4, 5, 6]
-> let c = a.concat(b)
-> c
-[ 1, 2, 3, 4, 5, 6 ]
+```js
+const arr = ["a", "b", "c"];
+arr.push("d");               // adds "d" to the end, returns 4
+const len = arr.push("e");   // len === 5
+```
 
+### splice()
 
-// **************** pop() ****************//
-// deletes the last element from the array and returns it
-> c.pop()
-6
-> c
-[ 1, 2, 3, 4, 5 ]
-> let p = c.pop()
-> p
-5
-> c
-[ 1, 2, 3, 4 ]
+`splice(start, deleteCount, ...items)` inserts elements at a specific index and optionally removes elements at the same position. Pass `0` as the second argument to insert without removing anything:
 
+```js
+let fruits = ['apple', 'banana', 'orange'];
+fruits.splice(2, 0, 'kiwi', 'grape');
+console.log(fruits); // ['apple', 'banana', 'kiwi', 'grape', 'orange']
 
-// **************** shift ****************//
-// deletes the first element from the array
-[ 1, 2, 3, 4, 5, 6 ]
-> c.shift()
-1
-> s = c.shift()
-2
-> s
-2
-> c
-[ 3, 4 ]
+fruits.splice(2, 1, 'pear'); // removes 1 element at index 2, inserts 'pear'
+console.log(fruits); // ['apple', 'banana', 'pear', 'grape', 'orange']
+```
 
-// **************** delete ****************//
-// the delete operator removes an item from an array but does not 
-// rearrange other elements
-[ 0, 6, 7, 8, 9 ]
-> delete nums[0]
-true
-> nums
-[ <1 empty item>, 6, 7, 8, 9 ]
+Pass only the first two arguments to delete a range of elements. The second argument is the number of elements to remove, not an end index:
 
+```js
+let nums = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+nums.splice(1, 5);     // removes 5 elements starting at index 1
+console.log(nums);      // [0, 6, 7, 8, 9]
+```
 
-// **************** find ****************//
-// takes a function that identifies an element in an array and returns 
-// the first instance of the element if it is found. If does not find the 
-// element, it returns 'undefined'
+### concat()
 
-> let ar = [1, 2, 3, 4, 5]
+`concat()` combines two or more arrays into a new array without modifying the originals:
 
-> let lost = ar.find(e => e === 6)
-> lost
+```js
+let a = [1, 2, 3];
+let b = [4, 5, 6];
+let c = a.concat(b);
+console.log(c); // [1, 2, 3, 4, 5, 6]
+```
 
-> let found = ar.find(e => e === 1)
-> found
-1
+### pop()
 
+`pop()` removes the last element from an array and returns it:
 
-// **************** indexOf() ****************//
-// returns the index of the element in the array if the element
-// is in the array, or a -1 if it is not present
-[ 1, 2, 3, 4, 5 ]
-> ar.indexOf(4)
-3
+```js
+let c = [1, 2, 3, 4, 5, 6];
+c.pop();               // returns 6, c is now [1, 2, 3, 4, 5]
+const p = c.pop();     // p === 5, c is now [1, 2, 3, 4]
+```
 
-> ar.indexOf(9)
--1
+### shift()
 
-// add a second argument to indexOf() that specifies which position to begin
-// searching the array
-> ar.indexOf(1, 3)
--1
+`shift()` removes the first element from an array and returns it:
 
+```js
+let c = [1, 2, 3, 4, 5, 6];
+c.shift();             // returns 1, c is now [2, 3, 4, 5, 6]
+const s = c.shift();   // s === 2, c is now [3, 4, 5, 6]
+```
 
-// **************** lastIndexOf() ****************//
-// returns the index of the last occurence of an element in an array
-[ 1, 2, 3, 4, 5, 1 ]
-> a.lastIndexOf(1)
-5
+### delete
 
+The `delete` operator removes an element at a given index but does not shift the remaining elements. The slot becomes empty:
 
-// **************** sort() ****************//
-// sort orders arrays alphabetically or numerically
-> a = [2, 4, 6, 3, 5, 2, 5, 8]
-[
-  2, 4, 6, 3,
-  5, 2, 5, 8
-]
-> a.sort()
-[
-  2, 2, 3, 4,
-  5, 5, 6, 8
-]
+```js
+let nums = [0, 6, 7, 8, 9];
+delete nums[0];
+console.log(nums); // [<1 empty item>, 6, 7, 8, 9]
+```
 
+### find()
 
-[ 'bill', 'albert', 'sara', 'megan' ]
-> names.sort()
-[ 'albert', 'bill', 'megan', 'sara' ]
+`find()` accepts a predicate function and returns the first element that satisfies it. If no element matches, it returns `undefined`:
 
-// **************** reverse() ****************//
-// reverses the order of the array elements without sorting
-> forward = [0, 1, 2, 3, 4, 5]
-[ 0, 1, 2, 3, 4, 5 ]
+```js
+let ar = [1, 2, 3, 4, 5];
 
-> forward.reverse()
-[ 5, 4, 3, 2, 1, 0 ]
+const lost  = ar.find(e => e === 6); // undefined
+const found = ar.find(e => e === 1); // 1
+```
 
+### indexOf()
+
+`indexOf()` returns the index of the first matching element, or `-1` if the element is not present. Pass a second argument to start the search at a specific position:
+
+```js
+let ar = [1, 2, 3, 4, 5];
+ar.indexOf(4);     // 3
+ar.indexOf(9);     // -1
+ar.indexOf(1, 3);  // -1: searches from index 3 onward, so 1 is not found
+```
+
+### lastIndexOf()
+
+`lastIndexOf()` returns the index of the last occurrence of an element in an array, or `-1` if the element is not present:
+
+```js
+let a = [1, 2, 3, 4, 5, 1];
+a.lastIndexOf(1); // 5
+```
+
+### sort()
+
+`sort()` orders array elements alphabetically or numerically in place:
+
+```js
+let a = [2, 4, 6, 3, 5, 2, 5, 8];
+a.sort(); // [2, 2, 3, 4, 5, 5, 6, 8]
+
+let names = ['bill', 'albert', 'sara', 'megan'];
+names.sort(); // ['albert', 'bill', 'megan', 'sara']
+```
+
+### reverse()
+
+`reverse()` reverses the order of array elements in place without sorting:
+
+```js
+let forward = [0, 1, 2, 3, 4, 5];
+forward.reverse(); // [5, 4, 3, 2, 1, 0]
 ```
 
 ## Operators
 
 ### ...spread
 
-The `spread` operator spreads an array into individual elements. To do this, precede the name of an array with three dots (`...`):
+The spread operator (`...`) expands an array into individual elements. Precede any array name with three dots to spread it:
 
 ```js
-> let a = [5, 6, 7]
-> let nums = [1, 2, 3, 4, ...a]
+let a = [5, 6, 7];
+let nums = [1, 2, 3, 4, ...a];
 
-> nums
-[
-  1, 2, 3, 4,
-  5, 6, 7
-]
+console.log(nums); // [1, 2, 3, 4, 5, 6, 7]
 ```
 
-You can use the `spread` operator as function arguments:
+You can also pass an array as individual function arguments by spreading it at the call site:
 
-```js 
-> let addTwo = (x, y) => {return x + y}
-> let two = [4, 7]
+```js
+let addTwo = (x, y) => { return x + y; };
+let two = [4, 7];
 
-> addTwo(...two)
-11
+addTwo(...two); // 11
 ```
 
 ### rest parameter
 
-The `rest` parameter is similar to spread, but it accepts a variable number of arguments:
+The rest parameter (`...`) collects any remaining function arguments into an array. Unlike spread, which expands an array outward, rest gathers individual values inward:
 
-```js 
+```js
 function someFunction(param1, ...param2) {
-  console.log(param1, param2);
+    console.log(param1, param2);
 }
 someFunction("hi", "there!", "How are you?");
 
@@ -237,104 +211,108 @@ someFunction("hi", "there!", "How are you?");
 
 ### forEach()
 
-`.forEach()` executes a function on every item in an array:
+`forEach()` executes a callback on every element in an array:
 
 ```js
-const arr = [1, 2, 3]
-arr.forEach(e => console.log(e))
-
-// Output:
-1
-2
-3
+const arr = [1, 2, 3];
+arr.forEach(e => console.log(e));
+// 1
+// 2
+// 3
 ```
 
 ### filter()
 
-The `filter` method takes a function as an argument. This function must return a `Boolean`. Any item in the array that returns `true` will be in the filtered array:
+`filter()` accepts a predicate function and returns a new array containing only the elements for which the function returns `true`:
 
-```js 
-let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-let isEven = (el) => {return el % 2 == 0}
-let newArr = arr.filter(isEven)
-console.log(newArr);
+```js
+let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let isEven = (el) => { return el % 2 == 0; };
+let newArr = arr.filter(isEven);
+console.log(newArr); // [2, 4, 6, 8, 10]
+```
 
-// Output: 
+You can also pass an inline function directly to `filter()`. This example filters an `inventors` array for those born in the 1500s:
 
-shell 
-[ 2, 4, 6, 8, 10 ]
-
-// Array.prototype.filter()
-// 1. Filter the list of inventors for those who were born in the 1500's
-
+```js
 const p = inventors.filter(inventor => {
-  return inventor.year > 1499 && inventor.year < 1600;
+    return inventor.year > 1499 && inventor.year < 1600;
 });
 ```
 
 ### map()
 
-`map()` accepts a function, and executes that function on all elements in an array to return a new array.
+`map()` executes a function on every element and returns a new array with the results. Arrow functions with a single expression do not require an explicit `return`. Multi-line arrow functions do:
 
-These examples have a single statement, so there is no explicit `return`. `map` requires a `return` statement for multiple-line expressions: 
-
-```js 
-let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+```js
+let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 let mapArr = arr.map(x => x * 2);
-console.log(mapArr);
+console.log(mapArr); // [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
+```
 
-// Output: 
- 
-[ 2,  4,  6,  8, 10, 12, 14, 16, 18, 20 ]
+You can also transform arrays of objects. This example extracts first and last names from an `inventors` array:
 
-// Array.prototype.map()
-// 2. Give us an array of the inventors first and last names
-
+```js
 const firstAndLast = inventors.map(inventor => `${inventor.first} ${inventor.last}`);
 ```
 
 ### sort()
 
-`sort` takes a function that takes two arguments to compare elements in an array. These are commonly represented as `a` and `b`. If the function returns `1`, then `a` comes first in the resulting array. Otherwise, `b` comes first.
+`sort()` with no arguments orders elements alphabetically or numerically in place. For custom ordering, pass a comparator function that accepts two elements — commonly named `a` and `b`. The function must return:
 
-In the following example, we want to sort an array of inventor objects by age, where the first object was born the earliest, and the last object was born the latest. We compare `a.year` and `b.year`:
-- If `a.year` is greater than `b.year`, we want `a` to come after `b`. So, we return a number greater than `0` (we return `1`).
-- If `a.year` is less than `b.year`, we want it to come first, so we return `-1`. 
+- A positive number if `a` should come after `b`
+- A negative number if `a` should come before `b`
 
-In other words, write an expression that compares `a` and `b`. If you want `a` to come before `b` based on that criteria, return `-1`. Otherwise, return `1`.
+In practice: write an expression comparing `a` and `b`. Return `1` to place `a` after `b`, and `-1` to place `a` before `b`.
 
-> Sorting numeric arrays depends on whether you want an ascending or descending sort. For ascending, you check whether `a` is greater than `b`. If `a` is greater, return `1` so it comes after `b`.
+This example sorts an `inventors` array by birth year, oldest first. When `a.year` is greater than `b.year`, `a` should come later, so the function returns `1`:
 
 ```js
-// Array.prototype.sort()
-// 3. Sort the inventors by birthdate, oldest to youngest
-
 const ordered = inventors.sort((a, b) => {
-  if (a.year > b.year) {
-    return 1;
-  } else {
-    return -1;
-  }
-})
+    if (a.year > b.year) {
+        return 1;
+    } else {
+        return -1;
+    }
+});
 
-const age = inventors.sort(function (a, b) {
-  return a.year > b.year ? 1 : -1;
+// Equivalent using a ternary:
+const age = inventors.sort((a, b) => a.year > b.year ? 1 : -1);
+```
+
+For ascending numeric sorts, return `1` when `a` is greater than `b`. This example sorts inventors by years lived, longest first:
+
+```js
+const oldest = inventors.sort((a, b) => {
+    const thisPerson = a.passed - a.year;
+    const nextPerson = b.passed - b.year;
+    return thisPerson > nextPerson ? -1 : 1;
+});
+```
+
+You can also sort by derived string values. This example sorts a `people` array (formatted as `"Last, First"`) alphabetically by last name using destructuring:
+
+```js
+const alpha = people.sort((lastOne, nextOne) => {
+    const [aLast, aFirst] = lastOne.split(", ");
+    const [bLast, bFirst] = nextOne.split(", ");
+    return aLast > bLast ? 1 : -1;
 });
 ```
 
 ### reduce()
 
-The `reduce` function lets you calculate a sum using a running total. It is equivalent to a for loop that uses a variable to store the running total. For example:
+`reduce()` calculates a running total by applying a function to each element and an accumulator. It is equivalent to a `for` loop that tracks a running total:
 
 ```js
 let totalYears = 0;
 
 for (let i = 0; i < inventors.length; i++) {
-  totalYears += inventors[i].year;
+    totalYears += inventors[i].year;
 }
 ```
 
-`reduce` accomplishes the same goal declaratively with arrow functions:
+`reduce()` accomplishes the same goal declaratively. The first callback argument is the *accumulator* (the running total), and the second is the current element. The value after the function definition is the accumulator's initial value:
 
 ```js
 const totalYears = inventors.reduce((total, inventor) => {
@@ -342,139 +320,95 @@ const totalYears = inventors.reduce((total, inventor) => {
 }, 0);
 ```
 
-Here, `total` is the _accumulator_, which is the variable that stores the running total. The function's return value is added to the accumulator. `inventor` is an element in the array, equivalent to the `inventors[i]` element in the for loop. After the function definition, there is a number. This is the starting value for the accumulator. For example, the initial value of `totalYears`  in the for loop.
-
-Reduce an object:
+You can also reduce into an object. This example counts occurrences of each item in an array:
 
 ```js
-// 8. Reduce Exercise
-// Sum up the instances of each of these
-const data = ['car', 'car', 'truck', 'truck', 'bike', 'walk', 'car', 'van', 'bike', 'walk', 'car', 'van', 'car', 'truck'];
+const data = ['car', 'car', 'truck', 'truck', 'bike', 'walk', 'car', 'van',
+              'bike', 'walk', 'car', 'van', 'car', 'truck'];
 
-// start with a blank object
-// if there is not an obj of that type, make an entry for it
-// increment the number of items 
 const transportation = data.reduce((obj, item) => {
-
-    if (!obj[item]) {     // if item is not already in obj
-      obj[item] = 0;      // add item to the obj
+    if (!obj[item]) {   // if item is not already in obj
+        obj[item] = 0;  // add item to the obj
     }
-    
-    obj[item]++;          // if it is in the obj, increment its value
+    obj[item]++;        // if it is in the obj, increment its value
     return obj;
 }, {});
 ```
 
-
-### sort()
-
-```js
-// 5. Sort the inventors by years lived
-
-const oldest = inventors.sort((a, b) => {
-  const thisPerson = a.passed - a.year;
-  const nextPerson = b.passed - b.year;
-
-  return thisPerson > nextPerson ? -1 : 1;
-});
-```
-
 ### Array.from() with NodeList
 
-```js
-// 6. create a list of Boulevards in Paris that contain 'de' anywhere in the name
-// https://en.wikipedia.org/wiki/Category:Boulevards_in_Paris
-// const category = document.querySelector('.mw-category');
+DOM query methods like `querySelectorAll()` return a `NodeList`, not an array. `Array.from()` converts a `NodeList` into a true array so you can chain array methods on it. The spread operator produces the same result:
 
-// NodeList to Array
-Array.from()
+```js
+const category = document.querySelector('.mw-category');
+
+// Convert NodeList to array
 const links = Array.from(category.querySelectorAll('a'));
 
-// spread takes every item out of an iterable and puts them in an array.
+// Equivalent using spread:
 // const links = [...category.querySelectorAll('a')];
+
 const de = links
-  .map(link => link.textContent)
-  .filter(streetName => streetName.includes('de'));
-```
-
-### sort()
-
-```js
-// 7. sort Exercise
-// Sort the people alphabetically by last name
-const alpha = people.sort((lastOne, nextOne) => {
-  const [aLast, aFirst] = lastOne.split(", ");
-  const [bLast, bFirst] = nextOne.split(", ");
-  return aLast > bLast ? 1 : -1;
-});
+    .map(link => link.textContent)
+    .filter(streetName => streetName.includes('de'));
 ```
 
 ### some()
 
-```js
-// Array.prototype.some() // is at least one person 19 or older?
+`some()` returns `true` if at least one element in the array satisfies the predicate function, and `false` otherwise:
 
+```js
 const isAdult = people.some(person => {
-  const currentYear = (new Date()).getFullYear()
-  return (currentYear - person.year) >= 18
-})
+    const currentYear = (new Date()).getFullYear();
+    return (currentYear - person.year) >= 18;
+});
 ```
 
 ### every()
 
-The `every()` method returns a `boolean` and accepts a function that returns a `boolean`. It returns `true` when each element in the array returns a `true`, and `false` otherwise:
+`every()` accepts a predicate function and returns `true` only when every element satisfies it. It returns `false` as soon as any element fails:
 
-```js 
-let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-let isEven = (el) => {return el % 2 == 0}
-let everyArr = arr.every(isEven)
-console.log(everyArr);
+```js
+let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let isEven = (el) => { return el % 2 == 0; };
+let everyArr = arr.every(isEven);
+console.log(everyArr); // false
+```
 
-// Output: 
-false
+You can also pass an inline predicate. This example checks whether every person in an array is an adult:
 
-// Array.prototype.every() // is everyone 19 or older?
-
+```js
 const allAdults = people.every(person => {
-  const currentYear = (new Date()).getFullYear()
-  return (currentYear - person.year) >= 18
-})
+    const currentYear = (new Date()).getFullYear();
+    return (currentYear - person.year) >= 18;
+});
 ```
 
 ### find()
 
-```js
-// Array.prototype.find()
-// Find is like filter, but instead returns just the one you are looking for
-// find the comment with the ID of 823423
+`find()` returns the first element that satisfies the predicate rather than a new array of all matches. It is like `filter()`, but stops at the first result:
 
+```js
 const comment = comments.find(comment => comment.id === 823423);
 ```
 
 ### findIndex()
 
-```js
-// Array.prototype.findIndex()
-// Find the comment with this ID
-// delete the comment with the ID of 823423
+`findIndex()` returns the index of the first element that satisfies the predicate, or `-1` if no match is found. It is useful when you need to remove or update a specific element by position:
 
+```js
 const index = comments.findIndex(comment => comment.id === 823423);
 ```
 
-### lastIndexOf
+### lastIndexOf()
 
-`lastIndexOf()` returns the index of the last occurence of the argument:
+`lastIndexOf()` returns the index of the last occurrence of the argument, or `-1` if the value is not in the array:
 
 ```js
-let arr = ["one", "two", "three", "four", "two"]
-let lastTwo = arr.lastIndexOf("two")
-console.log(lastTwo);
-
-// Output:
-4
+let arr = ["one", "two", "three", "four", "two"];
+let lastTwo = arr.lastIndexOf("two");
+console.log(lastTwo); // 4
 ```
-
-If you pass a value that is not in the array, it returns a `-1`.
 
 ### at()
 
@@ -484,17 +418,17 @@ If you pass a value that is not in the array, it returns a `-1`.
 const colors = ['red', 'green', 'blue', 'yellow'];
 
 console.log(colors.at(0));    // 'red'
-console.log(colors.at(-1));   // 'yellow' — last element
-console.log(colors.at(-2));   // 'blue'   — second to last
+console.log(colors.at(-1));   // 'yellow': last element
+console.log(colors.at(-2));   // 'blue': second to last
 
 // Compare with the old pattern:
-colors[colors.length - 1];    // 'yellow' — verbose
-colors.at(-1);                // 'yellow' — clear
+colors[colors.length - 1];    // 'yellow': verbose
+colors.at(-1);                // 'yellow': clear
 ```
 
 ### flatMap()
 
-`flatMap(fn)` maps each element to an array, then flattens one level. It is equivalent to `.map().flat()` but more efficient. Use it when your transform function naturally produces multiple values per input:
+`flatMap(fn)` maps each element to an array, then flattens one level. It is equivalent to `.map().flat()` but more efficient. Apply it when your transform function naturally produces multiple values per input:
 
 ```js
 // Split sentences into individual words
@@ -543,4 +477,4 @@ const byCategory = transactions
 // { clothing: 42.48, electronics: 338.95 }
 ```
 
-Each method returns a new array without mutating the original — you can apply multiple transforms safely, and the chain reads top-to-bottom like a description of what you want.
+Each method returns a new array without mutating the original. You can apply multiple transforms safely, and the chain reads top-to-bottom like a description of what you want.

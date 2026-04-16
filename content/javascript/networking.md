@@ -5,36 +5,55 @@ weight: 90
 description:
 ---
 
-All webpages are loaded with HTTP or HTTPS requests, and JS exposes its own APIs so you can use networking in your app.
+Browsers load every web page over HTTP or HTTPS, and JavaScript provides APIs that let you make those same requests from your own code. The `fetch()` API handles HTTP requests, the URL API constructs and parses URLs, and the WebSocket and Server-Sent Events APIs maintain persistent server connections.
 
 ## fetch()
 
-Easy-to-use, promise-based HTTP and HTTPS requests with features that supports any HTTP use case:
-- Replaces the XMLHttpRequest API, which is sometimes called "XHR".
+`fetch()` is a promise-based API for making HTTP and HTTPS requests. It replaces the older *XMLHttpRequest* (XHR) API and supports every standard HTTP method and use case.
 
-All `fetch()` requests are three-step process:
-1. Call `fetch()` with the URL of the content you want to retrieve
-2. Step 1 asynchronously returns a response object, so you need to use methods on the response object to get the response body
-   - This requires two `.then()` calls or two `await` expressions
-3. Process the response body however you need to
+Every `fetch()` call follows the same three-step pattern:
 
+1. Call `fetch()` with the URL of the resource you want to retrieve.
+2. When `fetch()` resolves, call a method on the Response object to read the response body. This step is asynchronous and requires a second `.then()` call or a second `await` expression.
+3. Process the response body.
 
-`fetch()` can accept a url and request properties in a few different ways that include raw strings, an Options object, and a Request object:
-- `fetch('url-string')`
-- `fetch(URL obj)`
-- `fetch(URL obj, {Options-obj-props})`
-- `fetch({Request-obj})`
+`fetch()` accepts a URL and optional request properties in three forms:
+
+- `fetch(urlString)`: a plain string URL for simple GET requests
+- `fetch(urlString, options)`: a string URL plus an options object for configuring the method, headers, body, and more
+- `fetch(request)`: a `Request` object that bundles the URL and options together
+
+The following example fetches a blog post by ID and logs its title:
 
 ```js
-// --- single arg version --- //
 let url = 'https://jsonplaceholder.typicode.com/posts/3';
 
-fetch(url)                                      // 1
-    .then(response => response.json())          // 2
-    .then(json => console.log(json.title));     // 3
+fetch(url)                                      // 1. call fetch with a URL
+    .then(response => response.json())          // 2. read the response body
+    .then(json => console.log(json.title));     // 3. process the data
+```
 
+You can also pass the URL and options as separate arguments. The following example creates a new post by sending a JSON body:
 
-// --- Options object version --- //
+```js
+fetch('https://jsonplaceholder.typicode.com/posts', {
+  method: 'POST',
+  body: JSON.stringify({
+    title: 'Post title!',
+    body: 'Lorem ipsum odor amet, consectetuer adipiscing elit. Feugiat habitasse sodales efficitur ornare mollis parturient. Vehicula lobortis quisque ultricies magnis vulputate habitant curae porta mi. Ultrices egestas orci class elit dictum.',
+    userId: 1,
+  }),
+  headers: {
+    'Content-type': 'application/json; charset=UTF-8',
+  },
+})
+  .then((response) => response.json())
+  .then((json) => console.log(json));
+```
+
+Alternatively, bundle the URL and options into a `Request` object and pass it to `fetch()`:
+
+```js
 let postUrl = 'https://jsonplaceholder.typicode.com/posts';
 let request = new Request(postUrl, {
     method: 'POST',
@@ -51,30 +70,16 @@ let request = new Request(postUrl, {
 fetch(request)
     .then(response => response.json())
     .then(json => console.log(json));
-
-
-// --- multiple arg version ex 1 --- //
-fetch('https://jsonplaceholder.typicode.com/posts', {
-  method: 'POST',
-  body: JSON.stringify({
-    title: 'Post title!',
-    body: 'Lorem ipsum odor amet, consectetuer adipiscing elit. Feugiat habitasse sodales efficitur ornare mollis parturient. Vehicula lobortis quisque ultricies magnis vulputate habitant curae porta mi. Ultrices egestas orci class elit dictum.',
-    userId: 1,
-  }),
-  headers: {
-    'Content-type': 'application/json; charset=UTF-8',
-  },
-})
-  .then((response) => response.json())
-  .then((json) => console.log(json));
 ```
 
 ### Request object
 
-You can create a Request object that includes the URL and an an object of request properties:
+A `Request` object bundles a URL and its configuration into a single value. This is useful when you want to define a request once and pass it to `fetch()` later, or when you need to inspect or clone the request before sending it.
 
+The following example builds a `Request` object for a GET call and passes it to `fetch()`:
 
 ```js
+let url = 'https://jsonplaceholder.typicode.com/posts/1';
 let request = new Request(url, {
     method: 'GET',
     headers: {
@@ -89,47 +94,48 @@ fetch(request)
 
 #### POST requests
 
-When you send a POST request, you usually send the request body as a set of name/value pairs (a JSON object):
-- you can also send the values as a `URLSearchParams()` object with the content type set to `application/x-www-form-urlencoded`
+When you send a POST request, you usually send the request body as a JSON object. You can also send values as a `URLSearchParams` object with the `Content-Type` header set to `application/x-www-form-urlencoded`.
+
+The following example handles a registration form submission, sending the name and email fields to an API endpoint:
 
 ```js
 document.getElementById('userForm').addEventListener('submit', async function (event) {
-event.preventDefault(); // Prevent page reload
+    event.preventDefault(); // Prevent page reload
 
-// Create URLSearchParams object and append form data
-const formData = new URLSearchParams();
-formData.append('name', document.getElementById('name').value);
-formData.append('email', document.getElementById('email').value);
+    // Create URLSearchParams object and append form data
+    const formData = new URLSearchParams();
+    formData.append('name', document.getElementById('name').value);
+    formData.append('email', document.getElementById('email').value);
 
-try {
-    // Send the form data to the REST API
-    const response = await fetch('https://example.com/api/users', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: formData.toString() // Convert URLSearchParams to string
-    });
+    try {
+        // Send the form data to the REST API
+        const response = await fetch('https://example.com/api/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: formData.toString() // Convert URLSearchParams to string
+        });
 
-    // Handle response
-    if (response.ok) {
-    document.getElementById('responseMessage').textContent = 'User successfully added!';
-    } else {
-    document.getElementById('responseMessage').textContent = 'Failed to add user.';
+        // Handle response
+        if (response.ok) {
+            document.getElementById('responseMessage').textContent = 'User successfully added!';
+        } else {
+            document.getElementById('responseMessage').textContent = 'Failed to add user.';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('responseMessage').textContent = 'An error occurred.';
     }
-} catch (error) {
-    console.error('Error:', error);
-    document.getElementById('responseMessage').textContent = 'An error occurred.';
-}
 });
 ```
 
 #### Request object properties
 
-The optional Options object that you can pass to `fetch()` accepts other options:
+The options object accepted by both `fetch()` and `new Request()` supports the following properties:
 
-| Option           | Description |
-|-----------------|-------------|
+| Option | Description |
+|:---|:---|
 | `method` | HTTP method (GET, POST, etc.) |
 | `headers` | Custom headers (e.g., `Authorization`, `Content-Type`) |
 | `body` | Request body (used in `POST`, `PUT`) |
@@ -146,11 +152,11 @@ The optional Options object that you can pass to `fetch()` accepts other options
 
 ### URL API
 
-> Does not work in Internet Explorer
+The `URL` class parses a URL string into its components and lets you read or modify each part. It correctly handles URL encoding and decoding, which makes it preferable to the legacy `escape()` and `unescape()` functions. The `origin` property is read-only. All other properties are read-write.
 
-URL class parses URLs and allows modifications:
-- properly handles escaping and unescaping URL components
-- `origin` is read only. All other propertys are read-write
+The `URL` API is supported in all modern browsers. Internet Explorer does not support it.
+
+The following example shows the components available on a parsed `URL` object:
 
 ```js
 url.href                // 'https://example.com:8080/path/name?q=term&key=value#fragment'
@@ -160,17 +166,14 @@ url.host                // example.com:8080
 url.hostname            // example.com
 url.port                // 8080
 url.pathname            // /path/name
-url.search              // q=term&key=value
+url.search              // ?q=term&key=value
 url.hash                // #fragment
-url.toString()          // https://example.com:433/path/name?q=term&key=value#fragment
+url.toString()          // https://example.com:8080/path/name?q=term&key=value#fragment
 ```
 
-HTTP requests can encode mutliple form field values in the query portion of the URL - returned by `.search` property
-- `url.search` returns entire query portion of the URL
-- `url.searchParams` provides an API to get, set, and query different key/value pairs in the query portion
-- Create a `URLSearchParams` object and append params, then set `url.search` to the `URLSearchParams` object
-- Do NOT use legacy URL funcs: `escape()` and `unescape()`
-- DO use new `encodeURI()` and `decodeURI()`, but it is easier to just use the URL object
+HTTP requests can encode multiple form field values in the query portion of a URL. The `url.search` property returns the full query string, including the leading `?`. The `url.searchParams` property provides a dedicated API for reading and modifying individual key/value pairs. Avoid the legacy `escape()` and `unescape()` functions for URL encoding. Prefer `encodeURI()` and `decodeURI()` when you must encode manually, or rely on the `URL` object, which handles encoding automatically.
+
+The following example demonstrates the `searchParams` API:
 
 ```js
 let url = new URL('https://example.com/search');
@@ -179,12 +182,15 @@ url.searchParams.set('key', 'new-value');           // change value for 'key'
 url.searchParams.get('key')                         // return value for 'key'
 url.searchParams.has('key')                         // Boolean, whether 'key' exists
 url.searchParams.append('opts', 'extra-values');    // add new key/value pair
-url.searchParams.append('opts', 'more-values');     // add new key/value pair with same key name
-url.searchParams.getAll('opts')                     // get all key/values with 'opts' key
-url.searchParams.sort()                             // * didn't work *
-url.searchParams.delete('opts');                    // delete all key/value pairs with 'key' key
+url.searchParams.append('opts', 'more-values');     // add another pair with the same key
+url.searchParams.getAll('opts')                     // return all values for 'opts'
+url.searchParams.sort()                             // sort all pairs by key name
+url.searchParams.delete('opts');                    // delete all pairs with 'opts' key
+```
 
-// URLSearchParams
+To build a query string from scratch, create a `URLSearchParams` object, append your parameters, and assign it to `url.search`:
+
+```js
 let url = new URL('https://example.com/search');
 let params = new URLSearchParams();
 params.append('one', 'value');
@@ -193,13 +199,11 @@ url.search = params;
 ```
 
 
-
 ### Headers
 
-Response Headers are in a Headers object
-- header names are case-insensitive
-- `has()`: Boolean, tests for presence of a header
-- `get()`: value of a header 
+Response headers are stored in a `Headers` object. Header names are case-insensitive. The `has()` method returns a Boolean indicating whether a header is present, and `get()` returns its value.
+
+The following example iterates over all headers in a response and logs each name/value pair:
 
 ```js
 // iterate through all headers
@@ -210,10 +214,12 @@ let logResponseHeaders = responseObject => {
 };
 ```
 
-If you specify a request body (PUT or POST), the browser automatically adds a few headers:
-- "Content-Length" header
-- "Content-type" header that defines the content type as `text-plain; charset=UTF-8`
-- If you send HTML or JSON, add the correct `text/html` or `application/json` content type header
+When you include a request body in a `PUT` or `POST` request, the browser automatically adds two headers:
+
+- `Content-Length`
+- `Content-Type`, set to `text/plain; charset=UTF-8` by default
+
+If you send HTML or JSON, override the default by setting the correct `Content-Type` header (`text/html` or `application/json`). The following example sends a JSON body with the appropriate content type:
 
 ```js
 let postUrl = 'https://jsonplaceholder.typicode.com/posts';
@@ -232,9 +238,12 @@ fetch(postUrl, {
     .then(resp => resp.json())
     .then(json => console.log(json));
 ```
+
 ### Set request parameters
 
-You can add path parameters to a URL:
+You can build a URL with query parameters dynamically by setting values on `url.searchParams`. This is useful when your API accepts filter or search criteria as query string parameters, such as fetching all posts for a specific user.
+
+The following example constructs the URL `https://jsonplaceholder.typicode.com/posts?userId=1` and fetches the matching results:
 
 ```js
 let postByUser = (userId) => {
@@ -250,9 +259,9 @@ postByUser(1);
 
 ### Set request headers
 
-You can either use `fetch()` with multiple arguments (url string or object and a Headers object), or you can create a `Request` object and pass it to `fetch()`:
-- `.set()` method takes two args: a header name and header value
+You can set custom request headers in two ways: pass a `Headers` object as the `headers` property of the `fetch()` options argument, or bundle headers inside a `Request` object. The `Headers` object's `.set()` method takes a header name and a value.
 
+The following example sets an `Authorization` header for HTTP Basic authentication before fetching a list of posts:
 
 ```js
 let authHeaders = new Headers();                                                // create Headers obj
@@ -266,17 +275,19 @@ fetch('https://jsonplaceholder.typicode.com/posts',
 
 ### Response object
 
-`fetch()` returns a Promise that resolves to a Response object:
-- resolves the Promise when the response starts to arrive - at least the status and headers are available, but maybe not the body
-- Only rejects the Promise when one of these occur:
-  - user computer is offline
-  - server is unresponsive
-  - URL hostname does not exist
-- For these reasons, you should always include a `.catch()` clause with `fetch()`
+`fetch()` returns a Promise that resolves to a `Response` object. The Promise resolves as soon as the response starts to arrive. At that point, the status code and headers are available, but the body may not be fully received yet.
+
+The Promise only rejects in these cases:
+
+- The user's computer is offline
+- The server is unresponsive
+- The URL hostname does not exist
+
+Always include a `.catch()` clause with `fetch()` to handle these network failures.
 
 ### The fetch gotcha: 4xx and 5xx do not reject
 
-`fetch()` only rejects its Promise when the network fails entirely (offline, DNS failure, server unreachable). A `404 Not Found` or `500 Internal Server Error` response *resolves* the Promise — you must check `response.ok` yourself:
+`fetch()` only rejects its Promise when the network fails entirely (offline, DNS failure, server unreachable). A `404 Not Found` or `500 Internal Server Error` response *resolves* the Promise. You must check `response.ok` yourself:
 
 ```js
 // WRONG — logs the 404 body as if the request succeeded
@@ -296,7 +307,8 @@ async function getUser(id) {
 
 `response.ok` is `true` for status codes 200–299 only.
 
-Here is a fuller example with error handling:
+The following example adds content-type checking alongside the status check:
+
 ```js
 fetch(url)
     .then(response => {
@@ -313,51 +325,79 @@ fetch(url)
 
 #### Response object properties
 
-| Property    | Description |
-|:-------------|:-------------|
-| `ok`        | `true` if status is 200–299 |
-| `status`    | HTTP status code (e.g., `200`, `404`) |
+The `Response` object exposes the following properties:
+
+| Property | Description |
+|:---|:---|
+| `ok` | `true` if status is 200–299 |
+| `status` | HTTP status code (e.g., `200`, `404`) |
 | `statusText` | HTTP status message (e.g., `"OK"`) |
-| `headers`   | Response headers (`Headers` object) |
-| `url`       | Final URL after redirects |
+| `headers` | Response headers (`Headers` object) |
+| `url` | Final URL after redirects |
 | `redirected` | `true` if redirected |
-| `type`      | Response type (`"cors"`, `"basic"`, `"opaque"`, etc.) |
-| `body`      | Raw response body (`ReadableStream`) |
-| `bodyUsed`  | `true` if the response body has been read - e.g. if you used `.json()` or `.text()` to read the body |
+| `type` | Response type (`"cors"`, `"basic"`, `"opaque"`, etc.) |
+| `body` | Raw response body (`ReadableStream`) |
+| `bodyUsed` | `true` if the response body has been read (for example, by calling `.json()` or `.text()`) |
 
 #### Response object methods
 
-There are multiple methods that return the Response body:
-- `json()`: returns response as a parsed JSON object
-- `text()`: returns response as a string of text
-- `arrayBuffer()`: good for binary data - this returns a Promise that resolves to an ArrayBuffer, which you can turn into a DataView object to read the binary data
-- `blob()`: returns a Blob object - *B*inary *L*arge *Ob*ject. Good for large amounts of binary data
-  - browser might stream the resp to a temporary file then return a Blob that represents that temp file
-  - you can't randomly access Blob data
-  - Use the Blob to create a URL that refers to it with `URL.createObjectURL()` or use FileReader API to get the Blob contents as a string or ArrayBuffer
-- `formData()`: returns Promise that resolves to a FormData() object. Use for bodies encoded in "multi-part/form-data" format.
-  - Common in POST requests.
+The `Response` object provides the following methods for reading the response body:
+
+| Method | Description |
+|:---|:---|
+| `json()` | Returns the response body as a parsed JSON object. |
+| `text()` | Returns the response body as a string. |
+| `arrayBuffer()` | Returns a Promise that resolves to an `ArrayBuffer`. Appropriate for binary data, which you can wrap in a `DataView` to read. |
+| `blob()` | Returns the response body as a *Binary Large Object* (Blob), suited for large binary payloads. The browser may stream the response to a temporary file and return a Blob representing it. You cannot randomly access Blob data. Work with the contents via `URL.createObjectURL()` or the `FileReader` API. |
+| `formData()` | Returns a Promise that resolves to a `FormData` object. Handles bodies encoded as `multipart/form-data`, a common format in POST requests. |
 
 ##### Streaming response bodies
 
-You can also stream the response body, which is a ReadableStream object:
-- good if there is processing you can do on chunks of the resp body as they arrive over the network
-- also good to show users a progress bar for download progress
-- if `response.bodyUsed` returns `false`, you can call `getReader()` on `response.body`, then `read()` method to read the chunks of text
-- `read()` returns a Promise with `done` and `value` properties
-  - `done` returns true when you reach the end of the stream
-  - `value` contains the next chunk of data or `undefined` when complete
-- Avoid using the streaming API with raw Promises - use `async` and `await`
+Instead of waiting for the entire response body to arrive, you can read it as a `ReadableStream` and process chunks as they come in over the network. This is useful when you want to handle large responses incrementally or track download progress for the user.
+
+Before reading the stream, confirm that `response.bodyUsed` is `false`. Then call `getReader()` on `response.body` to get a reader, and call `read()` on the reader to receive chunks. Each call to `read()` returns a Promise that resolves to an object with two properties:
+
+- `done`: `true` when the stream is exhausted
+- `value`: the next chunk of data, or `undefined` when complete
+
+Avoid the streaming API with raw Promises. Prefer `async` and `await` for readable control flow.
+
+The following example streams a large text response, logging each chunk and tracking the total bytes received:
+
+```js
+const response = await fetch('/api/large-file');
+
+if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+}
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let received = 0;
+
+while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) break;
+
+    received += value.length;
+    console.log(`Received ${received} bytes`);
+    console.log(decoder.decode(value, { stream: true }));
+}
+```
 
 ### Uploading files
 
-Use a FormData object in the request body:
-- add `<input type="file">` to your HTML with a `change` event listener
-- there is a files array on this input element, and each element is a Files object
-  1. Get the uploaded file
-  2. Create a FormData object
-  3. append the uploaded file
-  4. Send the request with `fetch()`
+To upload a file, add an `<input type="file">` element to your HTML and attach a `change` event listener. The input's `files` property exposes a `FileList` where each item is a `File` object. To send the file to a server, append it to a `FormData` object and pass that as the `fetch()` request body. This pattern is common for profile photo uploads, document attachments, and other user-submitted binary content.
+
+The process follows four steps:
+
+1. Get the uploaded file from `fileInput.files[0]`.
+2. Create a `FormData` object.
+3. Append the file to the `FormData` object.
+4. Send the request with `fetch()`.
+
+The following example listens for a file selection, validates that a file was chosen, and sends it to an upload endpoint:
 
 ```js
 let fileInput = document.querySelector('#myfile');
@@ -371,7 +411,7 @@ fileInput.addEventListener('change', (e) => {
     const file = fileInput.files[0];                // get uploaded file
 
     let formData = new FormData();                  // create new FormData obj
-    formData.append(file.name, file);                 // add uploaded file to formData obj
+    formData.append(file.name, file);               // add uploaded file to formData obj
 
     fetch('path/to/upload', {                       // send file w/fetch
         method: "POST",
@@ -382,23 +422,19 @@ fileInput.addEventListener('change', (e) => {
 
 ### Cross-origin requests
 
-An origin is `<protocol><host><path><port>`.
+An *origin* is the combination of a URL's protocol, host, and port, such as `https://example.com:8080`. A *same-origin request* is one where the requesting page and the target server share the same origin. By default, browsers block *cross-origin requests*, which target a server with a different origin than the page making the request.
 
-**Same-origin request**: When you request data from your own web server, the server that has the exact same origin as the document that contains the script that is making the request.
-- By default, browsers disallow **cross-origin requests**, or requests to a server that has a different origin than the document that contains the script that is making the request.
-
-**Cross-Origin-Resource-Sharing (CORS)**: enables safe cross-origin requests:
-- browser adds an "Origin" header that you cannot override. This alerts the web server that the reqeust is coming from a document with a different origin
-- server response must have the "Access-Control-Allow-Origin" header to proceed
-  - If not, the Promise that fetch returns is rejected
+*Cross-Origin Resource Sharing* (CORS) enables safe cross-origin requests. When you make a cross-origin `fetch()` call, the browser automatically adds an `Origin` header that you cannot override. This tells the target server where the request originated. The server's response must include an `Access-Control-Allow-Origin` header that permits the requesting origin. If that header is absent, `fetch()` rejects the Promise.
 
 ### Aborting a request
 
-Abort a request if the request takes too long or a user action (e.g. clicking "Cancel") occurs:
-1. Create an AbortController object, then set its `signal` property.
-  - The `signal` property is an AbortSignal object.
-2. Take the AbortController object's `signal` property and set it as the `options.signal` property of the options object that `fetch()` accepts as a second arg
-3. Set a timeout to call the `abort()` method on the AbortController obj when `options.timeout` elapses
+Abort a `fetch()` call when it takes too long or when a user action (e.g., clicking "Cancel") triggers a cancellation. An `AbortController` manages this: its read-only `signal` property is an `AbortSignal` object you pass to `fetch()`. Calling `abort()` on the controller cancels the in-flight request and rejects the Promise with an `AbortError`.
+
+1. Create an `AbortController` object.
+2. Pass `controller.signal` as the `signal` property in the `fetch()` options object.
+3. Call `controller.abort()` when you want to cancel the request, for example inside a `setTimeout()` callback or a button click handler.
+
+The following example cancels a fetch request if it does not complete within 5 seconds:
 
 ```js
 const controller = new AbortController();
@@ -422,7 +458,7 @@ fetch(url, {
 
 ### Retry with exponential backoff
 
-Transient failures and rate-limit responses (`429`) often succeed on a retry. Exponential backoff doubles the wait time on each attempt to avoid hammering a struggling server:
+Transient failures, such as a momentarily overloaded server, and rate-limit responses (`429`) often succeed on a retry. Exponential backoff doubles the wait time between attempts to avoid overwhelming a struggling server:
 
 ```js
 async function fetchWithRetry(url, options = {}, maxRetries = 3, baseDelay = 500) {
@@ -503,15 +539,51 @@ await api.delete('/users/42');
 
 ## Server-sent events
 
-Web apps sometimes need their server to send them notifications. This is not natural for HTTP, but can be done with the EventSource API:
-- client and server make a connection and never close the connection
-- if the connection closes, they jsut reopen it
+Web apps sometimes need the server to push notifications to the client without the client polling repeatedly. HTTP is a request-response protocol, so server-push requires a special approach. The *EventSource* API handles it by opening a persistent HTTP connection and receiving a continuous stream of events from the server. If the connection drops, the browser reconnects automatically.
+
+The following example connects to a live notifications endpoint and logs each incoming event:
+
+```js
+const source = new EventSource('/api/notifications');
+
+source.addEventListener('message', (event) => {
+    console.log('New notification:', event.data);
+});
+
+source.addEventListener('error', () => {
+    console.error('SSE connection lost — browser will reconnect automatically');
+});
+
+// Close the connection when it is no longer needed
+source.close();
+```
 
 ## WebSockets
 
-Lets JS in the browser send text and binary messages to the server:
-- Messages are sent in both directions (unlike SSE)
-- WebSocket protocol (`wss://`) is an extension of HTTP
-  - specify a WebSocket service with a URL
-- Browser first establishes an HTTP connection with the `Upgrade: websocket` header
-- Server needs to be set up to work with WebSockets too
+WebSockets let JavaScript in the browser exchange text and binary messages with a server in both directions, unlike Server-Sent Events, which only flow from server to client. The WebSocket protocol starts with an HTTP handshake: the browser sends an `Upgrade: websocket` header, and once the server accepts, the connection switches to the WebSocket protocol. Both sides can then send messages freely. The server must be configured to handle WebSocket connections.
+
+WebSocket URLs use the `ws://` scheme for unencrypted connections and `wss://` for connections over TLS.
+
+The following example opens a WebSocket connection to a chat server, joins a room, and handles incoming messages:
+
+```js
+const socket = new WebSocket('wss://chat.example.com/room/42');
+
+socket.addEventListener('open', () => {
+    console.log('Connected to chat server');
+    socket.send(JSON.stringify({ type: 'join', username: 'alice' }));
+});
+
+socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    console.log(`${message.username}: ${message.text}`);
+});
+
+socket.addEventListener('close', () => {
+    console.log('Disconnected from chat server');
+});
+
+socket.addEventListener('error', (event) => {
+    console.error('WebSocket error:', event);
+});
+```

@@ -5,49 +5,44 @@ weight: 100
 description:
 ---
 
-Web apps can store data locally on the user's browser - called client-side storage:
-- Like browser memory
-- segregated by origin - data from one site can't read data stored from another
-- Web apps can choose the lifetime of the data: temporarily until the browser exits, or permanently so it is avaiable much later
-- All client-side storage is unencrypted
+Browsers provide several APIs for storing data locally on the user's device. This is called *client-side storage*. All client-side storage is segregated by origin: data stored by one site cannot be read by another. All client-side storage is also unencrypted, so you should never store sensitive data such as passwords or authentication tokens in any client-side storage mechanism.
 
-Forms of client-side storage:
-- **Web Storage**: `localStorage` and `sessionStorage` objects that map string keys to string values
-- **Cookies**: Old mechanism for storing small amounts of data. Cookies are always transmitted to the server with every HTTP request
-- **IndexedDB**: asynchronous API to an object database that supports indexing
+Web apps control how long data persists. Some storage lasts only until the browser tab closes. Other storage remains until the user clears it or the app removes it through the API.
+
+Browser apps have three client-side storage options:
+
+- *Web Storage*: `localStorage` and `sessionStorage` objects that map string keys to string values
+- *Cookies*: A mechanism for storing small amounts of named data. The browser transmits cookies to the server with every HTTP request, making them suitable for session management.
+- *IndexedDB*: An asynchronous API for a structured object database that supports indexing and complex queries.
 
 ## localStorage and sessionStorage
 
-`localStorage` and `sessionStorage` are properties of the Window object, and they are Storage objects:
-- Storage object property values must be strings
-- Properties of a Storage object persis between page reloads
-- You create an arbitrary property name during assignment
+`localStorage` and `sessionStorage` are properties of the `Window` object. Both implement the `Storage` interface: all property values must be strings, and stored data persists between page reloads. You can assign to storage using an arbitrary property name:
 
 ```js
 localStorage.myPropertyName = 'This is anything';
 console.log(Object.keys(localStorage));             // is iterable
 ```
 
-
-Because it only stores strings, you have to encode and decode the data yourself:
+Because `Storage` only accepts strings, you must encode non-string values before storing them and decode them after retrieval. The following example demonstrates encoding numbers, dates, and objects for storage:
 
 ```js
-// storing strings
+// storing numbers
 let x = 10;
 console.log(typeof (x));                // number
-localStorage.x = x; 
+localStorage.x = x;
 console.log(typeof (localStorage.x));   // string
 
 let y = parseInt(localStorage.x);       // convert back to number
 
 // storing dates
 localStorage.rightNow = new Date().toUTCString();
-let oldDate = localStorage.rightNow; 
+let oldDate = localStorage.rightNow;
 console.log(typeof (oldDate));                      // string
 let parsedDate = new Date(Date.parse(oldDate));
 console.log(typeof (parsedDate));                   // object (Date object)
 
-// JSON
+// storing objects as JSON
 let jsonObj = {
     key: "value",
     boolish: true,
@@ -64,7 +59,7 @@ console.log(data);                              // JSON obj
 
 ### Real-world example: typed localStorage wrapper
 
-`localStorage` only stores strings, so you have to serialize and deserialize values yourself. A wrapper handles this transparently and provides a clean API:
+`localStorage` only stores strings, so every non-string value requires serialization before writing and deserialization after reading. A thin wrapper around `localStorage` handles this automatically and provides a consistent API for all value types:
 
 ```js
 const store = {
@@ -98,7 +93,7 @@ const cart = store.get('cart', []);
 
 ### Real-world example: shopping cart
 
-A cart that persists across page refreshes and loads instantly on the next visit:
+The following example implements a persistent shopping cart that survives page refreshes and loads instantly from `localStorage` on the next visit:
 
 ```js
 const CartStore = (() => {
@@ -143,39 +138,33 @@ console.log(`Total: $${CartStore.total().toFixed(2)}`);  // Total: $104.98
 
 ### Properties and methods
 
-| Property              | Description                                                                                                     |
-| --------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `length`              | Returns the number of key-value pairs stored in the storage object.                                             |
-| `setItem(key, value)` | Stores a key-value pair in the storage object. If the key already exists, it updates the value.                 |
-| `getItem(key)`        | Retrieves the value associated with the specified key. Returns `null` if the key does not exist.                |
-| `removeItem(key)`     | Deletes the specified key and its associated value from storage.                                                |
-| `clear()`             | Removes all key-value pairs from storage.                                                                       |
-| `key(index)`          | Returns the key at the specified index within the storage object. Returns `null` if the index is out of bounds. |
+The `Storage` interface exposes the following properties and methods:
+
+| Property | Description |
+|:---|:---|
+| `length` | Returns the number of key-value pairs stored in the storage object. |
+| `setItem(key, value)` | Stores a key-value pair. If the key already exists, it updates the value. |
+| `getItem(key)` | Returns the value for the specified key, or `null` if the key does not exist. |
+| `removeItem(key)` | Deletes the specified key and its associated value. |
+| `clear()` | Removes all key-value pairs from storage. |
+| `key(index)` | Returns the key at the specified index, or `null` if the index is out of bounds. |
 
 
 ### Lifetime and scope
 
-`localStorage` is permanent and is not deleted until the user's device deletes it or it is deleted through the API:
-- scoped to document origin, which means that all scripts with the same origin share one `localStorage` object
-  - they can read and overwrite the data
-- scoped by browser - Chrome and Firefox do not share `localStorage` data
+`localStorage` data persists until the user clears browser storage or the app removes it through the API. It is scoped to the document origin: all scripts sharing the same origin read from and write to the same `localStorage` object. `localStorage` is also scoped to the browser itself. Chrome and Firefox maintain separate stores and do not share data.
 
-`sessionStorage` lives as long as the window or browser tab is open:
-- if the tab is restored, then the `sessionStorage` is restored too
-- scoped to the document origin, just like `localStorage`
-- also scoped per window - if you have 2 tabs open, each tab has its own `sessionStorage` that cannot read or write to each other
+`sessionStorage` lasts only as long as the browser window or tab is open. If the user restores a closed tab, the browser restores its `sessionStorage` as well. Like `localStorage`, it is scoped to the document origin. Unlike `localStorage`, it is also scoped per window: each tab maintains its own separate `sessionStorage` that other tabs cannot read or write.
 
 ### Storage events
 
-When `localStorage` changes, the browser fires a 'storage' event on all Window objects except the Window object that made the change
-- If tab A makes a change to `localStorage`, then tab B will receive a 'storage' event
-- register a handler for a storage event with `window.onstorage` or `window.addEventListener('storage', func(){...}))`
-- a sort of broadcast mechanism that alerts all windows of a user preference or change
-- 'storage' event listener is useful if the user changes to dark mode - the other tabs with the app open can change too
+When `localStorage` changes, the browser fires a `storage` event on every `Window` object except the one that made the change. If tab A writes to `localStorage`, tab B receives a `storage` event. This makes the `storage` event a broadcast mechanism: when one tab updates a user preference, all other open tabs can respond immediately.
+
+Attach a `storage` event handler with `window.onstorage` or `window.addEventListener('storage', handler)`. A dark mode toggle is a typical scenario: when the user switches themes in one tab, other open tabs can update their appearance without a page refresh.
 
 ### Real-world example: syncing dark mode across tabs
 
-The `storage` event fires in every tab *except* the one that made the change. Use it to keep UI state consistent when the user has multiple tabs open:
+The `storage` event fires in every tab *except* the one that made the change. Attaching a listener keeps UI state consistent when the user has multiple tabs open:
 
 ```js
 const THEME_KEY = 'theme';
@@ -202,39 +191,29 @@ window.addEventListener('storage', (e) => {
 });
 ```
 
-Event properties for a storage event:
+The `storage` event object exposes the following properties:
 
-| Property      | Description                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------------- |
-| `key`         | The key in `localStorage` that was changed. Returns `null` if `.clear()` was called.        |
-| `oldValue`    | The previous value of the key before the change. Returns `null` if the key was newly added. |
-| `newValue`    | The new value assigned to the key. Returns `null` if the key was removed.                   |
-| `url`         | The URL of the document where the storage change happened.                                  |
-| `storageArea` | The `Storage` object (`localStorage` or `sessionStorage`) where the change occurred.        |
+| Property | Description |
+|:---|:---|
+| `key` | The key in `localStorage` that was changed. Returns `null` if `.clear()` was called. |
+| `oldValue` | The previous value of the key before the change. Returns `null` if the key was newly added. |
+| `newValue` | The new value assigned to the key. Returns `null` if the key was removed. |
+| `url` | The URL of the document where the storage change occurred. |
+| `storageArea` | The `Storage` object (`localStorage` or `sessionStorage`) where the change occurred. |
 
 
 ## Cookies
 
-- https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
-- https://javascript.info/cookie
+*Cookies* are small pieces of named data the browser stores and associates with a specific website. Originally designed for server-side programming, cookies are an extension of the HTTP protocol: the browser transmits them to the server with every HTTP request, and server-side scripts can set them in response headers. Client-side JavaScript can also read and write cookies through `document.cookie`, unless a cookie carries the `HttpOnly` attribute, which restricts it to server access only.
 
-Small amount of named data stored by the browser and associated with a page or website:
-- client-side is `cookie` object on the Document object
-- designed for server-side programming
-- extension of HTTP protocol
-- avaialble to both the browser and server, so server-side scripts can read and write cookie data to use in the browser
-- specify the lifetime and scope of a cookie with attributes (specially formatted strings) on the 
+Configure a cookie's lifetime and scope by appending attributes to the cookie string when writing it.
 
-
-Set cookies by setting `cookie` property of the document:
-- list of name/value pairs delimited by semi-colon and space
-- `split()` method breaks it into pairs
-- After you extract the cookie, you have to decode the cookie
+`document.cookie` returns all cookies for the current page as a single string of semicolon-separated name/value pairs. To access an individual value, split the string and decode each pair. The following function parses all accessible cookies into a `Map`:
 
 ```js
 document.cookie = 'name=value';         // set a cookie
 
-// func to get cookies
+// set multiple cookies
 document.cookie = 'sessionId=123456789';
 document.cookie = 'username=ricky';
 
@@ -258,10 +237,9 @@ let getCookies = () => {
 getCookies();
 ```
 
+Cookies marked with the `HttpOnly` attribute are not accessible from JavaScript. The server sets them and only the server can read them. The following example reads all JavaScript-accessible cookies and extracts a specific value:
 
-For some browsers (Chrome), you cannot set cookies from the client side, only the server. The following code can read from the cookie:
-
-```js 
+```js
 let cookie = decodeURIComponent(document.cookie);
 let cookieList = cookie.split(";");
 for (let i = 0; i < cookieList.length; i++) {
@@ -270,45 +248,42 @@ for (let i = 0; i < cookieList.length; i++) {
     c = c.trim();
   }
   if (c.startsWith("name")) {
-    alert(c.substring(5, c.length)); 
+    alert(c.substring(5, c.length));
   }
 }
 ```
 
 ### Lifetime and scope
 
-Cookies are transient - they persist for the life of the browser session and disappear when the user exits the window:
-- `max-age` attribute lets browser to know how long to store cookies
-  - browser stores cookies in a file and deleted when they expire
-- `path` and `domain` attributes configure the scope
-  - scoped by origin and document path
-  - cookies are available in any directory or subdirectory that it exists in: `/first/second/cookies` and `/first/second/cookies/subdir` can view the same cookies, but `first/second/` cannot
-  - You usually want this default visibility
-  - Set `path` with a web server URL to share cookies across a website
-  - Ex: Set to `/` to make it avaialble to any page in the domain
-  - Set the `domain` attribute to make cookies across the entire domain, including subdomains.
-  - Ex: Set to `example.com` to make cookies available across `docs.example.com`, `shop.example.com`, etc
-- `secure` attribute to `true` to send cookies via HTTPS only
+By default, cookies are *session cookies*: they persist for the life of the browser session and disappear when the user closes the window. Adding a `max-age` attribute tells the browser how long to keep a cookie, in seconds. The browser stores persistent cookies in a file and deletes them when they expire.
 
-Limitations on browser storage:
+The `path` and `domain` attributes control which pages can access a cookie. By default, a cookie is scoped to the document origin and path. A cookie set at `/first/second/cookies` is accessible to that path and any sub-path such as `/first/second/cookies/subdir`, but not to `/first/second/`. In most cases, the default path scoping is sufficient. Set `path=/` to make a cookie accessible to every page in the domain. Set the `domain` attribute to share a cookie across subdomains. For example, setting `domain=example.com` makes the cookie available on `docs.example.com`, `shop.example.com`, and any other subdomain.
+
+Set the `secure` attribute to restrict a cookie to HTTPS connections only.
+
+Browsers enforce the following limits on cookie storage:
+
 - 300 cookies in total
 - 20 cookies per web server
-- 4KB per cookie
+- 4 KB per cookie
 
 ### Storing cookies
 
-To associate a cookie with the document, just set the `cookie` property on the Document object:
-- use `encodeUIRComponent()` to encode because cannot include semicolons, commas, or whitespace
-  - decode with `decodeUIRComponent()`
-- to set an attribute, append `; attribute=value`
-- to set `secure`, just appened `;secure`
-- change lifetime of a cookie by reseting `max-age`
-- to delete a cookie, set `max-age=0`
+To associate a cookie with the document, assign to the `cookie` property on the `Document` object. Cookie names and values cannot contain semicolons, commas, or whitespace, so encode values with `encodeURIComponent()` and decode them with `decodeURIComponent()`.
+
+Append attributes to the cookie string to configure its behavior:
+
+- To set any attribute, append `; attribute=value`
+- To set the `secure` flag, append `; secure`
+- To update a cookie's lifetime, reset `max-age` with a new value
+- To delete a cookie, set `max-age=0`
+
+The following example includes a `setCookie` helper that handles encoding and `max-age` calculation, and a `deleteCookie` function:
 
 ```js
 document.cookie = 'test=value'
 
-// create a cookie function
+// set a cookie with an optional expiration in days
 let setCookie = (name, value, daysToLive) => {
     let cookie = `${name}=${encodeURIComponent(value)}`;
     if (daysToLive !== null) {
@@ -325,28 +300,61 @@ let deleteCookie = (name) => {
 
 ### Properties
 
-| Property          | Description                                                                                        |
-| ----------------- | -------------------------------------------------------------------------------------------------- |
-| `document.cookie` | Gets or sets cookies associated with the current document. Returns all cookies as a single string. |
+The `Document` object exposes the following cookie property:
 
+| Property | Description |
+|:---|:---|
+| `document.cookie` | Gets or sets cookies associated with the current document. Returns all cookies as a single string. |
 
 ### Attributes
 
-| Attribute  | Description                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------ |
-| `expires`  | Sets the expiration date of the cookie (UTC format). If not set, the cookie is a session cookie. |
-| `max-age`  | Specifies the lifetime of the cookie in seconds.                                                 |
-| `path`     | Defines the URL path for which the cookie is valid. Defaults to the current page’s path.         |
-| `domain`   | Specifies the domain the cookie belongs to. Defaults to the current domain.                      |
-| `secure`   | Restricts the cookie to HTTPS connections only.                                                  |
-| `HttpOnly` | Prevents client-side JavaScript from accessing the cookie. Only sent to the server.              |
-| `SameSite` | Controls whether cookies are sent with cross-site requests (`Strict`, `Lax`, `None`).            |
+Cookie attributes configure lifetime, scope, and security. Append them to the cookie string when writing:
+
+| Attribute | Description |
+|:---|:---|
+| `expires` | Sets the expiration date of the cookie in UTC format. If not set, the cookie is a session cookie. |
+| `max-age` | Specifies the lifetime of the cookie in seconds. |
+| `path` | Defines the URL path for which the cookie is valid. Defaults to the current page's path. |
+| `domain` | Specifies the domain the cookie belongs to. Defaults to the current domain. |
+| `secure` | Restricts the cookie to HTTPS connections only. |
+| `HttpOnly` | Prevents client-side JavaScript from accessing the cookie. Only sent to the server. |
+| `SameSite` | Controls whether cookies are sent with cross-site requests (`Strict`, `Lax`, `None`). |
 
 ## IndexedDB
 
-https://javascript.info/indexeddb
+*IndexedDB* is a transactional, NoSQL database built into the browser. It stores structured data, including files and blobs, and supports indexed queries for efficient lookup. Unlike `localStorage`, IndexedDB is not limited to string values and can handle large amounts of structured data. It is intended for offline-capable applications and is often combined with Service Workers to enable full offline functionality.
 
-A database built into the browser that is usually too much for standard apps:
-- intended for offline apps
-- often combined with ServiceWorkers and other technologies
+IndexedDB organizes data into *object stores*, which are equivalent to tables in a relational database. Each record is identified by a *key*, and you can create *indexes* on any property to search by values other than the key. All operations are asynchronous and must run inside a *transaction*.
 
+The raw IndexedDB API is event-based and verbose. Most developers prefer the `idb` library, which provides a Promise-based interface over the same API without adding abstraction overhead.
+
+The following example opens a database, creates an object store for tasks with a status index, and adds a record:
+
+```js
+const request = indexedDB.open('todo-app', 1);
+
+// Create the object store on first open or version upgrade
+request.onupgradeneeded = (event) => {
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains('tasks')) {
+        const store = db.createObjectStore('tasks', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('status', 'status', { unique: false });
+    }
+};
+
+request.onsuccess = (event) => {
+    const db = event.target.result;
+
+    // Add a task inside a transaction
+    const tx = db.transaction('tasks', 'readwrite');
+    const store = tx.objectStore('tasks');
+    store.add({ text: 'Buy groceries', status: 'open' });
+
+    tx.oncomplete = () => console.log('Task saved');
+    tx.onerror = (e) => console.error('Transaction failed:', e.target.error);
+};
+
+request.onerror = (event) => {
+    console.error('Failed to open database:', event.target.error);
+};
+```
