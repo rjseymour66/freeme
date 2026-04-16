@@ -15,12 +15,12 @@ position: static;
 
 ## Cheatsheet
 
-| Positioning | Containing Block                                                                 | Use cases                                         |
-| :---------- | :------------------------------------------------------------------------------- | :------------------------------------------------ |
-| Fixed       | Viewport                                                                         | modal<br>navigation bars<br>floating chat buttons |
-| Absolute    | Closest-positioned ancestor element<br>(usually a `relative` positioned element) | popup menus<br>tooltips<br>"info" boxes           |
-| Relative    | element with `position: absolute;`                                               | dropdown menus                                    |
-| Sticky      |                                                                                  | section headings                                  |
+| Positioning | Containing Block                                                               | Use cases                                     |
+| :---------- | :----------------------------------------------------------------------------- | :-------------------------------------------- |
+| Fixed       | Viewport                                                                       | modal, navigation bars, floating chat buttons |
+| Absolute    | Closest-positioned ancestor element, (usually a `relative` positioned element) | popup menus, tooltips, "info" boxes           |
+| Relative    | element with `position: absolute;`                                             | dropdown menus                                |
+| Sticky      |                                                                                | section headings                              |
 
 ## Fixed
 

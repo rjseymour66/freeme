@@ -5,31 +5,34 @@ weight = 60
 draft = false
 +++
 
-Container queries help make a UI module responsive. A _container_ is an ancestor element that contains the element that you are trying to size. It usually contains some sort of sizing or background color that defines the region of the page.
+Container queries make individual UI modules responsive based on their container's size or style, rather than the viewport. A _container_ is an ancestor element that contains the element you are sizing. It typically defines a region of the page through its dimensions, background, or other visual boundary.
 
 There are two kinds of container queries:
-- container size queries: Modify the styles of elements based on the width of their container element
-- container style queries: Modify styles of elements based on a custom property of the container
+- **Container size queries**: Adjust element styles based on the width of their container.
+- **Container style queries**: Adjust element styles based on a custom property value on the container.
 
-In some cases, a module does not fit nicely on the page at specific screen sizes, which might cause you to create multiple media queries to address any issues. This violates a key principle of modular design: **design your module without concern for the context that you might use it in**. You can replace the multiple media queries with container queries.
+Without container queries, a module that does not fit its context at certain sizes forces you to write multiple `@media` queries, one for each breakpoint where the layout breaks. This couples the module to specific viewport sizes, which violates a key principle of modular design: **design modules independently of where you use them**. Container queries solve this by letting each module respond to its own container instead.
 
 ## Container size queries
 
-1. Define the container
-2. Query the container with the `@container` rule
+Setting up a container size query takes two steps:
+1. Define the container.
+2. Query the container with the `@container` rule.
 
-
-This example gives the container a name and specifies that you will query it based on its inline size or width:
+This example defines a container named `layout` and sets it to query on its inline size (width). The shorthand `container` property combines `container-name` and `container-type`:
 
 ```css
 /* 1. Define the container */
-container-name: layout;
-container-type: inline-size;
+.l-page > * {
+  container-name: layout;
+  container-type: inline-size;
 
-/* equivalent to this: */
-container: layout / inline-size;
+  /* equivalent shorthand: */
+  container: layout / inline-size;
+}
 ```
-After you define the query, you use the `@container` syntax to query its width and size any element within the container accordingly, much like a `@media` query:
+
+After you define the container, use `@container` to query its width and apply styles to any element inside it, much like a `@media` query:
 
 ```css
 @layer layout {
@@ -62,21 +65,23 @@ After you define the query, you use the `@container` syntax to query its width a
 
 ### Container types
 
-Container types work because CSS uses _containment_ to isolate a subsection of the DOM from the rest of the DOM.
+Container types control what can be queried on the container. CSS uses _containment_ to isolate a subsection of the DOM, which has an important side effect:
 
-- This means that you cannot use a container query to alter the size of the container being queried. This prevents this scenario: You're targeting an `h1` in a container <= 300px, then the font increases the container to 301px and then the container query no longer applies
-- To prevent this, you have set a value for the `container-type` for the element to one of these values:
-  - `normal`: default, the element is not a container
-  - `inline-size`: most practical usage, lets you query a container only on its inline size (width), not height. The height is determined by the contents of the container. Normally, the element width fills the available space, so this is the width you need to query against. For flex items, you need to set `flex-basis` or `flex-grow` or the container width is `0`.
-  - `size`: has full-size containment in both block and inline directions. The height of the container is not determined by the contents. You need to set `height` or `min-height` explicitly, or use grid or flexbox to define the height. For absolute- or fix-positioned elements, you can establish the height with the `inset` property. If you don't use any of these, the height is `0` and you will have issues.
+- You cannot use a container query to alter the size of the container being queried. This prevents a feedback loop: if you target an `h1` in a container `<= 300px` and the font size expands the container to `301px`, the query would no longer apply.
+- To prevent this, you must set a `container-type` value on the element. The available values are:
+  - `normal`: default; the element is not a container.
+  - `inline-size`: the most practical option. Lets you query a container only on its inline size (width), not height. The height is determined by the contents of the container. Normally, the element width fills the available space, so this is the width you need to query against. For flex items, you need to set `flex-basis` or `flex-grow` or the container width is `0`.
+  - `size`: has full-size containment in both block and inline directions. The height of the container is not determined by the contents. You need to set `height` or `min-height` explicitly, or use grid or flexbox to define the height. For absolute- or fixed-positioned elements, you can establish the height with the `inset` property. If you do not use any of these, the height is `0` and the container will not render correctly.
 
 ## Container names
 
 Assign a container name so you can choose which container to query. You can assign unique names, or you can reuse the same name for multiple containers.
 
-- You can reuse a name like `layout`. This usually applies to the container you want to query, because a container query queries against the closest ancestor element assigned a container name.
-- Assign multiple names, depending on the use case
-- (Bad idea) Assign no name, and the browser looks up the DOM and queries the first container it finds. Can't use `container` shorthand if you don't assign a name.
+- **Reuse a name** like `layout` across containers. A container query targets the closest ancestor element with that container name, so reusing names lets different modules query their nearest matching ancestor independently.
+- **Assign multiple names** to a single container when different modules need to query the same element by different names, depending on their context.
+- **Assign no name** with caution: the browser walks up the DOM and queries the first container it finds. You also cannot use the `container` shorthand without a name.
+
+You can assign multiple names to one container in a single declaration:
 
 ```css
 /* multiple names, one query */
@@ -85,9 +90,9 @@ container: layout sidebar / inline-size;
 
 ### Containers and modules
 
-Good practice is to make a container when a module has a containing element that might house other modules. This approach is almost always better than working with `@media` queries, but you have to be consistent.
+Make a container when a module has an element that contains other modules. Apply this approach consistently across your stylesheet. Mixing container queries and `@media` queries for the same modules creates unpredictable layout behavior.
 
-This example makes a container out of a flex item, so it adds a `flex-grow` value
+The following example makes a flex item into a container. Because the flex item needs to fill available space, it also sets `flex-grow: 1`:
 
 ```html
 <aside>
@@ -137,21 +142,21 @@ Containers have their own units that are similar to viewport width and height:
 - `cqmin`: Smaller of `cqi` or `cqb`
 - `cqmax`: Larger of `cqi` or `cqb`
 
-You can't use block-directional units (`cqh` and `cqb`) to query `inline-size` containers.
+You cannot use block-directional units (`cqh` and `cqb`) to query `inline-size` containers.
 
-This example uses container units to size images and fonts within a container. There are no container queries because you aren't applying styles based on size, you are just using the size of the container to apply styles:
+The following example sizes images and fonts using container units. It applies no container queries because the styles do not depend on breakpoints. They scale continuously with the container size:
 
 ```css
 @layer modules {
   ...
-  /* image is 30% container height */
+  /* max height is 30% of container inline size */
   .race-detail > img {
     inline-size: 100%;
     max-block-size: 30cqi;
     object-fit: cover;
   }
 
-  /* font is 3.5% of container width, w min and max */
+  /* font is 3.5% of container inline size, with min and max */
   .race-detail__body > h3 {
     font-size: clamp(1rem, 3.5cqi, 1.8rem);
     font-family: Helvetica, Arial, sans-serif;
@@ -161,7 +166,7 @@ This example uses container units to size images and fonts within a container. T
 
 ## Container style queries
 
-Container style queries respond to a container based on aspects of its style, such as custom property values that set a dark theme. All styles that inherit this custom property apply the styles in this container query:
+Container style queries adjust element styles based on a container's CSS custom property values. Any element that inherits the custom property can respond to it through a style query:
 
 ```css
 @container style(--color-theme: dark) {
@@ -169,12 +174,12 @@ Container style queries respond to a container based on aspects of its style, su
 }
 ```
 
-You do not have to explicitly define containers to use style queries:
+You do not have to explicitly define a container type to use style queries:
 
-- good if you want a module to appear differently, depending on the context
-- not widely adopted, best if used as progressive enhancement
+- **Useful for context-dependent modules**: Apply different styles to a module based on where it appears on the page, without changing its HTML.
+- **Progressive enhancement**: Container style queries are not yet widely adopted. Treat them as an enhancement rather than a core layout dependency.
 
-These rulesets change the behavior of the media object when it is in a sidebar. The layout module says, "For any `l-page` element with a child element with the `aside` class, set the `sidebar` custom property to `true`." Then the container query says, "For any module where the `sidebar` custom property is `true`, apply the styles that match these selectors":
+The following example changes a `.race-detail` module's layout when it appears inside a sidebar. The layout layer sets a `--sidebar` custom property on any `aside` inside `.l-page`. The modules layer then reads that property with a style query and applies sidebar-specific styles:
 
 ```css
 @layer layout {
@@ -201,20 +206,20 @@ These rulesets change the behavior of the media object when it is in a sidebar. 
 }
 ```
 
-These styles help you maintain modularity, because now you can apply styles to specific elements in context, regardless of what page they are on. For example, you could create these styles with this rule:
+This approach keeps the module portable. You can apply its sidebar styles to any page, regardless of context. The alternative couples the styles to a specific page structure:
 
 ```css
 .l-page > aside .race-detail {...}
 ```
 
-But that couples the styles to pages where the element is nested in `.l-page`.
+That selector only works when `.race-detail` is nested inside `.l-page`, limiting where you can reuse it.
 
 ### Dark mode with style queries
 
-You can use data attributes to apply light and dark theme styles:
+This pattern implements a theme switcher that respects the OS color preference by default and lets users override it with a button. Apply it with these steps:
 
 1. Use a `prefers-color-scheme` media query to set a `--color-theme` custom property.
-2. Add buttons that add the light and dark theme data attributes.
+2. Add buttons that set the light and dark theme data attributes.
 3. Use container style queries to adjust specific styles depending on which custom property is applied to the page.
 
 ```css
@@ -273,7 +278,7 @@ You can use data attributes to apply light and dark theme styles:
 }
 ```
 
-Here is the Javascript to set the appropriate `data-theme` attribute:
+The following JavaScript sets the appropriate `data-theme` attribute when a user clicks either button:
 
 ```js
 const lightThemeButton = document.querySelector("#light-theme");

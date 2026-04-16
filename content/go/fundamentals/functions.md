@@ -7,13 +7,11 @@ draft = false
 
 ## Variadic functions
 
-A variadic function accepts as input a variable number of arguments of the same type. To define a variadic function, place `...` before the data type in the parameter description. Go converts a variadic parameter into a slice, so you can manipulate it with slice methods and techniques.
+A variadic function accepts a variable number of arguments of the same type. Place `...` before the type in the parameter list to mark it as variadic. Go converts the arguments into a slice, so you can use any slice operation on them.
 
-{{< admonition "Last parameter" warning >}}
-If the function has more than one parameter, the variadic parameter must be the last parameter in the list.
-{{< /admonition >}}
+The variadic parameter must be last if the function has multiple parameters.
 
-For example, this function accepts zero or more strings, which you can access with the `str` parameter. The list of variadic arguments is comma-delimited:
+This function accepts zero or more strings and prints each one:
 
 ```go
 func varString(str ...string) {
@@ -24,61 +22,62 @@ func varString(str ...string) {
 }
 ```
 
-## Closures
-
-A closure captures variables from its outer scope or environment---it retains its state after it finishes execution. This works because of how variables are assigned and garbage collected.
-
-When a normal function is invoked, it is placed on the stack with its local variables. When the function returns, the function and its local variables are popped off the stack and deleted from memory.
-
-When a closure returns, Go's runtime detects that the variables in the outer function are referenced by the inner function, so it doesn't delete the variable. Instead, it allocates space for the variables in the heap, and the enclosed function stores a pointer to the variable's address in the heap.
-
-For example, when `outerFunc` returns, it is popped off the stack and deleted from memory, but `count` is allocated to the heap and referened by the returned anonymous function:
+Call it with any number of arguments:
 
 ```go
-func outerFunc() func() int {
+varString("one", "two", "three")
+```
+
+## Closures
+
+A closure is a function that captures variables from its surrounding scope. It retains access to those variables even after the outer function has returned.
+
+When a normal function returns, Go pops it off the stack and frees its local variables. A closure changes this: when Go detects that an inner function references a variable from an outer function, it allocates that variable on the heap instead. The inner function holds a pointer to it.
+
+This `counter` function returns an anonymous function that increments and returns `count`. Each call to the returned function advances the same `count` variable:
+
+```go
+func counter() func() int {
 	count := 0
 	return func() int {
 		count++
 		return count
 	}
 }
+
+c := counter()
+fmt.Println(c()) // 1
+fmt.Println(c()) // 2
+fmt.Println(c()) // 3
 ```
+
+When `counter` returns, `count` is not freed. The returned function holds a pointer to it on the heap.
 
 ### Middleware
 
-The closure pattern is commonly used for middleware in web applications. For example, you can use a closure to add a logger to a handler rather than call a logging function within each handler.
+The closure pattern is common in HTTP middleware. The middleware function wraps a handler and adds behavior around it without modifying the handler itself.
 
-This logger middleware "closes" over the `f` variable, which means the returned handler function can access `f` on the heap, even after `logger` returns:
-1. `logger` accepts and returns an `http.HandlerFunc`, which is a function with the same signature as `ServeHTTP`.
-2. `HandleFunc` expects this type, so you can wrap it around the `hello` handler.
-3. The `return` statement returns a `HandlerFunc`---a function with a handler signature.
-4. The anonymous returned function is closed over by `logger`, so it can access its variables from the heap. Here, it accesses `f` to call the function passed to `logger`. In the `main` method, it calls the `hello` handler.
-5. The function logs to the console the length of time it takes to execute the handler.
+This `logger` middleware closes over `f`, the handler passed to it, so the returned function can call `f` after the outer function has returned:
+
+1. `logger` accepts an `http.HandlerFunc` and returns one.
+2. The returned function is the actual handler. It records the start time, calls `f`, then logs the elapsed duration.
+3. Wrap any handler with `logger` at registration time.
 
 ```go
-func main() {
-	http.HandleFunc("/hello", logger(hello))                                // 2
-	http.ListenAndServe(":8080", nil)
-}
-
-func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World")
-}
-
-func logger(f http.HandlerFunc) http.HandlerFunc {                          // 1
-	return func(w http.ResponseWriter, r *http.Request) {
+func logger(f http.HandlerFunc) http.HandlerFunc {             // 1
+	return func(w http.ResponseWriter, r *http.Request) {      // 2
 		start := time.Now()
 		f(w, r)
-		end := time.Now()
-		name := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
-		log.Printf("%s (%v)", name, end.Sub(start))                         // 3
+		log.Printf("%s (%v)", r.URL.Path, time.Since(start))
 	}
 }
+
+http.HandleFunc("/hello", logger(hello))                       // 3
 ```
 
 ## Immediately invoked function literals (IIFL)
 
-An IIFL is an anonymous function that you call at the end of the closing bracket. Goroutines are commonly executed as IIFLs:
+An IIFL is an anonymous function called immediately after its closing brace. Goroutines commonly use this pattern:
 
 ```go
 for _, file := range os.Args[1:] {
@@ -90,137 +89,104 @@ for _, file := range os.Args[1:] {
 }
 ```
 
-Here, we run a goroutine in an IIFL and pass the `file` value from the outer `for range` loop. Using separate variables (`file` and `filename`) ensures that each goroutine operates on a different file, one for each iteration.
+`file` is passed as an argument to the IIFL rather than captured from the loop variable. Each goroutine receives its own copy of `file`, evaluated at the moment the goroutine is launched.
 
-If the goroutine closure captured `file`, all goroutines would share that same variable. This variable changes with each iteration, and it might be the same value by the time they execute. In other words, every goroutine might try to compress the last file passed to the `for range` loop.
-
-Passing `file` as an argument to the IIFL means that it is evaluated immediately, and each goroutine gets its a unique copy of the `file` variable in each iteration.
+If the goroutine captured `file` directly, all goroutines would share the same variable. Because the loop advances that variable before the goroutines run, every goroutine would likely operate on the last value the loop assigned. Each would compress the same file rather than a unique one.
 
 ## Function types
 
-You can declare a type as a function. For example:
-- Assign it to a variable
-- Pass it as an argument
-- Return it from another function
-- Store it in a struct
-
-Function types are a clean way to pass behavior in your program. They are similar to an interface, but they are not applied as broadly and are usually used for a simple abstraction.
-
+A function type declares a function signature as a named type. You can assign it to a variable, pass it as an argument, return it from another function, or store it in a struct. Function types are a lightweight alternative to an interface when you need to pass a single behavior.
 
 ### Strategy pattern
 
-This pattern lets you pass different behavior into the same function.
+The strategy pattern lets you pass different behavior into the same function by accepting a function type as a parameter:
 
-1. Declare a function type. `Operation` is a function that takes two `int`s and returns an `int`:
+1. Declare the function type:
    ```go
    type Operation func(int, int) int
    ```
-2. `calculate` takes two `int`s and an `Operation` function type. The function calls the `Operation` function on the given `int` inputs:
+2. Write a function that accepts it:
    ```go
    func calculate(a, b int, op Operation) int {
-	   return op(a, b)
+       return op(a, b)
    }
    ```
-3. Now, you can define multiple functions that use the `Operation` signature:
+3. Define functions that match the signature:
    ```go
-   func add(a, b int) int {
-   	  return a + b
-   }
-   
-   func subtract(a, b int) int {
-   	  return a - b
-   }
-   
-   func multiply(a, b int) int {
-   	  return a * b
-   }
+   func add(a, b int) int      { return a + b }
+   func subtract(a, b int) int { return a - b }
+   func multiply(a, b int) int { return a * b }
    ```
-4. Pass these functions to `calculate`, which defines its behavior:
+4. Pass them to `calculate`:
    ```go
-   func main() {
-	   a := calculate(5, 4, add)
-	   b := calculate(5, 4, subtract)
-	   c := calculate(9, 2, multiply)
-   }
+   a := calculate(5, 4, add)
+   b := calculate(5, 4, subtract)
+   c := calculate(9, 2, multiply)
    ```
 
 ### Dependency injection
 
-This example creates a service that uses a function type to define what kind of notification it sends. 
+A function type can serve as a dependency. The struct doesn't know what `send` does, only its signature. You swap implementations without changing the service:
 
 1. Define the function type:
    ```go
    type SendFunc func(to, message string) error
    ```
 2. Build a service that depends on it:
-   1. Define the struct. The `NotificationService` type does not know what `send` does, only that it is a function that takes two strings and returns an error.
-   2. A factory function. This is where the dependency injection occurs. You pass to the factory function a `SendFunc` function that is assigned to the new `NotificationService` instance.
-   3. Create a `NotifyUser` method that calls a `SendFunc` with the given arguments. This is a closure that captures the arguments that you pass to the the `SendFunc`. In addition, it registers a function with the service that sends a not-yet-defined function.
-   
-      `send` returns an error, so we do not have to explicitly return an `error`.
-
+   - `NotificationService` holds a `SendFunc` field. It doesn't know whether `send` prints, emails, or does nothing.
+   - `NewNotificationService` is the constructor. Pass the implementation here. This is the injection point.
+   - `NotifyUser` calls `send` with the recipient and message. It delegates entirely to whatever was injected.
    ```go
-   type NotificationService struct {                                    // 1
-	   send SendFunc
+   type NotificationService struct {
+       send SendFunc
    }
 
-   func NewNotificationService(send SendFunc) *NotificationService {    // 2
-   	  return &NotificationService{send: send}
+   func NewNotificationService(send SendFunc) *NotificationService {
+       return &NotificationService{send: send}
    }
 
-   func (s *NotificationService) NotifyUser(user string) error {        // 3
-      msg := "Welcome!"
-      return s.send(user, msg)
+   func (s *NotificationService) NotifyUser(user string) error {
+       return s.send(user, "Welcome!")
    }
    ```
-3. To implement the pattern, define a `SendFunc` function:
+3. Define a `SendFunc` implementation:
    ```go
    func testSend(to, message string) error {
-	  fmt.Printf("--Test message--\nTo: %s\nMessage: %s\n", to, message)
-	  return nil
+       fmt.Printf("To: %s\nMessage: %s\n", to, message)
+       return nil
    }
    ```
-4. In `main`, create the service:
-   1. Creat a `NotificationService`, and pass the `testSend` function to set its `send` field.
-   2. Call the `NotifyUser` method and handle the error.
+4. Wire them together:
    ```go
    func main() {
-	   svc := NewNotificationService(printSend)                          // 1
-	   if err := svc.NotifyUser("alice@example.com"); err != nil {       // 2
-	      log.Fatal(err)
-	   }
+       svc := NewNotificationService(testSend)
+       if err := svc.NotifyUser("alice@example.com"); err != nil {
+           log.Fatal(err)
+       }
    }
    ```
 
-#### Production-grade 
+#### Production-grade
 
-If we were to implement this in production, we would want to remove the global dependency on STDERR, which is where the error is logged. To do this, we need to move the logic in `main` into a `run` function.
-
-Define an `env` struct that stores the dependencies, and pass it to the `run` function:
-
+To make this testable, move the logic into a `run` function and inject `stderr`:
 
 ```go
-// dependencies
 type env struct {
-	stderr io.Writer
+    stderr io.Writer
 }
 
 func run(e *env) error {
-	svc := NewNotificationService(printSend)
-	if err := svc.NotifyUser("alice@example.com"); err != nil {
-		fmt.Fprintf(e.stderr, "%v\n", err)
-		return err
-	}
-	return nil
+    svc := NewNotificationService(testSend)
+    if err := svc.NotifyUser("alice@example.com"); err != nil {
+        fmt.Fprintf(e.stderr, "%v\n", err)
+        return err
+    }
+    return nil
 }
-```
 
-Now, we can call the service from `main` and pass any Writer for STDERR. This makes our code composable and testable:
-
-```go
 func main() {
-	if err := run(&env{stderr: os.Stderr}); err != nil {
-		os.Exit(1)
-	}
+    if err := run(&env{stderr: os.Stderr}); err != nil {
+        os.Exit(1)
+    }
 }
 ```
