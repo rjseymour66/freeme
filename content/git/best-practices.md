@@ -1,6 +1,6 @@
 ---
 title: "Best practices"
-weight: 80
+weight: 10
 description: >
   Professional workflows for software projects, sysadmin files, and
   environment setup.

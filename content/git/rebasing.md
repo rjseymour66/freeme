@@ -1,6 +1,6 @@
 ---
 title: "Rebasing"
-weight: 100
+weight: 90
 description: >
   Replay commits onto a new base to produce a clean, linear history.
 ---

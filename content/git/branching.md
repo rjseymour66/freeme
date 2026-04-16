@@ -1,6 +1,6 @@
 ---
 title: "Branching"
-weight: 90
+weight: 80
 description: >
   Create, switch, merge, and delete branches. Resolve conflicts.
 ---
